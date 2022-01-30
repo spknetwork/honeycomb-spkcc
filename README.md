@@ -72,23 +72,28 @@ Deploy from heroku or similar and set ENV variables with a hive name and active 
 
 * This software has been tested on Node.js version 10 through 15
 * Node.js and git are required
+* Hive account with ~100 HP
+* Additional Hive Keypair
 
 ### Server Installation
-
+Detailed Instructions also at /docs/setup.md
+Which include Docker and IPFS linking
 * Clone this repository
 
-`git clone https://github.com/disregardfiat/honeycomb.git`
+`git clone https://github.com/3speaknetwork/honeycomb-spkcc.git`
 
 * Navigate to the root directory of token
 
-`cd dlux_open_token`
+`cd honeycomb-spkcc`
 
 * Set configuration variables
 
 `nano .env` or your favorite editor
-
-`account=hiveaccount
-active=hiveactivekey`
+```
+account="hiveaccount"
+active=5JactivePrivateKey
+msowner=5KadditionalPrivateKey
+mspublic=STMpublickey```
 
 * Quit editor and save changes
 
