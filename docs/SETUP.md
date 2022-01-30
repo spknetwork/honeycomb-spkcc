@@ -9,8 +9,8 @@
 * A Dual-Core 1GB / 25GB should be fine (Check with specific community for additional requirements)
 * Instructions for Ubuntu follow:
 * `sudo apt install docker docker-compose` --install dependencies
-* `git clone https://github.com/disregardfiat/honeycomb.git` --download this repo
-* `cd honeycomb` --change working directory
+* `git clone https://github.com/3speaknetwork/honeycomb-spkcc.git` --download this repo
+* `cd honeycomb-spkcc` --change working directory
 * Edit your node specifics via `touch .env && nano .env`
    * Contents: 
 ```
