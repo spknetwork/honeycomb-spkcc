@@ -39,15 +39,12 @@ module.exports = {
                 "escrows": 0,
                 "lastGood": 49994100, //genesisblock
                 "marketingRate": 0,
+                "mskey": "STM6EUEaEywYoxpeVDX1fPDxrsyQLGTsgYf1LLDSHWwiKBdgRhGrx",
                 "self": [config.leader],
                 "wins": 0,
                 "yays": 0
             }
         }
-    },
-    "pow": {
-        [config.leader]: 0,
-        "t": 0 //total in other accounts
     },
     "queue": {
         "0": [config.leader]
@@ -68,6 +65,26 @@ module.exports = {
         "lastBlock": "",
         "marketingRate": 2500,
         "maxBudget": 1000000000,
+        "ms": {
+            "account": "spk-cc",
+            "active_account_auths": {
+                "regardspk": 1,
+            },
+            "active_threshold": 1,
+            "memo_key": "STM5se9o2oZwY7ztpo2scyvf12RR41zaYa6rozBtetwfr1DmH1J5k",
+            "owner_key_auths": {
+                "STM6EUEaEywYoxpeVDX1fPDxrsyQLGTsgYf1LLDSHWwiKBdgRhGrx": 1,
+            },
+            "owner_threshold": 1,
+            "posting_account_auths": {
+                "regardspk": 1
+            },
+            "posting_threshold": 1
+        },
+        "MSHeld":{
+            "HIVE": 0,
+            "HBD": 0
+        }, 
         "nodeRate": 2000,
         "outOnBlock": 0, //amm ICO pricing
         "savingsRate": 1000,

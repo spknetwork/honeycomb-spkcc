@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.2.0'
+const VERSION = 'v1.0.0b'
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -106,8 +106,8 @@ const { release } = require('./processing_routes/dex')
 const { enforce } = require("./enforce");
 const { tally } = require("./tally");
 const { voter } = require("./voter");
-const { report, sig_submit } = require("./report");
-const { ipfsSaveState } = require("./ipfsSaveState");
+const { report, sig_submit, osig_submit } = require("./report");
+const { ipfsSaveState, ipfsPeerConnect } = require("./ipfsSaveState");
 const { dao, Liquidity } = require("./dao");
 const { recast } = require('./lil_ops')
 const hiveState = require('./processor');
@@ -133,11 +133,7 @@ var recents = []
 
     //Start Program Options   
 //startWith('QmWHnL3KcRwJj3WMqRg9vEDBshp2hRew6wwZohX8qBYH4Q', true) //for testing and replaying 58859101
-// QmbD4ifzxdQF4h3NDsVpiqB3BpLvGMCJ9LqLt3UEfgbrmy
-// QmcDdunVgo6g5sVSdgE1AegEAoxZX5snh6gS3FYG3gqyQR
-// 
 dynStart(config.follow)
-
 
 // API defs
 api.use(API.https_redirect);
@@ -245,10 +241,11 @@ function startApp() {
     if(config.features.dex){
         processor.on('dex_sell', HR.dex_sell);
         processor.on('dex_clear', HR.dex_clear);
-        processor.on('sig_submit', HR.sig_submit); //dlux is for putting executable programs into IPFS... this is for additional accounts to sign the code as non-malicious
     }
     if(config.features.dex || config.features.nft || config.features.ico){
         processor.onOperation('transfer', HR.transfer);
+        processor.on('sig_submit', HR.sig_submit); //dlux is for putting executable programs into IPFS... this is for additional accounts to sign the code as non-malicious
+        processor.on('osig_submit', HR.osig_submit);
     }
     if(config.features.nft){
         processor.on('ft_bid', HR.ft_bid)
@@ -296,12 +293,15 @@ function startApp() {
                     lte: "" + (num - 100)
                 }) //resign mss
                 let Pmsa = getPathObj(['msa'])
-                Promise.all([Pchron, Pmss, Pmsa]).then(mem => {
+                let Pmso = getPathObj(['mso'])
+                Promise.all([Pchron, Pmss, Pmsa, Pmso]).then(mem => {
                     var a = mem[0],
                         mss = mem[1], //resign mss
-                        msa = mem[2] //if length > 80... sign these
+                        msa = mem[2], //if length > 80... sign these
+                        mso = mem[3]
                     let chrops = {},
                         msa_keys = Object.keys(msa)
+                        mso_keys = Object.keys(mso)
                     for (var i in a) {
                         chrops[a[i]] = a[i]
                     }
@@ -413,9 +413,18 @@ function startApp() {
                 }
                 function every(){
                     return new Promise((res, rej)=>{
-                        let promises = []
+                        let promises = [HR.margins()]
                         if(num % 100 !== 50){
-                            if(msa_keys.length > 80){
+                            if(mso_keys.length){
+                                promises.push(new Promise((res,rej)=>{
+                                    osig_submit(consolidate(num, plasma, bh, 'owner'))
+                                    .then(nodeOp => {
+                                        res('SAT')
+                                        NodeOps.unshift(nodeOp)
+                                    })
+                                    .catch(e => { rej(e) })
+                                }))
+                            } else if(msa_keys.length > 80){
                                 promises.push(new Promise((res,rej)=>{
                                     sig_submit(consolidate(num, plasma, bh))
                                     .then(nodeOp => {
@@ -463,7 +472,7 @@ function startApp() {
                                 .catch(e => { rej(e) })
                             }))
                         }
-                        if ((num - 20003) % 30240 === 0) { //time for daily magic
+                        if ((num - 20003) % 28800 === 0) { //time for daily magic
                             promises.push(dao(num))
                             block.prev_root = block.root
                             block.root = ''

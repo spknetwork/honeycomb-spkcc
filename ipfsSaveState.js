@@ -1,8 +1,8 @@
-//const { ipfs } = require("./index");
+const { ipfs } = require("./index");
 
-exports.ipfsSaveState = (blocknum, buffer, ipfs) => {
+exports.ipfsSaveState = (blocknum, buffer, ipfsclient) => {
     return new Promise((resolve, reject) => {
-        ipfs.add(buffer, (err, ipfs_return) => {
+        ipfsclient.add(buffer, (err, ipfs_return) => {
             if (!err) {
                 var hash = '';
                 try {
@@ -25,6 +25,18 @@ exports.ipfsSaveState = (blocknum, buffer, ipfs) => {
                         return;
                     }
                     */
+            }
+        })
+    })
+}
+
+exports.ipfsPeerConnect = (peerid) => {
+    return new Promise((resolve, reject) => {
+        //ipfs.swarm.addrs().then((addrs) => {console.log(addrs)})
+        ipfs.swarm.connect(`/p2p/${peerid}`, (err, res) => {
+            if(res)resolve(res.Strings[0])
+            if(err){
+                resolve(`Failed to connect to${peerid}`)
             }
         })
     })

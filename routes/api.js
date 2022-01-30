@@ -1697,7 +1697,7 @@ exports.user = (req, res, next) => {
     let un = req.params.un,
         bal = getPathNum(['balances', un]),
         cbal = getPathNum(['cbalances', un]),
-        claims = getPathObj(['claims', un]),
+        claims = getPathObj(['snap', un]),
         pb = getPathNum(['pow', un]),
         lp = getPathNum(['granted', un, 't']),
         lg = getPathNum(['granting', un, 't']),
@@ -1705,22 +1705,25 @@ exports.user = (req, res, next) => {
         incol = getPathNum(['col', un]), //collateral
         gp = getPathNum(['gov', un]),
         pup = getPathObj(['up', un]),
-        pdown = getPathObj(['down', un])
+        pdown = getPathObj(['down', un]),
+        Pclaim = fetch(`${config.snapcs}/api/snapshot?u=${un}`)
     res.setHeader('Content-Type', 'application/json');
-    Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims])
+    Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, Pclaim, claims])
         .then(function(v) {
-            var arr = []
+            var arr = [],
+            claim = v[9].json()
             for (var i in v[3]) {arr.push(v[3][i])}
             res.send(JSON.stringify({
                 balance: v[0],
-                claim: v[9],
+                claim: 0,
                 drop: {
                     availible: {
-                        "amount": 10000,
+                        "amount": parseInt(claim.Larynx * 1000 / 12),
                         "precision": 3,
                         "token": "LARYNX"
                     },
-                    last_claim: 12
+                    last_claim: v[10].l,
+                    total_claims: v[10].t
                },//v[10],
                 poweredUp: v[1],
                 granted: v[2],

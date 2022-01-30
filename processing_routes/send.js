@@ -42,8 +42,8 @@ exports.send = (json, from, active, pc) => {
 exports.claim = (json, from, active, pc) => {
     let fbalp = getPathNum(['cbalances', from]),
         tbp = getPathNum(['balances', from]),
-        splitp = getPathNum([json.gov ? 'gov': 'pow', from]),
-        totp = getPathNum([json.gov ? 'gov': 'pow', 't']);
+        splitp = getPathNum(['gov', from]),
+        totp = getPathNum(['gov', 't']);
     Promise.all([fbalp, tbp, splitp, totp])
         .then(bals => {
             let fbal = bals[0],
@@ -55,11 +55,11 @@ exports.claim = (json, from, active, pc) => {
             if (claim > 0) {
                 const half = parseInt(claim / 2),
                     other = claim - half,
-                    msg = `@${from}| Claimed ${parseFloat(parseInt(claim) / 1000).toFixed(3)} ${config.TOKEN} - Half ${json.gov ? 'locked in gov': 'powered up.'}`
+                    msg = `@${from}| Claimed ${parseFloat(parseInt(claim) / 1000).toFixed(3)} ${config.TOKEN} - Half locked in gov`
                 ops.push({ type: 'del', path: ['cbalances', from] });
                 ops.push({ type: 'put', path: ['balances', from], data: parseInt(tbal + half) });
-                ops.push({ type: 'put', path: [json.gov ? 'gov': 'pow', from], data: parseInt(split + other) });
-                ops.push({ type: 'put', path: [json.gov ? 'gov': 'pow', 't'], data: parseInt(tot + other) });
+                ops.push({ type: 'put', path: ['gov', from], data: parseInt(split + other) });
+                ops.push({ type: 'put', path: ['gov', 't'], data: parseInt(tot + other) });
                 if (config.hookurl || config.status) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
                 ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
             } else {
@@ -70,3 +70,70 @@ exports.claim = (json, from, active, pc) => {
         })
         .catch(e => { console.log(e); });
 }
+
+exports.drop_claim = (json, from, active, pc) => {
+    let tbp = getPathNum(['balances', from]),
+        totp = getPathNum(['stats', 'tokenSupply']),
+        track = getPathObj(['snap', from]);
+        claims = fetch(`${config.snapcs}/api/snapshot?u=${from}`)
+    Promise.all([tbp, totp, track])
+        .then(mem => {
+            let tbal = mem[0],
+                supply = mem[1],
+                trak = mem[2],
+                ops = []
+                claim = mem[3].json()
+            if (trak.t) { //get from memory
+                if(trak.l != parseInt(json.timestamp.split('-')[1], 10).toString(16) && (json.timestamp.split('-')[0] == '2022' || json.timestamp.split('-')[0] == '2023' && json.timestamp.split('-')[1] == '01')){
+                    trak.l = parseInt(json.timestamp.split('-')[1], 10).toString(16)
+                    trak.t++
+                    ops.push({ type: 'put', path: ['balances', from], data: parseInt(tbal + trak.s) });
+                    ops.push({ type: 'put', path: ['stats', 'tokenSupply'], data: parseInt(supply + trak.s) });
+                    ops.push({ type: 'put', path: ['snap', from], data: trak });
+                    let msg = `@${from}| Claimed ${parseFloat(parseInt(trak.s) / 1000).toFixed(3)} ${config.TOKEN}`
+                    if (config.hookurl || config.status) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
+                    ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
+                } else {
+                    let msg = `@${from}| Already claimed this month.`
+                    if (config.hookurl || config.status) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
+                    ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
+                }
+                if (process.env.npm_lifecycle_event == 'test') pc[2] = ops
+                store.batch(ops, pc);
+            } else { //get from claims
+                claims.then(res => res.json()).then(snap=>{
+                    //{"hiveCurrent": 743.805, "hiveSnap": 743.805, "vestCurrent": 3832862.583523, "vestSnap": 3470785.995649, "hivePowerSnap": 1879.34242911609, "Larynx": 2623.14742911609, "snapshotBlock": 60714039, "snapshotTimestamp": "2022-01-07T08:00:00", "username": "disregardfiat"}
+                    trak = {
+                        s: parseInt(snap.Larynx * 1000 / 12), // Larynx per claim
+                        t: 1, // total claims
+                        l: parseInt(json.timestamp.split('-')[1], 10).toString(16), // last claim month int
+                    }
+                    ops.push({ type: 'put', path: ['balances', from], data: parseInt(tbal + trak.s) });
+                    ops.push({ type: 'put', path: ['stats', 'tokenSupply'], data: parseInt(supply + trak.s) });
+                    ops.push({ type: 'put', path: ['snap', from], data: trak });
+                    let msg = `@${from}| Claimed ${parseFloat(parseInt(trak.s) / 1000).toFixed(3)} ${config.TOKEN}`
+                    if (config.hookurl || config.status) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
+                    ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
+                })
+            }
+        })
+        .catch(e => { console.log(e); });
+}
+
+/*
+
+const half = parseInt(claim / 2),
+                    other = claim - half,
+                    msg = `@${from}| Claimed ${parseFloat(parseInt(claim) / 1000).toFixed(3)} ${config.TOKEN} - Half locked in gov`
+                ops.push({ type: 'del', path: ['cbalances', from] });
+                ops.push({ type: 'put', path: ['balances', from], data: parseInt(tbal + half) });
+                ops.push({ type: 'put', path: ['gov', from], data: parseInt(split + other) });
+                ops.push({ type: 'put', path: ['gov', 't'], data: parseInt(tot + other) });
+                if (config.hookurl || config.status) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
+                ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
+
+                ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: `@${from}| Invalid claim operation` });
+
+                if (process.env.npm_lifecycle_event == 'test') pc[2] = ops
+            store.batch(ops, pc);
+*/
