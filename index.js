@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.0.0b'
+const VERSION = 'v1.2.0'
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -107,7 +107,7 @@ const { enforce } = require("./enforce");
 const { tally } = require("./tally");
 const { voter } = require("./voter");
 const { report, sig_submit, osig_submit } = require("./report");
-const { ipfsSaveState, ipfsPeerConnect } = require("./ipfsSaveState");
+const { ipfsSaveState } = require("./ipfsSaveState");
 const { dao, Liquidity } = require("./dao");
 const { recast } = require('./lil_ops')
 const hiveState = require('./processor');
@@ -132,8 +132,9 @@ var recents = []
     //HIVE API CODE
 
     //Start Program Options   
-//startWith('QmWHnL3KcRwJj3WMqRg9vEDBshp2hRew6wwZohX8qBYH4Q', true) //for testing and replaying 58859101
+//startWith('QmaRAerHzwBbE5kxU5ntB755YnSX7w9LTEtC7Nidm7MjTv', true) //for testing and replaying 58859101
 dynStart(config.follow)
+
 
 // API defs
 api.use(API.https_redirect);
@@ -151,17 +152,6 @@ api.get('/runners', API.runners); //list of accounts that determine consensus...
 api.get('/queue', API.queue);
 api.get('/api/protocol', API.protocol);
 api.get('/api/status/:txid', API.status);
-if(config.features.state){
-    api.get('/state', API.state); //Do not recommend having a state dump in a production API
-    api.get('/pending', API.pending); // The transaction signer now can sign multiple actions per block and this is nearly always empty, still good for troubleshooting
-    // Some HIVE APi is wrapped here to support a stateless frontend built on the cheap with dreamweaver
-    // None of these functions are required for token functionality and should likely be removed from the community version
-    api.get('/api/:api_type/:api_call', API.hive_api);
-    api.get('/hapi/:api_type/:api_call', API.hive_api);
-    api.get('/getwrap', API.getwrap);
-    api.get('/getauthorpic/:un', API.getpic);
-    api.get('/getblog/:un', API.getblog);
-}
 if(config.features.dex){
     api.get('/dex', API.dex);
     api.get('/api/tickers', API.tickers);
@@ -199,6 +189,17 @@ if(config.features.pob){
     api.get('/promoted', API.getPromotedPosts);
     api.get('/posts/:author/:permlink', API.PostAuthorPermlink);
     api.get('/posts', API.posts); //votable posts
+}
+if(config.features.state){
+    api.get('/state', API.state); //Do not recommend having a state dump in a production API
+    api.get('/pending', API.pending); // The transaction signer now can sign multiple actions per block and this is nearly always empty, still good for troubleshooting
+    // Some HIVE APi is wrapped here to support a stateless frontend built on the cheap with dreamweaver
+    // None of these functions are required for token functionality and should likely be removed from the community version
+    api.get('/api/:api_type/:api_call', API.hive_api);
+    api.get('/hapi/:api_type/:api_call', API.hive_api);
+    api.get('/getwrap', API.getwrap);
+    api.get('/getauthorpic/:un', API.getpic);
+    api.get('/getblog/:un', API.getblog);
 }
 
 http.listen(config.port, function() {
@@ -241,11 +242,10 @@ function startApp() {
     if(config.features.dex){
         processor.on('dex_sell', HR.dex_sell);
         processor.on('dex_clear', HR.dex_clear);
+        processor.on('sig_submit', HR.sig_submit); //dlux is for putting executable programs into IPFS... this is for additional accounts to sign the code as non-malicious
     }
     if(config.features.dex || config.features.nft || config.features.ico){
         processor.onOperation('transfer', HR.transfer);
-        processor.on('sig_submit', HR.sig_submit); //dlux is for putting executable programs into IPFS... this is for additional accounts to sign the code as non-malicious
-        processor.on('osig_submit', HR.osig_submit);
     }
     if(config.features.nft){
         processor.on('ft_bid', HR.ft_bid)
@@ -297,7 +297,7 @@ function startApp() {
                 Promise.all([Pchron, Pmss, Pmsa, Pmso]).then(mem => {
                     var a = mem[0],
                         mss = mem[1], //resign mss
-                        msa = mem[2], //if length > 80... sign these
+                        msa = mem[2] //if length > 80... sign these
                         mso = mem[3]
                     let chrops = {},
                         msa_keys = Object.keys(msa)
@@ -472,7 +472,7 @@ function startApp() {
                                 .catch(e => { rej(e) })
                             }))
                         }
-                        if ((num - 20003) % 28800 === 0) { //time for daily magic
+                        if ((num - 20003) % 30240 === 0) { //time for daily magic
                             promises.push(dao(num))
                             block.prev_root = block.root
                             block.root = ''
@@ -704,8 +704,6 @@ function startWith(hash, second) {
                         if (!e && (second || data[0] > API.RAM.head - 325)) {
                             if (hash) {
                                 var cleanState = data[1]
-                                delete cleanState.stats.HiveVWMA
-                                delete cleanState.stats.HbdVWMA //remove when dynamic
                                 store.put([], cleanState, function(err) {
                                     if (err) {
                                         console.log('errr',err)
@@ -851,7 +849,11 @@ function rundelta(arr, ops, sb, pr){
                     block.chain = arr
                     block.prev_root = pr
                     startingBlock = sb
-                    delsfirst(ops).then(emp=>store.batch(unwrapOps(ops)[1], [resolve, reject, a ? a : []]))
+                    delsfirst(ops).then(emp=>store.batch(unwrapOps(ops)[1], [reorderOps, reject, a ? a : []]))
+                }
+                function reorderOps(){
+                    block.ops = ops
+                    resolve([])
                 }
                 function delsfirst(b){
                     return new Promise((resolv, rejec) => {
