@@ -40,7 +40,7 @@ module.exports = {
                 "lastGood": 49994100, //genesisblock
                 "marketingRate": 0,
                 "mskey": "STM6EUEaEywYoxpeVDX1fPDxrsyQLGTsgYf1LLDSHWwiKBdgRhGrx",
-                "self": [config.leader],
+                "self": config.leader,
                 "wins": 0,
                 "yays": 0
             }

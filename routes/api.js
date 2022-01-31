@@ -1634,7 +1634,7 @@ exports.coincheck = (state) => {
             }
         }
         var pow = 0,
-            powt = state.pow.t
+            powt = state.pow?.t
         for (bal in state.pow) {
             if (bal != 't') {
                 supply += state.pow[bal]
