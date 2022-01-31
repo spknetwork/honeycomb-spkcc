@@ -15,7 +15,6 @@ exports.node_add = function(json, from, active, pc) {
         if (json.mirror == 'true') {
             mirror = true
         }
-        var mskey
         if (json.mskey && json.mschallenge){
             try {
                 const verifyKey = decode(config.msPriMemo, json.mschallenge)
@@ -49,10 +48,7 @@ exports.node_add = function(json, from, active, pc) {
             let ops = []
             if (!e) {
                 if (isEmpty(a)) {
-                    ops = [{
-                        type: 'put',
-                        path: ['markets', 'node', from],
-                        data: {
+                    data = {
                             domain: json.domain,
                             self: from,
                             bidRate: bid,
@@ -68,9 +64,13 @@ exports.node_add = function(json, from, active, pc) {
                             lastGood: 0,
                             report: {},
                             escrow,
-                            liquidity,
-                            mskey
+                            liquidity
                         }
+                    if(mskey)data.mskey = mskey
+                    ops = [{
+                        type: 'put',
+                        path: ['markets', 'node', from],
+                        data
                     }]
                 } else {
                     var b = a;
