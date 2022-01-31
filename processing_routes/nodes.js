@@ -16,11 +16,11 @@ exports.node_add = function(json, from, active, pc) {
             mirror = true
         }
         var mskey
-        if (json.mskey && json.mschallenge){ //5KDZ9fzihXJbiLqUCMU2Z2xU8VKb9hCggyRPZP37aprD2kVKiuL	STM5GNM3jpjWh7Msts5Z37eM9UPfGwTMU7Ksats3RdKeRaP5SveR9
+        if (json.mskey && json.mschallenge){
             try {
-                const verifyKey = decode('5KDZ9fzihXJbiLqUCMU2Z2xU8VKb9hCggyRPZP37aprD2kVKiuL', json.mschallenge)
-                const nowhammies = encode('5KDZ9fzihXJbiLqUCMU2Z2xU8VKb9hCggyRPZP37aprD2kVKiuL', 'STM5GNM3jpjWh7Msts5Z37eM9UPfGwTMU7Ksats3RdKeRaP5SveR9', verifyKey)
-                const isValid = encode('5KDZ9fzihXJbiLqUCMU2Z2xU8VKb9hCggyRPZP37aprD2kVKiuL', json.mskey, '#try')
+                const verifyKey = decode(config.msPriMemo, json.mschallenge)
+                const nowhammies = encode(config.msPriMemo, config.msPubMemo, verifyKey)
+                const isValid = encode(config.msPriMemo, json.mskey, '#try')
                 if (typeof isValid == 'string' && verifyKey == `#${json.mskey}` && nowhammies != json.mschallenge)mskey = json.mskey
             } catch (e) {}
         }

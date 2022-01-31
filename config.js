@@ -58,7 +58,8 @@ const ben = '' //Account where comment benifits trigger token action
 const delegation = '' //account people can delegate to for rewards
 const delegationWeight = 1000 //when to trigger community rewards with bens
 const msaccount = 'spk-cc' //account controlled by community leaders
-const msPubMemo = 'STM5Bi4Vv9xeHbRDMX2jyweWCxpkhuYM6HpKxhwLeGjVBvsZHdp21'
+const msPubMemo = 'STM5GNM3jpjWh7Msts5Z37eM9UPfGwTMU7Ksats3RdKeRaP5SveR9'
+const msPriMemo = '5KDZ9fzihXJbiLqUCMU2Z2xU8VKb9hCggyRPZP37aprD2kVKiuL'
 const mainAPI = 'spktoken.dlux.io' //leaders API probably
 const mainRender = '' //data and render server
 const mainFE = '3speak.tv' //frontend for content
@@ -126,6 +127,7 @@ let config = {
     leader,
     msaccount,
     msPubMemo,
+    msPriMemo,
     ben,
     adverts,
     delegation,
