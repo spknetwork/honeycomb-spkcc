@@ -15,6 +15,7 @@ exports.node_add = function(json, from, active, pc) {
         if (json.mirror == 'true') {
             mirror = true
         }
+        var mskey
         if (json.mskey && json.mschallenge){
             try {
                 const verifyKey = decode(config.msPriMemo, json.mschallenge)
