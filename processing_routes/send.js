@@ -1,8 +1,9 @@
 const config = require('./../config')
 const { store } = require("./../index");
-const { getPathNum } = require("./../getPathObj");
+const { getPathNum, getPathObj } = require("./../getPathObj");
 const { postToDiscord } = require('./../discord');
 const { updatePromote } = require('./../edb');
+const fetch = require('node-fetch');
 
 exports.send = (json, from, active, pc) => {
     let fbalp = getPathNum(['balances', from]),
@@ -82,7 +83,6 @@ exports.drop_claim = (json, from, active, pc) => {
                 supply = mem[1],
                 trak = mem[2],
                 ops = []
-                claim = mem[3].json()
             if (trak.t) { //get from memory
                 if(trak.l != parseInt(json.timestamp.split('-')[1], 10).toString(16) && (json.timestamp.split('-')[0] == '2022' || json.timestamp.split('-')[0] == '2023' && json.timestamp.split('-')[1] == '01')){
                     trak.l = parseInt(json.timestamp.split('-')[1], 10).toString(16)
@@ -114,6 +114,7 @@ exports.drop_claim = (json, from, active, pc) => {
                     let msg = `@${from}| Claimed ${parseFloat(parseInt(trak.s) / 1000).toFixed(3)} ${config.TOKEN}`
                     if (config.hookurl || config.status) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
                     ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
+                    store.batch(ops, pc);
                 })
             }
         })
