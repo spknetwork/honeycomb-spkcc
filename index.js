@@ -218,7 +218,7 @@ function startApp() {
     })
     processor = hiveState(client, hive, startingBlock, 10, config.prefix, streamMode, cycleAPI);
     processor.on('send', HR.send);
-    processor.on('claim', HR.claim);
+    processor.on('claim', HR.drop_claim);
     processor.on('node_add', HR.node_add);
     processor.on('node_delete', HR.node_delete);
     processor.on('report', HR.report);
