@@ -29,5 +29,17 @@ exports.onStreamingStart = () => {
             ]);
             return op
         }
+            // var op = ["custom_json", {
+            //     required_auths: [config.username],
+            //     required_posting_auths: [],
+            //     id: `${config.prefix}claim`,
+            //     json: JSON.stringify({
+            //         msg: 'OK'
+            //     })
+            // }];
+            // unshiftOp([
+            //     [0, 0], op
+            // ]);
+            // return op
     });
 }

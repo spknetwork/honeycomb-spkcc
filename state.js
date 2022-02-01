@@ -63,6 +63,7 @@ module.exports = {
         "icoPrice": 0, //in millihive
         "interestRate": 999999999999, //mints 1 millitoken per this many millitokens in your DAO period
         "lastBlock": "",
+        "movingWeight": 0,
         "marketingRate": 2500,
         "maxBudget": 1000000000,
         "ms": {
