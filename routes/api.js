@@ -1711,8 +1711,8 @@ exports.user = (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
     Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, Pclaim, claims])
         .then(function(v) {
-            var arr = [],
-            claim = v[9].json()
+            v[10].json().then(function(claim) {
+                var arr = []
             for (var i in v[3]) {arr.push(v[3][i])}
             res.send(JSON.stringify({
                 balance: v[0],
@@ -1723,8 +1723,8 @@ exports.user = (req, res, next) => {
                         "precision": 3,
                         "token": "LARYNX"
                     },
-                    last_claim: v[10].l,
-                    total_claims: v[10].t
+                    last_claim: v[11].l,
+                    total_claims: v[11].t
                },//v[10],
                 poweredUp: v[1],
                 granted: v[2],
@@ -1738,6 +1738,7 @@ exports.user = (req, res, next) => {
                 behind: RAM.behind,
                 VERSION
             }, null, 3))
+            })
         })
         .catch(function(err) {
             console.log(err)
