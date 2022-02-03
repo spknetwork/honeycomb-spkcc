@@ -16,8 +16,8 @@ RUN \
 RUN python3.8 -m pip install --upgrade pip
 
 #Copy the source code
-#COPY . /snapshot/
-RUN git clone https://gitlab.com/PBSA/3speak-integration.git
+COPY . /snapshot/
+RUN git clone https://gitlab.com/PBSA/3speak-integration.git -b wip-main 
 WORKDIR /3speak-integration/claimdropweb
 #Installing the requirements
 RUN pip3 install -r requirements.txt

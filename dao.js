@@ -116,7 +116,7 @@ function dao(num) {
             post = post + `Total Supply: ${parseFloat(parseInt(stats.tokenSupply) / 1000).toFixed(3)} ${config.TOKEN}\n* ${parseFloat(parseInt(stats.tokenSupply - powBal - (bals.ra + bals.rc + bals.rd + bals.ri + bals.rn + bals.rm)) / 1000).toFixed(3)} ${config.TOKEN} liquid\n`;
             post = post + `* ${parseFloat(parseInt(powBal) / 1000).toFixed(3)} ${config.TOKEN} Powered up for Voting\n`;
             post = post + `* ${parseFloat(parseInt(bals.ra + bals.rc + bals.rd + bals.ri + bals.rn + bals.rm) / 1000).toFixed(3)} ${config.TOKEN} in distribution accounts\n`;
-            post = post + `${parseFloat(parseInt(t) / 1000).toFixed(3)} ${config.TOKEN} has been generated today. 5% APY.\n${parseFloat(stats.marketingRate / 10000).toFixed(4)} is the marketing rate.\n${parseFloat(stats.nodeRate / 10000).toFixed(4)} is the node rate.\n`;
+            if(config.features.inflation)post = post + `${parseFloat(parseInt(t) / 1000).toFixed(3)} ${config.TOKEN} has been generated today. 5% APY.\n${parseFloat(stats.marketingRate / 10000).toFixed(4)} is the marketing rate.\n${parseFloat(stats.nodeRate / 10000).toFixed(4)} is the node rate.\n`;
             console.log(`DAO Accounting In Progress:\n${t} has been generated today\n${stats.marketingRate} is the marketing rate.\n${stats.nodeRate} is the node rate.`);
             bals.rn += parseInt(t * parseInt(stats.nodeRate) / 10000);
             bals.ra = parseInt(bals.ra) - parseInt(t * parseInt(stats.nodeRate) / 10000);
@@ -344,7 +344,7 @@ function dao(num) {
                         dex.hbd.days = {};
                     dex.hbd.days[num] = hib;
                 }
-                let liqt = parseInt((bal.rm/365)*(stats.liq_reward/100))
+                let liqt = config.features.liquidity ? parseInt((bals.rm/365)*(stats.liq_reward/100)) : 0
                 if (liqt > 0){
                     let liqa = 0
                     for (var acc in dex.liq){
@@ -453,7 +453,7 @@ function dao(num) {
             daops.push({ type: 'put', path: ['posts'], data: cpost });
             daops.push({ type: 'put', path: ['markets', 'node'], data: mnode });
             daops.push({ type: 'put', path: ['delegations'], data: deles });
-            if(config.DAILY)daops.push({ type: 'put', path: ['escrow', config.leader, 'comment'], data: op });
+            if(config.features.daily)daops.push({ type: 'put', path: ['escrow', config.leader, 'comment'], data: op });
             for (var i = daops.length - 1; i >= 0; i--) {
                 if (daops[i].type == 'put' && Object.keys(daops[i].data).length == 0 && typeof daops[i].data != 'number' && typeof daops[i].data != 'string') {
                     daops.splice(i, 1);

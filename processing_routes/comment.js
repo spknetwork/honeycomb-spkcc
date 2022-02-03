@@ -113,7 +113,7 @@ exports.comment_options = (json, pc) => {
     }
     var ops = []
     for (var i = 0; i < filter.length; i++) {
-        if (filter[i].account == config.ben && filter[i].weight >= config.delegationWeight) {
+        if (config.features.pob && filter[i].account == config.ben && filter[i].weight >= config.delegationWeight) {
             store.get(['pend', `${json.author}/${json.permlink}`], function(e, a) {
                 if (e) { console.log(e) }
                 if (Object.keys(a).length) {
