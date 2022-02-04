@@ -132,8 +132,8 @@ var recents = []
     //HIVE API CODE
 
     //Start Program Options   
-startWith('', true) //for testing and replaying 58859101
-//dynStart(config.follow)
+//startWith('', true) //for testing and replaying 58859101
+dynStart(config.follow)
 
 
 // API defs
@@ -472,7 +472,6 @@ function startApp() {
                                 .catch(e => { rej(e) })
                             }))
                         }
-                        console.log((num - 18500) % 28800)
                         if ((num - 18500) % 28800 === 0) { //time for daily magic
                             promises.push(dao(num))
                             block.prev_root = block.root
