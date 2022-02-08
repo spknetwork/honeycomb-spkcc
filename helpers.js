@@ -576,7 +576,11 @@ const DEX = {
             require('./processing_routes/dex').transfer({
                 from: to,
                 to: config.msaccount,
-                amount: `${parseFloat(amount/1000).toFixed(3)} ${type}`,
+                amount: {
+                    amount,
+                    precision: 3,
+                    nai: type == 'HIVE' ? '@@000000021' : '@@000000013'
+                },
                 memo,
                 block_num: num,
                 transaction_id: txid,
