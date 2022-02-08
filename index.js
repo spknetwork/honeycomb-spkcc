@@ -687,7 +687,7 @@ function dynStart(account) {
 //pulls state from IPFS, loads it into memory, starts the block processor
 function startWith(hash, second) {
     console.log(`${hash} inserted`)
-    if (hash) {
+    if (hash && hash != 'pending') {
         console.log(`Attempting to start from IPFS save state ${hash}`);
         ipfspromise(hash).then(blockInfo=>{
             var blockinfo = JSON.parse(blockInfo);
