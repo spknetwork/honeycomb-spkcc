@@ -1,8 +1,9 @@
 const { ipfs } = require("./index");
 
-exports.ipfsSaveState = (blocknum, buffer, ipfsclient) => {
+exports.ipfsSaveState = (blocknum, buffer, ipfsc, tries) => {
     return new Promise((resolve, reject) => {
-        ipfsclient.add(buffer, (err, ipfs_return) => {
+        if(tries)console.log('Retry IPFS Save:', tries)
+        ipfs.add(buffer, (err, ipfs_return) => {
             if (!err) {
                 var hash = '';
                 try {
@@ -14,9 +15,6 @@ exports.ipfsSaveState = (blocknum, buffer, ipfsclient) => {
                     hashBlock: blocknum
                 })
             } else {
-                console.log({
-                    //cycle
-                }, 'IPFS Error', err);
                 reject(err)
                     /*
                     cycleipfs(cycle++)
