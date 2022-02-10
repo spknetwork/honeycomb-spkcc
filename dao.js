@@ -34,14 +34,15 @@ function dao(num) {
             Pico = getPathObj(['ico']),
             Pdex = getPathObj(['dex']),
             Pbr = getPathObj(['br']),
-            Ppbal = getPathNum(['pow', 't']),
+            Ppbal = getPathNum(['gov', 't']),
+            Pgov = getPathNum(['gov']),
             Pnomen = getPathObj(['nomention']),
             Pposts = getPathObj(['posts']),
             Pfeed = getPathObj(['feed']),
             Ppaid = getPathObj(['paid']),
             Prnfts = getPathObj(['rnfts']);
             Pdistro = Distro()
-        Promise.all([Pnews, Pbals, Prunners, Pnodes, Pstats, Pdelegations, Pico, Pdex, Pbr, Ppbal, Pnomen, Pposts, Pfeed, Ppaid, Prnfts, Pdistro, Pcbals]).then(function(v) {
+        Promise.all([Pnews, Pbals, Prunners, Pnodes, Pstats, Pdelegations, Pico, Pdex, Pbr, Ppbal, Pnomen, Pposts, Pfeed, Ppaid, Prnfts, Pdistro, Pcbals, Pgov]).then(function(v) {
             daops.push({ type: 'del', path: ['postQueue'] });
             daops.push({ type: 'del', path: ['br'] });
             daops.push({ type: 'del', path: ['rolling'] });
@@ -63,7 +64,8 @@ function dao(num) {
                 feedCleaner = v[12],
                 paidCleaner = v[13],
                 rnftsCleaner = v[14];
-                dist = v[15]
+                dist = v[15],
+                gov = v[17]
             for(var i = 0; i < dist.length;i++){
                 if(dist[i][0].split('div:')[1]){
                     addMT(['div', dist[i][0].split('div:')[1], 'b'], dist[i][1] )
@@ -114,7 +116,7 @@ function dao(num) {
             stats.nodeRate = parseInt(j / i);
             post = `![${config.TOKEN} Advert](${config.adverts[num.toString().split('').reduce((a, c) => parseInt(a) + c, 0) % config.adverts.length]})\n#### Daily Accounting\n`;
             post = post + `Total Supply: ${parseFloat(parseInt(stats.tokenSupply) / 1000).toFixed(3)} ${config.TOKEN}\n* ${parseFloat(parseInt(stats.tokenSupply - powBal - (bals.ra + bals.rc + bals.rd + bals.ri + bals.rn + bals.rm)) / 1000).toFixed(3)} ${config.TOKEN} liquid\n`;
-            post = post + `* ${parseFloat(parseInt(powBal) / 1000).toFixed(3)} ${config.TOKEN} Powered up for Voting\n`;
+            post = post + `* ${parseFloat(parseInt(powBal) / 1000).toFixed(3)} ${config.TOKEN} Locked to Govern\n`;
             post = post + `* ${parseFloat(parseInt(bals.ra + bals.rc + bals.rd + bals.ri + bals.rn + bals.rm) / 1000).toFixed(3)} ${config.TOKEN} in distribution accounts\n`;
             if(config.features.inflation)post = post + `${parseFloat(parseInt(t) / 1000).toFixed(3)} ${config.TOKEN} has been generated today. 5% APY.\n${parseFloat(stats.marketingRate / 10000).toFixed(4)} is the marketing rate.\n${parseFloat(stats.nodeRate / 10000).toFixed(4)} is the node rate.\n`;
             console.log(`DAO Accounting In Progress:\n${t} has been generated today\n${stats.marketingRate} is the marketing rate.\n${stats.nodeRate} is the node rate.`);
@@ -130,7 +132,8 @@ function dao(num) {
             bals.ra = parseInt(bals.ra) - parseInt(t * stats.marketingRate / 10000);
             
             i = 0, j = 0;
-            if(bals.rm)post = post + `${parseFloat(parseInt(bals.rm) / 1000).toFixed(3)} ${config.TOKEN} is in the Marketing Allocation.\n##### Node Rewards for Elected Reports and Escrow Transfers\n`;
+            if(bals.rm && config.features.inflation)post = post + `${parseFloat(parseInt(bals.rm) / 1000).toFixed(3)} ${config.TOKEN} is in the Marketing Allocation.\n`
+            if(bals.rn)post = post + `##### Node Rewards for Elected Reports and Escrow Transfers\n`;
             console.log(num + `:${bals.rm} is availible in the marketing account\n${bals.rn} ${config.TOKEN} set asside to distribute to nodes`);
             for (var node in mnode) { //tally the wins
                 j = j + parseInt(mnode[node].wins);
@@ -144,21 +147,27 @@ function dao(num) {
                     return '@';
                 }
             }
-            var newOwners = {}
+            var newOwners = {}, dexfeea = 0, dexfeed = 0
             if(j){
                 for (var node in mnode) { //and pay them
-                    i = parseInt(mnode[node].wins / j * b);
+                    const wins = mnode[node].wins
+                    const gbal = gov[node] || 0
+                    const feevote = mnode[node].bidRate > 1000 ? 1000 : mnode[node].bidRate
+                    dexfeea += parseInt(wins * gbal * feevote);
+                    dexfeed += parseInt(wins * gov[node] * 1000);
+                    i = parseInt(wins / j * b);
                     cbals[node] ? cbals[node] += i : cbals[node] = i;
                     bals.rn -= i;
                     const _at = _atfun(node);
                     if (i) {
-                        post = post + `* ${_at}${node} awarded ${parseFloat(i / 1000).toFixed(3)} ${config.TOKEN} for ${mnode[node].wins} credited transaction(s)\n`;
-                        console.log(num + `:@${node} awarded ${parseFloat(i / 1000).toFixed(3)} ${config.TOKEN} for ${mnode[node].wins} credited transaction(s)`);
+                        post = post + `* ${_at}${node} awarded ${parseFloat(i / 1000).toFixed(3)} ${config.TOKEN} for ${wins} credited transaction(s)\n`;
+                        console.log(num + `:@${node} awarded ${parseFloat(i / 1000).toFixed(3)} ${config.TOKEN} for ${wins} credited transaction(s)`);
                     }
-                    newOwners[node] = {wins:mnode[node].wins}
+                    newOwners[node] = {wins}
                     mnode[node].wins = 0;
                 }
             }
+            stats.dex_fee = parseFloat((dexfeea / dexfeed)/100).toFixed(5);
             for(var node in newOwners){
                 newOwners[node].g = runners[node]?.g ? runners[node].g : 0;
             }
