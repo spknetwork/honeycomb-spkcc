@@ -75,8 +75,7 @@ exports.claim = (json, from, active, pc) => {
 exports.drop_claim = (json, from, active, pc) => {
     let tbp = getPathNum(['balances', from]),
         totp = getPathNum(['stats', 'tokenSupply']),
-        track = getPathObj(['snap', from]);
-        claims = fetch(`${config.snapcs}/api/snapshot?u=${from}`)
+        track = getPathObj(['snap', from])
     Promise.all([tbp, totp, track])
         .then(mem => {
             let tbal = mem[0],
@@ -101,7 +100,7 @@ exports.drop_claim = (json, from, active, pc) => {
                 if (process.env.npm_lifecycle_event == 'test') pc[2] = ops
                 store.batch(ops, pc);
             } else { //get from claims
-                claims.then(res => res.json()).then(snap=>{
+                fetch(`${config.snapcs}/api/snapshot?u=${from}`).then(res => res.json()).then(snap=>{
                     //{"hiveCurrent": 743.805, "hiveSnap": 743.805, "vestCurrent": 3832862.583523, "vestSnap": 3470785.995649, "hivePowerSnap": 1879.34242911609, "Larynx": 2623.14742911609, "snapshotBlock": 60714039, "snapshotTimestamp": "2022-01-07T08:00:00", "username": "disregardfiat"}
                     trak = {
                         s: parseInt(snap.Larynx * 1000 / 12), // Larynx per claim
