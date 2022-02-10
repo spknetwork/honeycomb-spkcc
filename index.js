@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.2.0b2'
+const VERSION = 'v1.2.0b3'
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;

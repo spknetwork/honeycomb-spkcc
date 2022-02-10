@@ -1,0 +1,25 @@
+# This is an example file. Uncomment and change any variables you would like to override.
+
+# The HIVE account running the node (defaults to disregardfiat)
+#account=disregardfiat
+# The HIVE account active private key
+#active=<active_key>
+# Your API public address (deafults to http://dlux-token.herokuapp.com)
+#domain=http://dlux-token.herokuapp.com
+# Your API port (defaults to 3001)
+#PORT=3001
+# Your bidRate (defaults to 2500)
+#BIDRATE=2500
+# Your History based HIVE node for startup purposes
+#STARTURL=<HIVE_RPC_Node_with_History>
+# Your blockbased HIVE node for getting blocks and broadcasting transactions
+#APIURL=<Any_HIVE_RPC_Node>
+# Your blockbased HIVE node for getting blocks and broadcasting transactions
+#APIURL=<Any_HIVE_RPC_Node>
+# A webhook for streaming a feed to a discord channel
+#discordwebhook=https://discordapp.com/api/webhooks/<numbers>/<key>
+
+
+# Required for Multi-Sig Ownership
+#msowner=5KadditionalPrivateKey
+#mspublic=STMpublickey
