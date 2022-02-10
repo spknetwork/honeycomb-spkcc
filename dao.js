@@ -8,7 +8,7 @@ const stringify = require('json-stable-stringify');
 //the daily post, the inflation point for tokennomics
 function dao(num) {
     return new Promise((resolve, reject) => {
-        let post = `## ${config.TOKEN} DAO REPORT\n`,
+        let post = `## SPK Claim Chain REPORT\n`,
             news = '',
             daops = [],
             Pnews = new Promise(function(resolve, reject) {
@@ -114,7 +114,7 @@ function dao(num) {
             }
             stats.marketingRate = parseInt(b / i);
             stats.nodeRate = parseInt(j / i);
-            post = `![${config.TOKEN} Advert](${config.adverts[num.toString().split('').reduce((a, c) => parseInt(a) + c, 0) % config.adverts.length]})\n#### Daily Accounting\n`;
+            post = `![${config.TOKEN} Advert](https://files.peakd.com/file/peakd-hive/spknetwork/23t7kxv6nPpoJwgyaDY3Xrekipa9vSyCNj6qm9oQuPDby7sk81ukLAAE8VJ55Kbp116bW.png)\n#### Daily Accounting\n`;
             post = post + `Total Supply: ${parseFloat(parseInt(stats.tokenSupply) / 1000).toFixed(3)} ${config.TOKEN}\n* ${parseFloat(parseInt(stats.tokenSupply - powBal - (bals.ra + bals.rc + bals.rd + bals.ri + bals.rn + bals.rm)) / 1000).toFixed(3)} ${config.TOKEN} liquid\n`;
             post = post + `* ${parseFloat(parseInt(powBal) / 1000).toFixed(3)} ${config.TOKEN} Locked to Govern\n`;
             post = post + `* ${parseFloat(parseInt(bals.ra + bals.rc + bals.rd + bals.ri + bals.rn + bals.rm) / 1000).toFixed(3)} ${config.TOKEN} in distribution accounts\n`;

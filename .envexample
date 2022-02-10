@@ -8,8 +8,8 @@
 #domain=http://dlux-token.herokuapp.com
 # Your API port (defaults to 3001)
 #PORT=3001
-# Your bidRate (defaults to 2500)
-#BIDRATE=2500
+# Your bidRate : dex fee vote: 500 = 0.500%
+#BIDRATE=500
 # Your History based HIVE node for startup purposes
 #STARTURL=<HIVE_RPC_Node_with_History>
 # Your blockbased HIVE node for getting blocks and broadcasting transactions

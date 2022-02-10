@@ -31,7 +31,7 @@ const ipfshost = ENV.ipfshost || 'ipfs.infura.io' //IPFS upload/download provide
 const ipfsport = ENV.ipfsport || '5001' //IPFS upload/download provider provider
 const ipfsprotocol = ENV.ipfsprotocol || 'https' //IPFS upload/download protocol
 //node market config > 2500 is 25% inflation to node operators, this is currently not used
-const bidRate = ENV.BIDRATE || 2500 //
+const bidRate = ENV.BIDRATE || 500 // your vote for the dex fee 500 = 0.500% Max 1000
 
 //HIVE CONFIGS
 var startURL = ENV.STARTURL || "https://api.deathwing.me/"
