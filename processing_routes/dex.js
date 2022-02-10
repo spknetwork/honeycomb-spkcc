@@ -55,9 +55,8 @@ exports.dex_sell = (json, from, active, pc) => {
                 path = 0,
                 contract = ''
             sell_loop: while(remaining){
-                let price = parseFloat(dex.buyBook.split('_')[0])
-                let item = dex.buyBook.split('_')[1].split(',')[0]
-                if(price)item = dex.buyBook.split('_')[1].split(',')[0]
+                let price = dex.buyBook ? parseFloat(dex.buyBook.split('_')[0]) : dex.tick
+                let item = dex.buyBook ? dex.buyBook.split('_')[1] : ''
                 if (item && (order.type == 'MARKET' || parseFloat(price) >= order.rate)){
                     let next = dex.buyOrders[`${price.toFixed(6)}:${item}`]
                     if(!next){
@@ -120,7 +119,7 @@ exports.dex_sell = (json, from, active, pc) => {
                         }
                 } else {
                     let txid = config.TOKEN + hashThis(from + json.transaction_id),
-                        cfee = parseInt(remaining * parseFloat(stats.dex_fee)),
+                        cfee = parseInt(remaining * parseFloat(stats.dex_fee)) || 0.005,
                         crate = parseFloat((order.target - pair)/remaining).toFixed(6),
                         hours = 720
                     if (crate == 'NaN') { crate = dex.tick }
@@ -776,7 +775,7 @@ exports.transfer = (json, pc) => {
                                 }
                             } else {
                                 const txid = config.TOKEN + hashThis(json.from + json.transaction_id),
-                                    cfee = parseInt(remaining * parseFloat(stats.dex_fee)),
+                                    cfee = parseInt(remaining * parseFloat(stats.dex_fee)) || 0.005,
                                     crate = order.rate.toFixed(6) || dex.tick,
                                     hours = 720,
                                     expBlock = json.block_num + (hours * 1200)

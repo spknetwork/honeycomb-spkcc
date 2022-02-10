@@ -59,6 +59,7 @@ module.exports = {
         "budgetRate": 2000,
         "currationRate": 2000,
         "delegationRate": 2000,
+        "dex_fee": "0.005",
         "hashLastIBlock": "Genesis",
         "icoPrice": 0, //in millihive
         "interestRate": 999999999999, //mints 1 millitoken per this many millitokens in your DAO period

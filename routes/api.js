@@ -401,7 +401,7 @@ exports.dex = (req, res, next) => {
             markets.hive.buys = []
             markets.hbd.sells = []
             markets.hbd.buys = []
-            markets.hive.sells.push({"amount": v[2],
+            if(config.features.ico)markets.hive.sells.push({"amount": v[2],
                "block": 0,
                "expire_path": "NA",
                "fee": 0,

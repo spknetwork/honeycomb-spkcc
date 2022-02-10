@@ -522,8 +522,8 @@ function distro(payingAccount, recievingAccount, price, royalty_per, author, roy
 exports.distro = distro
 
 const DEX = {
-    insert : function ( item, price, string, type) {
-        let price_location = string.indexOf(price)
+    insert : function ( item, price, string = '', type) {
+        let price_location = string ? string.indexOf(price) : -1
         if (price_location === -1) {
             let prices = string.split(',')
             if (string !== ''){
