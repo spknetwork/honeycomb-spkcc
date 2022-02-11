@@ -60,6 +60,7 @@ const delegationWeight = 1000 //when to trigger community rewards with bens
 const msaccount = 'spk-cc' //account controlled by community leaders
 const msPubMemo = 'STM5GNM3jpjWh7Msts5Z37eM9UPfGwTMU7Ksats3RdKeRaP5SveR9'
 const msPriMemo = '5KDZ9fzihXJbiLqUCMU2Z2xU8VKb9hCggyRPZP37aprD2kVKiuL'
+const msmeta = ''
 const mainAPI = 'spktoken.dlux.io' //leaders API probably
 const mainRender = '' //data and render server
 const mainFE = '3speak.tv' //frontend for content
@@ -129,6 +130,7 @@ let config = {
     msaccount,
     msPubMemo,
     msPriMemo,
+    msmeta,
     ben,
     adverts,
     delegation,

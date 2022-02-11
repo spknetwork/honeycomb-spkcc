@@ -25,7 +25,7 @@ exports.comment = (json, pc) => {
                 console.log(e)
             }
         })
-    } else if (config.features.pob && meta.arHash || meta.vrHash || meta.appHash || meta.audHash) {
+    } else if (config.features.pob && (meta.arHash || meta.vrHash || meta.appHash || meta.audHash)) {
         Ppost = getPathObj(['posts', `${json.author}/${json.permlink}`])
         Promise.all([Ppost])
             .then(postarray => {

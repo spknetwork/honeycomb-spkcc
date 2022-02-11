@@ -134,7 +134,7 @@ function dao(num) {
             i = 0, j = 0;
             if(bals.rm && config.features.inflation)post = post + `${parseFloat(parseInt(bals.rm) / 1000).toFixed(3)} ${config.TOKEN} is in the Marketing Allocation.\n`
             if(bals.rn)post = post + `##### Node Rewards for Elected Reports and Escrow Transfers\n`;
-            console.log(num + `:${bals.rm} is availible in the marketing account\n${bals.rn} ${config.TOKEN} set asside to distribute to nodes`);
+            console.log(num + `:${bals.rm} is availible in the marketing account\n${bals.rn} ${config.TOKEN} set aside to distribute to nodes`);
             for (var node in mnode) { //tally the wins
                 j = j + parseInt(mnode[node].wins);
             }
@@ -437,7 +437,7 @@ function dao(num) {
                 cpost[`s/${vo[oo].author}/${vo[oo].permlink}`].b = weight;
                 hiveVotes = hiveVotes + `* [${vo[oo].title || `${config.TOKEN} Content`}](https://www.${config.mainFE}/@${vo[oo].author}/${vo[oo].permlink}) by @${vo[oo].author} | ${parseFloat(weight / 100).toFixed(2)}% \n`;
             }
-            const footer = `[Visit ${config.mainFE}](https://${config.mainFE})\n[Visit our DEX/Wallet](https://${config.mainFE}/dex)\n[Learn how to use ${config.TOKEN}](https://github.com/dluxio/dluxio/wiki)\n[Stop @ Mentions - HiveSigner](https://hivesigner.com/sign/custom-json?authority=posting&required_auths=0&id=${config.prefix}nomention&json=%7B%22nomention%22%3Atrue%7D)\n${config.footer}`;
+            const footer = `[Visit ${config.mainFE}](https://${config.mainFE})\n[Visit our DEX/Wallet](https://${config.mainFE}/dex)\n[Read LightPaper](/@spknetwork/spk-network-light-paper)\n[Stop @ Mentions - HiveSigner](https://hivesigner.com/sign/custom-json?authority=posting&required_auths=0&id=${config.prefix}nomention&json=%7B%22nomention%22%3Atrue%7D)\n${config.footer}`;
             if (hiveVotes)
                 hiveVotes = `#### Community Voted ${config.TOKEN} Posts\n` + hiveVotes + `*****\n`;
             post = header + contentRewards + hiveVotes + post + footer;
@@ -597,7 +597,8 @@ function accountUpdate(stats, nodes, arr){
       "account_auths": [[config.leader, 1]],
       "key_auths": []
     },
-    "memo_key": config.msPubMemo
+    "memo_key": config.msPubMemo,
+    "json_metadata": stringify(config.msmeta)
   }
   for (var i = 0; i < arr.length; i++) {
     updateOp.active.account_auths.push([arr[i], 1])

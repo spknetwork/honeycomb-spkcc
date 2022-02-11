@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.0.0b5'
+const VERSION = 'v1.0.0b6'
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -132,8 +132,8 @@ var recents = []
     //HIVE API CODE
 
     //Start Program Options   
-//startWith("QmRFD8kZA2a9tUPcpj4FxoAXmWtBqKAfj2NoMHafBKN8zE", true) //for testing and replaying 58859101
-dynStart(config.follow)
+startWith("Qmeno1eMnaonKT6vmzJrJZM4BnoYusLPRvySU9CHw7F5CH", true) //for testing and replaying 58859101
+//dynStart(config.follow)
 
 
 // API defs
@@ -713,7 +713,6 @@ function startWith(hash, second) {
                         if (!e && (second || data[0] > API.RAM.head - 325)) {
                             if (hash) {
                                 var cleanState = data[1]
-                                cleanState.stats.movingWeight = 0
                                 store.put([], cleanState, function(err) {
                                     if (err) {
                                         console.log('errr',err)
