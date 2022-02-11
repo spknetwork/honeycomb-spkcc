@@ -76,7 +76,7 @@ exports.drop_claim = (json, from, active, pc) => {
     let tbp = getPathNum(['balances', from]),
         totp = getPathNum(['stats', 'tokenSupply']),
         track = getPathObj(['snap', from])
-    Promise.all([tbp, totp, track, fbalp])
+    Promise.all([tbp, totp, track])
         .then(mem => {
             let tbal = mem[0],
                 supply = mem[1],
