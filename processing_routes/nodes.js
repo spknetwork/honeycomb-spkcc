@@ -79,7 +79,6 @@ exports.node_add = function(json, from, active, pc) {
                     b.bidRate = bid ? bid : b.bidRate;
                     b.escrow = escrow ? escrow : b.escrow;
                     b.marketingRate = daoRate ? daoRate : b.marketingRate;
-                    b.mirror = mirror ? mirror : b.mirror;
                     b.liquidity = liquidity ? liquidity : b.liquidity;
                     if(mskey)b.mskey = mskey
                     ops = [{ type: 'put', path: ['markets', 'node', from], data: b }]

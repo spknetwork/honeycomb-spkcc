@@ -154,7 +154,7 @@ function dao(num) {
                     const gbal = gov[node] || 0
                     const feevote = mnode[node].bidRate > 1000 ? 1000 : mnode[node].bidRate
                     dexfeea += parseInt(wins * gbal * feevote);
-                    dexfeed += parseInt(wins * gov[node] * 1000);
+                    dexfeed += parseInt(wins * gbal * 1000);
                     i = parseInt(wins / j * b);
                     cbals[node] ? cbals[node] += i : cbals[node] = i;
                     bals.rn -= i;
