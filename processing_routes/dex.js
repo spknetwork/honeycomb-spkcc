@@ -1180,9 +1180,7 @@ exports.margins = function(bn) {
             var stats = mem[0],
                 dex = mem[1],
                 msa = mem[2],
-                mss = mem[3],
-                ops = [],
-                status = {}
+                mss = mem[3]
             if(Object.keys(msa).length)for (var x in msa){
                 if(typeof msa[x] == 'string')msa[x].split('amount\":\"').forEach(y => {
                     const amount = y.split('\"')[0],
@@ -1211,14 +1209,14 @@ exports.margins = function(bn) {
                 allowedHBD = parseInt(stats.multiSigCollateral * parseFloat(dex.hbd.tick)),
                 promises = []
                 if(stats.MSHeld.HIVE > allowedHive)console.log(stats.MSHeld.HIVE , {allowedHive})
-            // if(stats.MSHeld.HIVE > allowedHive){
-            //     var p = dex.hive.buyBook.split(','),
-            //         price = p.split('_')[0],
-            //         items = p.split('_')
-            //     for(var i = 1; i < items.length; i++){
-            //         promises.push(release(dex.hive.buyOrders[`${price}:${items[i]}`].from, items[i], bn, `${bn}_hive_collateral_vop`))
-            //     }
-            // }
+                if(stats.MSHeld.HIVE > allowedHive){
+                    var p = dex.hive.buyBook.split(','),
+                        price = p.split('_')[0],
+                        items = p.split('_')
+                    for(var i = 1; i < items.length; i++){
+                        promises.push(release(dex.hive.buyOrders[`${price}:${items[i]}`].from, items[i], bn, `${bn}_hive_collateral_vop`))
+                    }
+                }
             if(stats.MSHeld.HBD > allowedHBD){
                 var p = dex.hbd.buyBook.split(','),
                     price = p.split('_')[0],
