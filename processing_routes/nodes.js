@@ -50,10 +50,9 @@ exports.node_add = function(json, from, active, pc) {
             if (!e) {
                 if (isEmpty(a)) {
                     data = {
-                            domain: json.domain,
+                            domain: json.domain || 'localhost',
                             self: from,
                             bidRate: bid,
-                            marketingRate: daoRate,
                             attempts: 0,
                             yays: 0,
                             wins: 0,
@@ -63,9 +62,7 @@ exports.node_add = function(json, from, active, pc) {
                             contracts: 0,
                             escrows: 0,
                             lastGood: 0,
-                            report: {},
-                            escrow,
-                            liquidity
+                            report: {}
                         }
                     if(mskey)data.mskey = mskey
                     ops = [{
@@ -77,9 +74,6 @@ exports.node_add = function(json, from, active, pc) {
                     var b = a;
                     b.domain = json.domain ? json.domain : b.domain;
                     b.bidRate = bid ? bid : b.bidRate;
-                    b.escrow = escrow ? escrow : b.escrow;
-                    b.marketingRate = daoRate ? daoRate : b.marketingRate;
-                    b.liquidity = liquidity ? liquidity : b.liquidity;
                     if(mskey)b.mskey = mskey
                     ops = [{ type: 'put', path: ['markets', 'node', from], data: b }]
                 }
