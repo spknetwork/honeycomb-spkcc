@@ -119,7 +119,7 @@ exports.dex_sell = (json, from, active, pc) => {
                         }
                 } else {
                     let txid = config.TOKEN + hashThis(from + json.transaction_id),
-                        cfee = parseInt(remaining * parseFloat(stats.dex_fee)) || 0.005,
+                        cfee = parseInt(remaining * parseFloat(stats.dex_fee)) || parseInt(remaining * 0.005),
                         crate = parseFloat((order.target - pair)/remaining).toFixed(6),
                         hours = 720
                     if (crate == 'NaN') { crate = dex.tick }
@@ -658,9 +658,10 @@ exports.transfer = (json, pc) => {
                         stats.MSHeld[json.amount.nai == '@@000000021' ? 'HIVE' : 'HBD'] += parseInt(json.amount.amount)
                     while (remaining){
                         i++
-                        const price = parseFloat(dex.sellBook.split('_')[0])
+                        var price = dex.sellBook ? parseFloat(dex.sellBook.split('_')[0]) : ''
                         let item = ''
                         if(price)item = dex.sellBook.split('_')[1].split(',')[0]
+                        else price = dex.tick
                         if (item && (order.pair == 'hbd' || (order.pair == 'hive' && (price <= stats.icoPrice/1000))) && ( order.type == 'MARKET' || (order.type == 'LIMIT' && order.rate >= price))) {
                             var next = dex.sellOrders[`${price.toFixed(6)}:${item}`]
                             console.log({next})
@@ -728,7 +729,7 @@ exports.transfer = (json, pc) => {
                                 ops.push({type: 'put', path: ['contracts', next.from , item], data: next}) //update the contract
                             }
                         } else {
-                            if (order.pair == 'hive' && ( order.type == 'MARKET' || (order.type == 'LIMIT' && order.rate >= stats.icoPrice/1000 ))){
+                            if (config.features.ico && order.pair == 'hive' && ( order.type == 'MARKET' || (order.type == 'LIMIT' && order.rate >= stats.icoPrice/1000 ))){
                                 let purchase
                                 const transfer = [
                                         "transfer",
@@ -775,7 +776,7 @@ exports.transfer = (json, pc) => {
                                 }
                             } else {
                                 const txid = config.TOKEN + hashThis(json.from + json.transaction_id),
-                                    cfee = parseInt(remaining * parseFloat(stats.dex_fee)) || 0.005,
+                                    cfee = parseInt(remaining * parseFloat(stats.dex_fee)) || parseInt(remaining * 0.005),
                                     crate = order.rate.toFixed(6) || dex.tick,
                                     hours = 720,
                                     expBlock = json.block_num + (hours * 1200)

@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.0.0b9'
+const VERSION = 'v1.0.0b10r'
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -101,7 +101,7 @@ let TXID = {
 exports.TXID = TXID
 const API = require('./routes/api');
 const HR = require('./processing_routes/index')
-const { Base64, NFT, Chron } = require('./helpers');
+const { Base64, NFT, Chron, Watchdog } = require('./helpers');
 const { release } = require('./processing_routes/dex')
 const { enforce } = require("./enforce");
 const { tally } = require("./tally");
@@ -132,9 +132,9 @@ var recents = []
     //HIVE API CODE
 
     //Start Program Options   
-//startWith("QmPCku1QExKeMEyWUwGjzpw9MYKNzTAF8RCKzg4dqQzjs3", true) //for testing and replaying 58859101
-dynStart(config.follow)
-
+startWith("QmYgP1Mg9K3k6UCU6PZXW4ELtSQC9bqSvAgkjH7Lpf1GDi", true) //for testing and replaying 58859101
+//dynStart(config.follow)
+Watchdog.monitor()
 
 // API defs
 api.use(API.https_redirect);
@@ -284,7 +284,7 @@ function startApp() {
         function (num, pc, prand, bh) {
             console.log(num)
             if(num < TXID.blocknumber){
-                require('process').exit(1)
+                require('process').exit(2)
             } else {TXID.clean(num)}
             return new Promise((resolve, reject) => {
                 let Pchron = getPathSome(['chrono'],{
