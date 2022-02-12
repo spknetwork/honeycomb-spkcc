@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.0.0b10'
+const VERSION = 'v1.0.0b11'
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -101,7 +101,7 @@ let TXID = {
 exports.TXID = TXID
 const API = require('./routes/api');
 const HR = require('./processing_routes/index')
-const { Base64, NFT, Chron, Watchdog } = require('./helpers');
+const { NFT, Chron, Watchdog } = require('./helpers');
 const { release } = require('./processing_routes/dex')
 const { enforce } = require("./enforce");
 const { tally } = require("./tally");
@@ -132,8 +132,8 @@ var recents = []
     //HIVE API CODE
 
     //Start Program Options   
-//startWith("QmYgP1Mg9K3k6UCU6PZXW4ELtSQC9bqSvAgkjH7Lpf1GDi", true) //for testing and replaying 58859101
-dynStart(config.follow)
+startWith("QmZmBjnGneSktT1RsLLJ9NBwoE4hYgN25BFppLFcw7Zzx9", true) //for testing and replaying 58859101
+//dynStart(config.follow)
 
 Watchdog.monitor()
 
@@ -498,7 +498,7 @@ function startApp() {
                         block.chain = []
                         block.ops = []
                         store.get([], function(err, obj) {
-                            const blockState = Buffer.from(stringify([num, obj]))
+                            const blockState = Buffer.from(stringify([num + 1, obj]))
                             ipfsSaveState(num, blockState, ipfs)
                                 .then(pla => {
                                     block.root = pla.hashLastIBlock
@@ -510,7 +510,7 @@ function startApp() {
 
                         })
                     } else if (num % 100 === 1) {
-                        const blockState = Buffer.from(stringify([num, block]))
+                        const blockState = Buffer.from(stringify([num + 1, block]))
                             block.ops = []
                             issc(num, blockState, ipfs)
                             function issc(n,b,i,r = 0){

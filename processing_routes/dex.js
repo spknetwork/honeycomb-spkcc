@@ -119,10 +119,9 @@ exports.dex_sell = (json, from, active, pc) => {
                         }
                 } else {
                     let txid = config.TOKEN + hashThis(from + json.transaction_id),
-                        cfee = parseInt(remaining * parseFloat(stats.dex_fee)) || parseInt(remaining * 0.005),
-                        crate = parseFloat((order.target - pair)/remaining).toFixed(6),
+                        crate = typeof parseFloat((order.target - pair)/remaining).toFixed(6) == 'number' ? parseFloat((order.target - pair)/remaining).toFixed(6) : dex.tick,
+                        cfee = typeof stats.dex_fee == 'number' ? parseInt(parseInt(remaining / crate) * parseFloat(stats.dex_fee)) : parseInt(parseInt(remaining / crate) * 0.005),
                         hours = 720
-                    if (crate == 'NaN') { crate = dex.tick }
                     contract = {
                         txid,
                         from: from,
@@ -632,10 +631,10 @@ exports.transfer = (json, pc) => {
             try {order = JSON.parse(json.memo)} catch (e) {}
             if (!order.rate) {
                 order.type = 'MARKET'
-                order.rate = parseFloat(order.rate) || 0
+                order.rate = parseFloat(order.rate).toFixed(6) || 0
             } else {
                 order.type = 'LIMIT'
-                order.rate = parseFloat(order.rate) || 0
+                order.rate = parseFloat(order.rate).toFixed(6) || 0
             }
             order.pair = json.amount.nai == '@@000000021' ? 'hive' : 'hbd'
             order.amount = parseInt(json.amount.amount)
@@ -658,12 +657,13 @@ exports.transfer = (json, pc) => {
                         stats.MSHeld[json.amount.nai == '@@000000021' ? 'HIVE' : 'HBD'] += parseInt(json.amount.amount)
                     while (remaining){
                         i++
-                        var price = dex.sellBook ? parseFloat(dex.sellBook.split('_')[0]) : ''
+                        var price = dex.sellBook ? parseFloat(dex.sellBook.split('_')[0]).toFixed(6) : ''
                         let item = ''
                         if(price)item = dex.sellBook.split('_')[1].split(',')[0]
                         else price = dex.tick
-                        if (item && (order.pair == 'hbd' || (order.pair == 'hive' && (price <= stats.icoPrice/1000))) && ( order.type == 'MARKET' || (order.type == 'LIMIT' && order.rate >= price))) {
-                            var next = dex.sellOrders[`${price.toFixed(6)}:${item}`]
+                        console.log({price,item})
+                        if (item && (order.pair == 'hbd' || (order.pair == 'hive' && (price <= stats.icoPrice/1000 || !config.features.ico))) && ( order.type == 'MARKET' || (order.type == 'LIMIT' && order.rate >= price))) {
+                            var next = dex.sellOrders[`${price}:${item}`]
                             console.log({next})
                             if (next && next[order.pair] <= remaining){
                                 filled += next.amount - next.fee
@@ -673,7 +673,7 @@ exports.transfer = (json, pc) => {
                                 dex.tick = next.rate
                                 his[`${json.block_num}:${i}:${json.transaction_id}`] = {type: 'buy', t:Date.parse(json.timestamp), block: json.block_num, base_vol: next.amount, target_vol: next[order.pair], target: order.pair, price: next.rate, id: json.transaction_id + i}
                                 dex.sellBook = DEX.remove(item, dex.sellBook) //adjust the orderbook
-                                delete dex.sellOrders[`${price.toFixed(6)}:${item}`]
+                                delete dex.sellOrders[`${price}:${item}`]
                                 const transfer = [
                                         "transfer",
                                         {
@@ -687,7 +687,7 @@ exports.transfer = (json, pc) => {
                                 ops.push({type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}.${i}`], data: msg})
                                 if(Object.keys(his).length)ops.push({type: 'put', path: ['dex', order.pair, 'his'], data: his})
                                 ops.push({type: 'put', path: ['msa', `${item}:${json.transaction_id}:${i}`], data: stringify(transfer)}) //send HIVE out via MS
-                                ops.push({type: 'del', path: ['dex', order.pair, 'sellOrders', `${price.toFixed(6)}:${item}`]}) //remove the order
+                                ops.push({type: 'del', path: ['dex', order.pair, 'sellOrders', `${price}:${item}`]}) //remove the order
                                 ops.push({type: 'del', path: ['contracts', next.from , item]}) //remove the contract
                                 ops.push({type: 'del', path: ['chrono', next.expire_path]}) //remove the chrono
                             } else if(!next) {
@@ -776,8 +776,8 @@ exports.transfer = (json, pc) => {
                                 }
                             } else {
                                 const txid = config.TOKEN + hashThis(json.from + json.transaction_id),
-                                    cfee = parseInt(remaining * parseFloat(stats.dex_fee)) || parseInt(remaining * 0.005),
-                                    crate = order.rate.toFixed(6) || dex.tick,
+                                    crate = order.rate,
+                                    cfee = typeof stats.dex_fee == 'number' ? parseInt(parseInt(remaining / crate) * parseFloat(stats.dex_fee)) : parseInt(parseInt(remaining / crate) * 0.005),
                                     hours = 720,
                                     expBlock = json.block_num + (hours * 1200)
                                 contract = {
