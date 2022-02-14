@@ -132,7 +132,7 @@ var recents = []
     //HIVE API CODE
 
 //Start Program Options   
-dynStart(config.msaccount)
+dynStart(config.leader)
 //startWith("QmTddH6srdYMWRLkq6yjbqobenTVD94xzEgBuTafkqctqA", true) //for testing and replaying 58859101
 
 Watchdog.monitor()
