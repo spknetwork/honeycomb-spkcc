@@ -56,7 +56,7 @@ exports.dex_sell = (json, from, active, pc) => {
                 contract = ''
             sell_loop: while(remaining){
                 let price = dex.buyBook ? parseFloat(dex.buyBook.split('_')[0]) : dex.tick
-                let item = dex.buyBook ? dex.buyBook.split('_')[1] : ''
+                let item = dex.buyBook ? dex.buyBook.split('_')[1].split(',')[0] : ''
                 if (item && (order.type == 'MARKET' || parseFloat(price) >= order.rate)){
                     let next = dex.buyOrders[`${price.toFixed(6)}:${item}`]
                     if(!next){
@@ -118,6 +118,7 @@ exports.dex_sell = (json, from, active, pc) => {
                             remaining = 0
                         }
                 } else {
+                    console.log('else')
                     let txid = config.TOKEN + hashThis(from + json.transaction_id),
                         crate = typeof parseFloat((order.target - pair)/remaining).toFixed(6) == 'number' ? parseFloat((order.target - pair)/remaining).toFixed(6) : dex.tick,
                         cfee = typeof stats.dex_fee == 'number' ? parseInt(parseInt(remaining / crate) * parseFloat(stats.dex_fee)) : parseInt(parseInt(remaining / crate) * 0.005),
@@ -692,7 +693,6 @@ exports.transfer = (json, pc) => {
                                 ops.push({type: 'del', path: ['chrono', next.expire_path]}) //remove the chrono
                             } else if(!next) {
                                 dex.sellBook = DEX.remove(item, dex.sellBook)
-                                console.log('WHERE DID ${item} GO?')
                             } else {
                                 next[order.pair] = next[order.pair] - remaining // modify the contract
                                 const tokenAmount = parseInt(remaining / parseFloat(next.rate))
@@ -1042,6 +1042,7 @@ function enforce(str){
     return enforce
 } 
 
+/*
 function postVerify(str, from, loc){
     fetch("https://api.hive.blog", {
         body: `{"jsonrpc":"2.0", "method":"bridge.get_account_posts", "params":{"sort":"posts", "account": "${from}", "limit": 25}, "id":1}`,
@@ -1066,7 +1067,7 @@ function postVerify(str, from, loc){
         }
     })
 }
-
+*/
 const release = (from, txid, bn, tx_id) => {
     return new Promise((resolve, reject) => {
         store.get(['contracts', from, txid], function(er, a) {

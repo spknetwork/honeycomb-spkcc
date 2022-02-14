@@ -81,7 +81,7 @@ module.exports = function(client, hive, currentBlockNumber = 1, blockComputeSpee
                     })
                     }
                     function gbr (bln, count, at){
-                        fetch("https://api.hive.blog", {
+                        fetch(client.currentAddress, {
                             body: `{"jsonrpc":"2.0", "method":"block_api.get_block_range", "params":{"starting_block_num": ${bln}, "count": ${count}}, "id":1}`,
                             headers: {
                                 "Content-Type": "application/x-www-form-urlencoded"

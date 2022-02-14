@@ -47,7 +47,7 @@ const clients = ENV.clients || [
 
 //!!!!!!! -- THESE ARE COMMUNITY CONSTANTS -- !!!!!!!!!//
 //TOKEN CONFIGS -- ALL COMMUNITY RUNNERS NEED THESE SAME VALUES
-const starting_block = 61499500; //from what block does your token start
+const starting_block = 61823400; //from what block does your token start
 const prefix = 'spkcc_' //Community token name for Custom Json IDs
 const TOKEN = 'LARYNX' //Token name
 const precision = 3 //precision of token

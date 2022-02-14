@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.0.0b11'
+const VERSION = 'v1.0.0b12'
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -131,9 +131,9 @@ var live_dex = {}, //for feedback, unused currently
 var recents = []
     //HIVE API CODE
 
-    //Start Program Options   
-//startWith("QmZmBjnGneSktT1RsLLJ9NBwoE4hYgN25BFppLFcw7Zzx9", true) //for testing and replaying 58859101
-dynStart(config.follow)
+//Start Program Options   
+dynStart(config.msaccount)
+//startWith("QmTddH6srdYMWRLkq6yjbqobenTVD94xzEgBuTafkqctqA", true) //for testing and replaying 58859101
 
 Watchdog.monitor()
 
@@ -462,11 +462,6 @@ function startApp() {
                                 });
                         }
                         if (num % 100 === 50) {
-                            setTimeout(function(a) {
-                                if(plasma.hashLastIBlock == a || plasma.hashSecIBlock == a){
-                                    exit(plasma.hashLastIBlock)
-                                }
-                            }, 620000, plasma.hashLastIBlock)
                             promises.push(new Promise((res,rej)=>{
                                 report(plasma, consolidate(num, plasma, bh))
                                 .then(nodeOp => {
@@ -511,21 +506,8 @@ function startApp() {
                         })
                     } else if (num % 100 === 1) {
                         const blockState = Buffer.from(stringify([num + 1, block]))
-                            block.ops = []
-                            issc(num, blockState, ipfs)
-                            function issc(n,b,i,r = 0){
-                                ipfsSaveState(n,b,i,r)
-                                .then(pla => {
-                                    block.chain.push({hash: pla.hashLastIBlock, hive_block: num})
-                                    plasma.hashSecIBlock = plasma.hashLastIBlock
-                                    plasma.hashLastIBlock = pla.hashLastIBlock
-                                    plasma.hashBlock = pla.hashBlock
-                                    if(block.chain.length > 2 && block.chain[block.chain.length - 2].hive_block < block.chain[block.chain.length - 1].hive_block - 100){
-                                        exit(block.chain[block.chain.length - 2].hash)
-                                    }
-                                })
-                                .catch(e => { if(r<2){issc(n,b,i, r++)}else{exit(plasma.hashLastIBlock)} })
-                            }
+                        block.ops = []
+                        issc(num, blockState, null, 0, 0)
                     }
                     if (config.active && processor.isStreaming() ) {
                         store.get(['escrow', config.username], function(e, a) {
@@ -534,7 +516,7 @@ function startApp() {
                                     if (!plasma.pending[b]) {
                                         NodeOps.push([
                                             [0, 0],
-                                            a[b]
+                                            JSON.parse(a[b])
                                         ]);
                                         plasma.pending[b] = true
                                     }
@@ -613,14 +595,14 @@ function startApp() {
     }, 3000);
 }
 
-function exit(consensus) {
-    console.log(`Restarting with ${consensus}...`);
+function exit(consensus, reason) {
+    console.log(`Restarting with ${consensus}. Reason: ${reason}`);
 
-    processor.stop(function() {});
+    if(processor)processor.stop(function() {});
         if (consensus) {
             startWith(consensus, true)
         } else {
-            dynStart(config.leader)
+            dynStart(config.msaccount)
         }
 }
 
@@ -655,7 +637,7 @@ function cycleAPI() {
     config.clientURL = config.clients[c + 1]
     console.log('Using APIURL: ', config.clientURL)
     client = new hive.Client(config.clientURL)
-    exit(plasma.hashLastIBlock)
+    exit(plasma.hashLastIBlock, 'API Changed')
 }
 
 //pulls the latest activity of an account to find the last state put in by an account to dynamically start the node. 
@@ -668,7 +650,7 @@ function dynStart(account) {
     hiveClient.api.getAccountHistory(accountToQuery, -1, 100, ...walletOperationsBitmask, function(err, result) {
         if (err) {
             console.log('errr', err)
-            dynStart(config.leader)
+            dynStart(config.msaccount)
         } else {
             hiveClient.api.setOptions({ url: config.clientURL });
             let ebus = result.filter(tx => tx[1].op[1].id === `${config.prefix}report`)
@@ -718,20 +700,23 @@ function startWith(hash, second) {
                                     if (err) {
                                         console.log('errr',err)
                                     } else {
-                                        store.get(['stats', 'lastBlock'], function(error, returns) {
-                                            if (!error) {
-                                                console.log(`State Check:  ${returns}\nAccount: ${config.username}\nKey: ${config.active.substr(0,3)}...`)
-                                                let info = API.coincheck(cleanState)
-                                                console.log('check', info.check)
-                                                if (cleanState.stats.tokenSupply != info.supply) {
-                                                    console.log('check',info.info)
-                                                }
-                                            }
-                                        })
                                         if(blockinfo[1].chain){rundelta(blockinfo[1].chain, blockinfo[1].ops, blockinfo[0], blockinfo[1].prev_root)
                                         .then(empty=>{
-                                            startApp()
-                                            getPathNum(['balances', 'ra']).then(r=>console.log(r))})
+                                            const blockState = Buffer.from(stringify([startingBlock, block]))
+                                                block.ops = []
+                                            issc(startingBlock, blockState, startApp, 0, 1)
+                                            store.get(['stats', 'lastBlock'], function(error, returns) {
+                                                if (!error) {
+                                                    console.log(`State Check:  ${returns}\nAccount: ${config.username}\nKey: ${config.active.substr(0,3)}...`)
+                                                    let info = API.coincheck(cleanState)
+                                                    console.log('check', info.check)
+                                                    if (cleanState.stats.tokenSupply != info.supply) {
+                                                        console.log('check',info.info)
+                                                    }
+                                                }
+                                            })
+                                            //getPathNum(['balances', 'ra']).then(r=>console.log(r))
+                                            })  
                                         .catch(e=>console.log('Failure of rundelta'))
                                         } else {
                                             startApp()
@@ -817,7 +802,7 @@ function startWith(hash, second) {
         })
         .catch(e=>{
             console.log('error in ipfs', e)
-            process.exit()
+            process.exit(4)
         })
     } else {
         startingBlock = config.starting_block
@@ -930,4 +915,18 @@ function ipfspromise(hash){
         .then(res => {resolve(res)})
         .catch(e=>reject(e))})
     })
+}
+
+function issc(n,b,i,r,a){
+    ipfsSaveState(n,b,i,r,a)
+    .then(pla => {
+        block.chain.push({hash: pla.hashLastIBlock, hive_block: n - a})
+        plasma.hashSecIBlock = plasma.hashLastIBlock
+        plasma.hashLastIBlock = pla.hashLastIBlock
+        plasma.hashBlock = pla.hashBlock
+        if(block.chain.length > 2 && block.chain[block.chain.length - 2].hive_block < block.chain[block.chain.length - 1].hive_block - 100){
+            exit(block.chain[block.chain.length - 2].hash, 'Chain Out Of Order')
+        } else if (typeof i == 'function'){i()}
+    })
+    .catch(e => { if(r<2){console.log('Retrying IPFS Save');issc(n,b,i,r++, a)}else{exit(plasma.hashLastIBlock, 'IPFS Save Failed')} })
 }
