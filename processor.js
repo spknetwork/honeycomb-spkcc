@@ -68,7 +68,7 @@ module.exports = function(client, hive, currentBlockNumber = 1, blockComputeSpee
                     if(behind && !stopping)gbr(bn, behind > 100 ? 100 : behind, 0)
                     else if (!stopping)gb(bn, 0)
                     function gb (bln, at){
-                        if(bln > TXID.saveNumber + 50){
+                        if(bln < TXID.saveNumber + 50){
                             client.database.getBlock(bln)
                             .then((result) => {
                                 resolve([result])
@@ -85,7 +85,7 @@ module.exports = function(client, hive, currentBlockNumber = 1, blockComputeSpee
                         }
                     }
                     function gbr (bln, count, at){
-                        if(bln > TXID.saveNumber + 50)setTimeout(()=>{gbr (bln, count, at)}, 1000)
+                        if(bln > TXID.saveNumber + 150)setTimeout(()=>{gbr (bln, count, at)}, 1000)
                         else fetch(client.currentAddress, {
                             body: `{"jsonrpc":"2.0", "method":"block_api.get_block_range", "params":{"starting_block_num": ${bln}, "count": ${count}}, "id":1}`,
                             headers: {

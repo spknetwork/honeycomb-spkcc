@@ -705,7 +705,6 @@ function startWith(hash, second) {
                                         if(blockinfo[1].chain){
                                             rundelta(blockinfo[1].chain, blockinfo[1].ops, blockinfo[0], blockinfo[1].prev_root)
                                             .then(empty=>{
-                                                console.log('Above ISSC')
                                                 const blockState = Buffer.from(stringify([startingBlock, block]))
                                                 block.ops = []
                                                 issc(startingBlock, blockState, startApp, 0, 1)
@@ -927,6 +926,7 @@ function ipfspromise(hash){
 function issc(n,b,i,r,a){
     ipfsSaveState(n,b,i,r,a)
     .then(pla => {
+        TXID.saveNumber = pla.hashBlock
         block.chain.push({hash: pla.hashLastIBlock, hive_block: n - a})
         plasma.hashSecIBlock = plasma.hashLastIBlock
         plasma.hashLastIBlock = pla.hashLastIBlock
