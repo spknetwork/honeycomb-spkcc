@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.0.0b12'
+const VERSION = 'v1.0.0b13'
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -700,11 +700,13 @@ function startWith(hash, second) {
                                     if (err) {
                                         console.log('errr',err)
                                     } else {
-                                        if(blockinfo[1].chain){rundelta(blockinfo[1].chain, blockinfo[1].ops, blockinfo[0], blockinfo[1].prev_root)
-                                        .then(empty=>{
-                                            const blockState = Buffer.from(stringify([startingBlock, block]))
+                                        if(blockinfo[1].chain){
+                                            rundelta(blockinfo[1].chain, blockinfo[1].ops, blockinfo[0], blockinfo[1].prev_root)
+                                            .then(empty=>{
+                                                console.log('Above ISSC')
+                                                const blockState = Buffer.from(stringify([startingBlock, block]))
                                                 block.ops = []
-                                            issc(startingBlock, blockState, startApp, 0, 1)
+                                                issc(startingBlock, blockState, startApp, 0, 1)
                                             store.get(['stats', 'lastBlock'], function(error, returns) {
                                                 if (!error) {
                                                     console.log(`State Check:  ${returns}\nAccount: ${config.username}\nKey: ${config.active.substr(0,3)}...`)
@@ -877,6 +879,7 @@ function rundelta(arr, ops, sb, pr){
 function unwrapOps(arr){
     return new Promise((resolve, reject) => {
         var d = []
+        if(arr[arr.length - 1] !== 'W')arr.push('W')
         if(arr.length)write(0)
         else resolve([])
         function write (int){
@@ -926,7 +929,7 @@ function issc(n,b,i,r,a){
         plasma.hashBlock = pla.hashBlock
         if(block.chain.length > 2 && block.chain[block.chain.length - 2].hive_block < block.chain[block.chain.length - 1].hive_block - 100){
             exit(block.chain[block.chain.length - 2].hash, 'Chain Out Of Order')
-        } else if (typeof i == 'function'){i()}
+        } else if (typeof i == 'function'){console.log('Requesting Blocks from:', config.clientURL);i()}
     })
     .catch(e => { if(r<2){console.log('Retrying IPFS Save');issc(n,b,i,r++, a)}else{exit(plasma.hashLastIBlock, 'IPFS Save Failed')} })
 }

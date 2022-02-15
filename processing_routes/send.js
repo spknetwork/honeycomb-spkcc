@@ -85,7 +85,7 @@ exports.drop_claim = (json, from, active, pc) => {
             if (trak.t) { //get from memory
                 if(trak.l != parseInt(json.timestamp.split('-')[1], 10).toString(16) && (json.timestamp.split('-')[0] == '2022' || json.timestamp.split('-')[0] == '2023' && json.timestamp.split('-')[1] == '01')){
                     trak.l = parseInt(json.timestamp.split('-')[1], 10).toString(16)
-                    trak.t++
+                    trak.t += parseInt(json.timestamp.split('-')[1], 10).toString(16)
                     ops.push({ type: 'put', path: ['balances', from], data: parseInt(tbal + trak.s) });
                     ops.push({ type: 'put', path: ['stats', 'tokenSupply'], data: parseInt(supply + trak.s) });
                     ops.push({ type: 'put', path: ['snap', from], data: trak });
@@ -104,7 +104,7 @@ exports.drop_claim = (json, from, active, pc) => {
                     //{"hiveCurrent": 743.805, "hiveSnap": 743.805, "vestCurrent": 3832862.583523, "vestSnap": 3470785.995649, "hivePowerSnap": 1879.34242911609, "Larynx": 2623.14742911609, "snapshotBlock": 60714039, "snapshotTimestamp": "2022-01-07T08:00:00", "username": "disregardfiat"}
                     trak = {
                         s: parseInt(snap.Larynx * 1000 / 12), // Larynx per claim
-                        t: 1, // total claims
+                        t: parseInt(json.timestamp.split('-')[1], 10).toString(16), // total claims
                         l: parseInt(json.timestamp.split('-')[1], 10).toString(16), // last claim month int
                     }
                     ops.push({ type: 'put', path: ['balances', from], data: parseInt(tbal + trak.s) });
