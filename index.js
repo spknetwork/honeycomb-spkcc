@@ -848,6 +848,7 @@ function rundelta(arr, ops, sb, pr){
                         block.chain = b[1].chain
                         block.prev_root = pr
                         startingBlock = b[0]
+                        TXID.saveNumber = b[0]
                         unwrapOps(b[1].ops).then(last=>{
                             if(last.length){
                             store.batch(last, [delta, reject, a ? a : []])
@@ -862,6 +863,7 @@ function rundelta(arr, ops, sb, pr){
                     block.chain = arr
                     block.prev_root = pr
                     startingBlock = sb
+                    TXID.saveNumber = sb
                     unwrapOps(ops).then(last=>{
                     if(last.length){
                         store.batch(last, [reorderOps, reject, a ? a : []])
