@@ -70,7 +70,7 @@ module.exports = function(client, hive, currentBlockNumber = 1, blockComputeSpee
                     function gb (bln, at){
                         if(bln > TXID.saveNumber + 50){
                             client.database.getBlock(bln)
-                            a.then((result) => {
+                            .then((result) => {
                                 resolve([result])
                             })
                             .catch((err) => {
