@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.0.0b13'
+const VERSION = 'v1.0.0b14'
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -92,9 +92,10 @@ let TXID = {
         return TXID.blocknumber
     },
     blocknumber: 0,
+    saveNumber: 0,
     streaming: false,
     current: function(){TXID.streaming = true},
-    reset: function(){TXID.streaming = false, TXID.blocknumber = 0, status = {
+    reset: function(){TXID.streaming = false, TXID.blocknumber = 0, saveNumber = 0, status = {
     cleaner: [],
 }},
 }
@@ -496,6 +497,7 @@ function startApp() {
                             const blockState = Buffer.from(stringify([num + 1, obj]))
                             ipfsSaveState(num, blockState, ipfs)
                                 .then(pla => {
+                                    TXID.saveNumber = pla.hashBlock
                                     block.root = pla.hashLastIBlock
                                     plasma.hashSecIBlock = plasma.hashLastIBlock
                                     plasma.hashLastIBlock = pla.hashLastIBlock
