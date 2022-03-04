@@ -229,9 +229,14 @@ exports.tally = (num, plasma, isStreaming) => {
                                 { type: 'put', path: ['balances', 'ra'], data: rbal.ra }
                             ]
                             if(config.features.pob)ops.push({ type: 'put', path: ['balances', 'rc'], data: rbal.rc - (this_payout - change[0]) })
-                            if(Object.keys(still_running).length > 1) ops.push(
+                            var legal = 0 
+                            for (node in still_running) {
+                                if(Object.keys(still_running).includes(Object.keys(stats.ms.active_account_auths)[i]))legal++
+                            }
+                            if(Object.keys(still_running).length > 1 && legal >= stats.ms.active_threshold) ops.push(
                                 { type: 'put', path: ['runners'], data: still_running })
-                            else ops.push({ type: 'put', path: ['runners'], data: runners })
+                            else if (Object.keys(runners).length)ops.push({ type: 'put', path: ['runners'], data: runners })
+                            else ops.push({ type: 'put', path: ['runners'], data: stats.ms.active_account_auths })
                             if (Object.keys(new_queue).length) ops.push({ type: 'put', path: ['queue'], data: new_queue })
                                 //if (process.env.npm_lifecycle_event == 'test') newPlasma = ops
                                 //console.log(ops)
