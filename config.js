@@ -34,12 +34,12 @@ const ipfsprotocol = ENV.ipfsprotocol || 'https' //IPFS upload/download protocol
 const bidRate = ENV.BIDRATE || 500 // your vote for the dex fee 500 = 0.500% Max 1000
 
 //HIVE CONFIGS
-var startURL = ENV.STARTURL || "https://api.deathwing.me/"
-var clientURL = ENV.APIURL || "https://api.deathwing.me/"
+var startURL = ENV.STARTURL || "https://rpc.ecency.com/"
+var clientURL = ENV.APIURL || "https://rpc.ecency.com/"
 const clients = ENV.clients || [
     "https://api.deathwing.me/",
     //"https://api.c0ff33a.uk/",
-    //"https://rpc.ecency.com/",
+    "https://rpc.ecency.com/",
     "https://hived.emre.sh/",
     //"https://rpc.ausbit.dev/",
     "https://api.hive.blog/"
@@ -47,7 +47,7 @@ const clients = ENV.clients || [
 
 //!!!!!!! -- THESE ARE COMMUNITY CONSTANTS -- !!!!!!!!!//
 //TOKEN CONFIGS -- ALL COMMUNITY RUNNERS NEED THESE SAME VALUES
-const starting_block = 61823400; //from what block does your token start
+const starting_block = 62313601; //from what block does your token start
 const prefix = 'spkcc_' //Community token name for Custom Json IDs
 const TOKEN = 'LARYNX' //Token name
 const precision = 3 //precision of token

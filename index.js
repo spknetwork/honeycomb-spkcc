@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.0.0b14'
+const VERSION = 'v1.0.0b15'
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -133,8 +133,8 @@ var recents = []
     //HIVE API CODE
 
 //Start Program Options   
-dynStart(config.leader)
-//startWith("QmTddH6srdYMWRLkq6yjbqobenTVD94xzEgBuTafkqctqA", true) //for testing and replaying 58859101
+//dynStart(config.leader)
+startWith("", true) //for testing and replaying 58859101
 
 Watchdog.monitor()
 
@@ -425,7 +425,7 @@ function startApp() {
                                     osig_submit(consolidate(num, plasma, bh, 'owner'))
                                     .then(nodeOp => {
                                         res('SAT')
-                                        NodeOps.unshift(nodeOp)
+                                        if(plasma.rep)NodeOps.unshift(nodeOp)
                                     })
                                     .catch(e => { rej(e) })
                                 }))
@@ -434,7 +434,7 @@ function startApp() {
                                     sig_submit(consolidate(num, plasma, bh))
                                     .then(nodeOp => {
                                         res('SAT')
-                                        NodeOps.unshift(nodeOp)
+                                        if(plasma.rep)NodeOps.unshift(nodeOp)
                                     })
                                     .catch(e => { rej(e) })
                                 }))
@@ -625,7 +625,7 @@ function waitfor(promises_array) {
 exports.waitfor = waitfor;
 
 //hopefully handling the HIVE garbage APIs
-function cycleAPI() {
+function cycleAPI(restart) {
     var c = 0
     for (i of config.clients) {
         if (config.clientURL == config.clients[i]) {
@@ -633,13 +633,13 @@ function cycleAPI() {
             break;
         }
     }
-    if (c == config.clients.length - 2) {
+    if (c == config.clients.length - 1) {
         c = -1
     }
     config.clientURL = config.clients[c + 1]
     console.log('Using APIURL: ', config.clientURL)
     client = new hive.Client(config.clientURL)
-    exit(plasma.hashLastIBlock, 'API Changed')
+    if(restart)exit(plasma.hashLastIBlock, 'API Changed')
 }
 
 //pulls the latest activity of an account to find the last state put in by an account to dynamically start the node. 
@@ -820,6 +820,7 @@ function startWith(hash, second) {
                             console.log(`State Check:  ${returns}\nAccount: ${config.username}\nKey: ${config.active.substr(0,3)}...`)
                         }
                     })
+                    TXID.saveNumber = config.starting_block
                     startApp()
                 }
             })

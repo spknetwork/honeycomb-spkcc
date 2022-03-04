@@ -83,7 +83,7 @@ exports.drop_claim = (json, from, active, pc) => {
                 trak = mem[2],
                 ops = []
             if (trak.t) { //get from memory
-                if(trak.l != parseInt(json.timestamp.split('-')[1], 10).toString(16) && (json.timestamp.split('-')[0] == '2022' || json.timestamp.split('-')[0] == '2023' && json.timestamp.split('-')[1] == '01')){
+                if(trak.l.split('').pop() != parseInt(json.timestamp.split('-')[1], 10).toString(16) && (json.timestamp.split('-')[0] == '2022' || json.timestamp.split('-')[0] == '2023' && parseInt(json.timestamp.split('-')[1]) < 3)){
                     trak.l = parseInt(json.timestamp.split('-')[1], 10).toString(16)
                     trak.t += parseInt(json.timestamp.split('-')[1], 10).toString(16)
                     ops.push({ type: 'put', path: ['balances', from], data: parseInt(tbal + trak.s) });

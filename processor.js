@@ -59,7 +59,6 @@ module.exports = function(client, hive, currentBlockNumber = 1, blockComputeSpee
 
     function beginBlockComputing() {
         function computeBlock(behind) {
-
             var blockNum = currentBlockNumber; // Helper variable to prevent race condition
             // in getBlock()
             var vops = getVops(blockNum)

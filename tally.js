@@ -192,6 +192,7 @@ exports.tally = (num, plasma, isStreaming) => {
                         still_running = runners
                     }
                     let newPlasma = plasma
+                    newPlasma.rep = still_running[config.username]?.g ? true : false
                     plasma.consensus = consensus || 0,
                     plasma.new_queue = new_queue
                     plasma.still_running = still_running
