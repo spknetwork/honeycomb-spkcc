@@ -230,8 +230,8 @@ exports.tally = (num, plasma, isStreaming) => {
                             ]
                             if(config.features.pob)ops.push({ type: 'put', path: ['balances', 'rc'], data: rbal.rc - (this_payout - change[0]) })
                             var legal = 0 
-                            for (node in still_running) {
-                                if(Object.keys(still_running).includes(Object.keys(stats.ms.active_account_auths)[i]))legal++
+                            for (node in stats.ms.active_account_auths) {
+                                if(Object.keys(still_running).includes(node))legal++
                             }
                             if(Object.keys(still_running).length > 1 && legal >= stats.ms.active_threshold) ops.push(
                                 { type: 'put', path: ['runners'], data: still_running })
