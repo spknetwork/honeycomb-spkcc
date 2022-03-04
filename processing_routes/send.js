@@ -115,6 +115,20 @@ exports.drop_claim = (json, from, active, pc) => {
                     ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
                     store.batch(ops, pc);
                 })
+                .catch(e => { 
+                    trak = {
+                        s: 0, // Larynx per claim
+                        t: parseInt(json.timestamp.split('-')[1], 10).toString(16), // total claims
+                        l: parseInt(json.timestamp.split('-')[1], 10).toString(16), // last claim month int
+                    }
+                    ops.push({ type: 'put', path: ['balances', from], data: parseInt(tbal + trak.s) });
+                    ops.push({ type: 'put', path: ['stats', 'tokenSupply'], data: parseInt(supply + trak.s) });
+                    ops.push({ type: 'put', path: ['snap', from], data: trak });
+                    let msg = `@${from}| Claimed ${parseFloat(parseInt(trak.s) / 1000).toFixed(3)} ${config.TOKEN}`
+                    if (config.hookurl || config.status) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
+                    ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
+                    store.batch(ops, pc);
+                 });
             }
         })
         .catch(e => { console.log(e); });

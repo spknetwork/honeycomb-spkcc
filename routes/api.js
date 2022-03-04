@@ -1706,14 +1706,13 @@ exports.user = (req, res, next) => {
         incol = getPathNum(['col', un]), //collateral
         gp = getPathNum(['gov', un]),
         pup = getPathObj(['up', un]),
-        pdown = getPathObj(['down', un]),
-        Pclaim = fetch(`${config.snapcs}/api/snapshot?u=${un}`)
+        pdown = getPathObj(['down', un])
     res.setHeader('Content-Type', 'application/json');
-    Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, Pclaim, claims])
+    Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims])
         .then(function(v) {
-            v[10].json().then(function(claim) {
-                var arr = []
+            var arr = []
             for (var i in v[3]) {arr.push(v[3][i])}
+            if(!v[10].s)fetch(`${config.snapcs}/api/snapshot?u=${un}`).then(r => r.json()).then(function(claim) {
             res.send(JSON.stringify({
                 balance: v[0],
                 claim: 0,
@@ -1723,8 +1722,33 @@ exports.user = (req, res, next) => {
                         "precision": 3,
                         "token": "LARYNX"
                     },
-                    last_claim: v[11].l,
-                    total_claims: v[11].t
+                    last_claim: 0,
+                    total_claims: 0
+               },//v[10],
+                poweredUp: v[1],
+                granted: v[2],
+                granting: v[8],
+                heldCollateral: v[4],
+                contracts: arr,
+                up: v[6],
+                down: v[7],
+                gov: v[5],
+                node: config.username,
+                behind: RAM.behind,
+                VERSION
+            }, null, 3))
+            }).catch(e=>{
+            res.send(JSON.stringify({
+                balance: v[0],
+                claim: 0,
+                drop: {
+                    availible: {
+                        "amount": 0,
+                        "precision": 3,
+                        "token": "LARYNX"
+                    },
+                    last_claim: 0,
+                    total_claims: 0
                },//v[10],
                 poweredUp: v[1],
                 granted: v[2],
@@ -1739,6 +1763,32 @@ exports.user = (req, res, next) => {
                 VERSION
             }, null, 3))
             })
+            else {
+                res.send(JSON.stringify({
+                balance: v[0],
+                claim: 0,
+                drop: {
+                    availible: {
+                        "amount": v[10].s,
+                        "precision": 3,
+                        "token": "LARYNX"
+                    },
+                    last_claim: v[10].l,
+                    total_claims: v[10].t
+               },//v[10],
+                poweredUp: v[1],
+                granted: v[2],
+                granting: v[8],
+                heldCollateral: v[4],
+                contracts: arr,
+                up: v[6],
+                down: v[7],
+                gov: v[5],
+                node: config.username,
+                behind: RAM.behind,
+                VERSION
+            }, null, 3))
+            }
         })
         .catch(function(err) {
             console.log(err)
