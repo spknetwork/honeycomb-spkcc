@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.0.0b18'
+const VERSION = 'v1.0.0b19r'
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -133,8 +133,8 @@ var recents = []
     //HIVE API CODE
 
 //Start Program Options   
-dynStart(config.leader)
-//startWith("", true) //for testing and replaying 58859101
+//dynStart(config.leader)
+startWith("Qmcb3M4zYDms7yv53nMCGehz2MrrJ8hK92jWFasjB1K43F", true) //for testing and replaying 58859101
 
 Watchdog.monitor()
 
@@ -722,6 +722,8 @@ function startWith(hash, second) {
                                             })  
                                         .catch(e=>console.log('Failure of rundelta'))
                                         } else {
+                                            console.log('No Chain')
+                                            TXID.saveNumber = startingBlock
                                             startApp()
                                         }
                                     }

@@ -622,7 +622,7 @@ exports.transfer = (json, pc) => {
             })
             .catch(e => { console.log(e); })
         } else {
-            console.log(json)
+            //console.log(json)
             let order = {
                 type: 'LIMIT'
             },
@@ -632,13 +632,14 @@ exports.transfer = (json, pc) => {
             try {order = JSON.parse(json.memo)} catch (e) {}
             if (!order.rate) {
                 order.type = 'MARKET'
-                order.rate = parseFloat(order.rate).toFixed(6) || 0
+                order.rate = 0
             } else {
                 order.type = 'LIMIT'
-                order.rate = parseFloat(order.rate).toFixed(6) || 0
+                order.rate = parseFloat(order.rate).toFixed(6)
             }
             order.pair = json.amount.nai == '@@000000021' ? 'hive' : 'hbd'
             order.amount = parseInt(json.amount.amount)
+            console.log({order})
             if (order.type == 'MARKET' || order.type == 'LIMIT') {
                 let pDEX = getPathObj(['dex', order.pair]),
                     pBal = getPathNum(['balances', json.from]),
@@ -655,6 +656,7 @@ exports.transfer = (json, pc) => {
                         his = {},
                         fee = 0,
                         i = 0
+                        if(typeof order.rate != 'string') order.rate = dex.tick
                         stats.MSHeld[json.amount.nai == '@@000000021' ? 'HIVE' : 'HBD'] += parseInt(json.amount.amount)
                     while (remaining){
                         i++
@@ -776,7 +778,7 @@ exports.transfer = (json, pc) => {
                                 }
                             } else {
                                 const txid = config.TOKEN + hashThis(json.from + json.transaction_id),
-                                    crate = order.rate,
+                                    crate = dex.tick,
                                     cfee = typeof stats.dex_fee == 'number' ? parseInt(parseInt(remaining / crate) * parseFloat(stats.dex_fee)) : parseInt(parseInt(remaining / crate) * 0.005),
                                     hours = 720,
                                     expBlock = json.block_num + (hours * 1200)
