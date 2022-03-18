@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.0.0b20r'
+const VERSION = 'v1.0.0b20s'
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -131,8 +131,8 @@ exports.processor = processor
 //HIVE API CODE
 
 //Start Program Options   
-//dynStart()
-startWith('QmTrCoJTPap6fXHjhcpHMEPvqT2sV7ShGQ54nvhdCoU9VE', true) //for testing and replaying 58859101
+dynStart()
+//startWith('QmTrCoJTPap6fXHjhcpHMEPvqT2sV7ShGQ54nvhdCoU9VE', true) //for testing and replaying 58859101
 Watchdog.monitor()
 
 // API defs
@@ -665,29 +665,26 @@ function dynStart(account) {
             reports: [],
             hash: {},
             start: false,
-            first: config.engineCrank,
-            when: 0
+            first: config.engineCrank
         }
         for(i in oa){
             consensus_init.reports.push(Hive.getRecentReport(oa[i][0], walletOperationsBitmask))
         }
         Promise.all(consensus_init.reports).then(r =>{
-            for(i in r){
-                if(consensus_init.hash[r[i]]){
-                    consensus_init.hash[r[i]]++
+            for(i = 0; i < r.length; i++){
+                if(!i)consensus_init.first = r[i][0]
+                if(consensus_init.hash[r[i][0]]){
+                    consensus_init.hash[r[i][0]]++
                 } else {
-                    consensus_init.hash[r[i]] = 1
+                    consensus_init.hash[r[i][0]] = 1
                 }
             }
-            for (var i = 0; i <  consensus_init.hash.length; i++) {
-                if (consensus_init.hash[i][0] > consensus_init.reports.length/2) {
-                    console.log('Starting with: ', consensus_init.hash[i][0])
-                    startWith(consensus_init.hash[i][0], true)
+            for (var i in consensus_init.hash) {
+                if (consensus_init.hash[i] > consensus_init.reports.length/2) {
+                    console.log('Starting with: ', i)
+                    startWith(i, true)
                     consensus_init.start = true
                     break
-                } else if (consensus_init.hash[i][1] > consensus_init.when){
-                    consensus_init.first = consensus_init.hash[i][0]
-                    consensus_init.when = consensus_init.hash[i][1]
                 }
             }
             if(!consensus_init.start){
