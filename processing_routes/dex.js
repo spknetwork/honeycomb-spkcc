@@ -667,7 +667,7 @@ exports.transfer = (json, pc) => {
                         console.log({price,item})
                         if (item && (order.pair == 'hbd' || (order.pair == 'hive' && (price <= stats.icoPrice/1000 || !config.features.ico))) && ( order.type == 'MARKET' || (order.type == 'LIMIT' && order.rate >= price))) {
                             var next = dex.sellOrders[`${price}:${item}`]
-                            //console.log({next})
+                            console.log({next})
                             if (next && next[order.pair] <= remaining){
                                 filled += next.amount - next.fee
                                 bal += next.amount - next.fee //update the balance
@@ -693,7 +693,8 @@ exports.transfer = (json, pc) => {
                                 ops.push({type: 'del', path: ['dex', order.pair, 'sellOrders', `${price}:${item}`]}) //remove the order
                                 ops.push({type: 'del', path: ['contracts', next.from , item]}) //remove the contract
                                 ops.push({type: 'del', path: ['chrono', next.expire_path]}) //remove the chrono
-                            } else if(!next) {
+                            } else if(!next && dex.sellBook.indexOf(item) > -1) {
+                                console.log(dex.sellBook)
                                 dex.sellBook = DEX.remove(item, dex.sellBook)
                             } else {
                                 next[order.pair] = next[order.pair] - remaining // modify the contract
