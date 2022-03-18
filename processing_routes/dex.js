@@ -639,7 +639,7 @@ exports.transfer = (json, pc) => {
             }
             order.pair = json.amount.nai == '@@000000021' ? 'hive' : 'hbd'
             order.amount = parseInt(json.amount.amount)
-            console.log({order})
+            //console.log({order})
             if (order.type == 'MARKET' || order.type == 'LIMIT') {
                 let pDEX = getPathObj(['dex', order.pair]),
                     pBal = getPathNum(['balances', json.from]),
@@ -667,7 +667,7 @@ exports.transfer = (json, pc) => {
                         console.log({price,item})
                         if (item && (order.pair == 'hbd' || (order.pair == 'hive' && (price <= stats.icoPrice/1000 || !config.features.ico))) && ( order.type == 'MARKET' || (order.type == 'LIMIT' && order.rate >= price))) {
                             var next = dex.sellOrders[`${price}:${item}`]
-                            console.log({next})
+                            //console.log({next})
                             if (next && next[order.pair] <= remaining){
                                 filled += next.amount - next.fee
                                 bal += next.amount - next.fee //update the balance
@@ -778,10 +778,24 @@ exports.transfer = (json, pc) => {
                                 }
                             } else {
                                 const txid = config.TOKEN + hashThis(json.from + json.transaction_id),
-                                    crate = dex.tick,
-                                    cfee = typeof stats.dex_fee == 'number' ? parseInt(parseInt(remaining / crate) * parseFloat(stats.dex_fee)) : parseInt(parseInt(remaining / crate) * 0.005),
+                                    crate = parseFloat(order.rate) > 0 ? order.rate : dex.tick,
+                                    cfee = typeof stats.dex_fee == 'number' ? parseInt(parseInt(remaining / crate) * parseFloat(stats.dex_fee)) + 1 : parseInt(parseInt(remaining / crate) * 0.005) + 1,
                                     hours = 720,
-                                    expBlock = json.block_num + (hours * 1200)
+                                    expBlock = json.block_num + (hours * 1200),
+                                    toRefund = maxAllowed(stats, dex.tick, remaining, crate)
+                                if (toRefund){
+                                    const transfer = [
+                                        "transfer",
+                                        {
+                                            "from": config.msaccount,
+                                            "to": json.from,
+                                            "amount": parseFloat(toRefund/1000).toFixed(3) + ' ' + order.pair.toUpperCase(),
+                                            "memo": `Partial refund due to collateral limits ${json.from}:${json.transaction_id}`
+                                        }
+                                    ]
+                                    remaining -= toRefund
+                                    ops.push({type: 'put', path: ['msa', `Refund@${json.from}:${json.transaction_id}:${json.block_num}`], data: stringify(transfer)})
+                                }
                                 contract = {
                                     txid,
                                     from: json.from,
@@ -1256,4 +1270,9 @@ function naizer(obj){
         return obj
     }
 
+}
+
+function maxAllowed(stats, tick, remaining, crate) {
+    const max = stats.safetyLimit * tick * (1 - ((crate/tick) * (stats.dex_slope/100))) * (stats.dex_max/100)
+    return max > remaining ? 0 : parseInt(remaining - max)
 }

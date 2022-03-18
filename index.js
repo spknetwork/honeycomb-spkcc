@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.0.0b19'
+const VERSION = 'v1.0.0b20'
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -113,7 +113,7 @@ const { dao, Liquidity } = require("./dao");
 const { recast } = require('./lil_ops')
 const hiveState = require('./processor');
 const { getPathObj, getPathNum, getPathSome } = require('./getPathObj');
-const { consolidate, sign, createAccount, updateAccount } = require('./msa');
+const { consolidate, sign, osign, createAccount, updateAccount } = require('./msa');
 //const { resolve } = require('path');
 const api = express()
 var http = require('http').Server(api);
@@ -127,15 +127,12 @@ const streamMode = args.mode || 'irreversible';
 console.log("Streaming using mode", streamMode);
 var processor;
 exports.processor = processor
-var live_dex = {}, //for feedback, unused currently
-    pa = []
-var recents = []
-    //HIVE API CODE
+
+//HIVE API CODE
 
 //Start Program Options   
-dynStart(config.leader)
-//startWith("QmUgPDorUogmre1jmuzWNRkvdMYN9fH1XRe8zhhSJtWdh1", true) //for testing and replaying 58859101
-
+dynStart()
+//startWith('Qmb9vRn3AH8bjA4BSDqz7hNzfBKDxBiiNXniMmsuFcCL4T', true) //for testing and replaying 58859101
 Watchdog.monitor()
 
 // API defs
@@ -246,6 +243,7 @@ function startApp() {
         processor.on('dex_sell', HR.dex_sell);
         processor.on('dex_clear', HR.dex_clear);
         processor.on('sig_submit', HR.sig_submit); //dlux is for putting executable programs into IPFS... this is for additional accounts to sign the code as non-malicious
+        processor.on('osig_submit', HR.osig_submit);
     }
     if(config.features.dex || config.features.nft || config.features.ico){
         processor.onOperation('transfer', HR.transfer);
@@ -297,16 +295,20 @@ function startApp() {
                     gte: "" + (num - 1000000),
                     lte: "" + (num - 100)
                 }) //resign mss
+                let Pmsso = getPathSome(['msso'],{
+                    gte: "" + (num - 1000000),
+                    lte: "" + (num - 100)
+                })
                 let Pmsa = getPathObj(['msa'])
                 let Pmso = getPathObj(['mso'])
-                Promise.all([Pchron, Pmss, Pmsa, Pmso]).then(mem => {
+                Promise.all([Pchron, Pmss, Pmsa, Pmso, Pmsso]).then(mem => {
                     var a = mem[0],
                         mss = mem[1], //resign mss
-                        msa = mem[2] //if length > 80... sign these
-                        mso = mem[3]
+                        msa = mem[2], //if length > 80... sign these
+                        mso = mem[3],
+                        msso = mem[4]
                     let chrops = {},
                         msa_keys = Object.keys(msa)
-                        mso_keys = Object.keys(mso)
                     for (var i in a) {
                         chrops[a[i]] = a[i]
                     }
@@ -420,12 +422,21 @@ function startApp() {
                     return new Promise((res, rej)=>{
                         let promises = [HR.margins()]
                         if(num % 100 !== 50){
-                            if(mso_keys.length){
+                            if(mso.length){
                                 promises.push(new Promise((res,rej)=>{
                                     osig_submit(consolidate(num, plasma, bh, 'owner'))
                                     .then(nodeOp => {
                                         res('SAT')
                                         if(plasma.rep)NodeOps.unshift(nodeOp)
+                                    })
+                                    .catch(e => { rej(e) })
+                                }))
+                            } else if(msso.length){
+                                promises.push(new Promise((res,rej)=>{
+                                    osig_submit(osign(num, plasma, msso, bh))
+                                    .then(nodeOp => {
+                                        res('SAT')
+                                        if(plasma.rep)NodeOps.unshift(nodeOp) //check to see if sig
                                     })
                                     .catch(e => { rej(e) })
                                 }))
@@ -646,10 +657,44 @@ function cycleAPI(restart) {
 //this will include other accounts that are in the node network and the consensus state will be found if this is the wrong chain
 function dynStart(account) {
     API.start()
-    let accountToQuery = account || config.username
-    hiveClient.api.setOptions({ url: config.startURL });
-    console.log('Starting URL: ', config.startURL)
-    hiveClient.api.getAccountHistory(accountToQuery, -1, 100, ...walletOperationsBitmask, function(err, result) {
+    const { Hive } = require('./hive')
+    Hive.getOwners(config.msaccount).then(oa =>{
+        console.log('Starting URL: ', config.startURL)
+        let consensus_init = {
+            accounts: oa,
+            reports: [],
+            hash: {},
+            start: false,
+            first: config.engineCrank
+        }
+        for(i in oa){
+            consensus_init.reports.push(Hive.getRecentReport(oa[i][0], walletOperationsBitmask))
+        }
+        Promise.all(consensus_init.reports).then(r =>{
+            for(i in r){
+                if(consensus_init.hash[r[i]]){
+                    consensus_init.hash[r[i]]++
+                } else {
+                    consensus_init.hash[r[i]] = 1
+                }
+            }
+            for (i in consensus_init.hash) {
+                if (consensus_init.hash[i] > consensus_init.reports.length/2) {
+                    console.log('Starting with: ', i)
+                    startWith(i, true)
+                    consensus_init.start = true
+                    break
+                } else {
+                    consensus_init.first = i
+                }
+            }
+            if(!consensus_init.start){
+                console.log('Starting with: ', consensus_init.first)
+                startWith(consensus_init.first, false)
+            }
+        })
+        /*
+    hiveClient.api.getAccountHistory(oa[0], -1, 100, ...walletOperationsBitmask, function(err, result) {
         if (err) {
             console.log('errr', err)
             dynStart(config.msaccount)
@@ -675,6 +720,8 @@ function dynStart(account) {
             }
         }
     });
+    */
+    })
 }
 
 
@@ -698,6 +745,43 @@ function startWith(hash, second) {
                         if (!e && (second || data[0] > API.RAM.head - 325)) {
                             if (hash) {
                                 var cleanState = data[1]
+                                /*
+                                delete cleanState.msso
+                                cleanState.runners = {
+                                    regardspk: {
+                                        g: 1
+                                    }
+                                }
+                                cleanState.dex.hive.buyBook = '0.100000_LARYNXQma5oc2b9ZdzoopAgwXBSDt3jNL8W82GLXhKhUcduLeHwo'
+                                cleanState.dex.hive.buyOrders = {
+                                    ["0.100000:LARYNXQma5oc2b9ZdzoopAgwXBSDt3jNL8W82GLXhKhUcduLeHwo"]: {
+                                        "amount": 100,
+                                        "block": 62333881,
+                                        "expire_path": "63197881:QmabtCEwsKm9LJmt6WA2N2c8kvnWXaPxoAAvZixrwEP7hs",
+                                        "fee": 1,
+                                        "from": "balvinder294",
+                                        "hbd": 0,
+                                        "hive": 10,
+                                        "rate": "0.100000",
+                                        "txid": "LARYNXQma5oc2b9ZdzoopAgwXBSDt3jNL8W82GLXhKhUcduLeHwo",
+                                        "type": "hive:buy"
+                                    }
+                                }
+                                cleanState.contracts.balvinder294 = {
+                                    "LARYNXQma5oc2b9ZdzoopAgwXBSDt3jNL8W82GLXhKhUcduLeHwo": {
+                                    "amount": 100,
+                                    "block": 62333881,
+                                    "expire_path": "63197881:QmabtCEwsKm9LJmt6WA2N2c8kvnWXaPxoAAvZixrwEP7hs",
+                                    "fee": 1,
+                                    "from": "balvinder294",
+                                    "hbd": 0,
+                                    "hive": 10,
+                                    "rate": "0.100000",
+                                    "txid": "LARYNXQma5oc2b9ZdzoopAgwXBSDt3jNL8W82GLXhKhUcduLeHwo",
+                                    "type": "hive:buy"
+                                    }
+                                }
+                                */
                                 store.put([], cleanState, function(err) {
                                     if (err) {
                                         console.log('errr',err)

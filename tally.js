@@ -165,11 +165,14 @@ exports.tally = (num, plasma, isStreaming) => {
                         }
                         stats.liq_reward = liq_rewards_sum / liq_rewards.length
                         let MultiSigCollateral = 0
+                        collateral.sort((a, b) => b - a)
+                        highest_low_sum = 0
                         for (i = 0; i < collateral.length; i++) {
                             MultiSigCollateral += collateral[i]
+                            if(i > collateral.length/2)highest_low_sum += collateral[i]
                         }
                         stats.multiSigCollateral = MultiSigCollateral
-                        stats.safetyLimit = low_sum
+                        stats.safetyLimit = highest_low_sum
                         stats.hashLastIBlock = stats.lastBlock;
                         stats.lastBlock = consensus;
                         for (var node in nodes) {
@@ -206,7 +209,7 @@ exports.tally = (num, plasma, isStreaming) => {
                         for (post in pending) {
                             weights += pending[post].t.totalWeight
                         }
-                        let inflation_floor = parseInt((stats.movingWeight.running + (weights/140)) / 2016) //minimum payout in time period
+                        let inflation_floor = parseInt((stats.movingWeight.running + (weights/140)) / 2016) + 1 //minimum payout in time period
                             running_weight = parseInt(stats.movingWeight.running / 2016)
                         if (running_weight < inflation_floor){
                             running_weight = inflation_floor

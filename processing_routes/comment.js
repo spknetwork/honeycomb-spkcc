@@ -8,23 +8,10 @@ const { insertNewPost } = require('./../edb');
 exports.comment = (json, pc) => {
     let meta = {}
     try { meta = JSON.parse(json.json_metadata) } catch (e) {}
-    let community_post = false
     if (json.author == config.leader && parseInt(json.permlink.split(config.tag)[1]) > json.block_num - 31000) {
-        //console.log('leader post')
-        store.get(['escrow', json.author], function(e, a) {
-            if (!e) {
-                var ops = []
-                for (b in a) {
-                    if (a[b][1].permlink == json.permlink && b == 'comment') {
-                        ops.push({ type: 'del', path: ['escrow', json.author, b] })
-                    }
-                }
-                if (process.env.npm_lifecycle_event == 'test') pc[2] = ops
-                store.batch(ops, pc)
-            } else {
-                console.log(e)
-            }
-        })
+        var ops = [{ type: 'del', path: ['escrow', json.author, 'comment'] }]
+        if (process.env.npm_lifecycle_event == 'test') pc[2] = ops
+        store.batch(ops, pc)
     } else if (config.features.pob && (meta.arHash || meta.vrHash || meta.appHash || meta.audHash)) {
         Ppost = getPathObj(['posts', `${json.author}/${json.permlink}`])
         Promise.all([Ppost])

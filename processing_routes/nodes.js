@@ -31,6 +31,22 @@ exports.node_add = function(json, from, active, pc) {
         if (bid > 1000) {
             bid = 1000
         }
+        var dm = parseInt(json.dm) || 10000 //dex max 10000 = 100.00% / 1 = 0.01%
+        //the max size a dex buy order can be ON the buy book in relation to the safety limit determined by collateral amounts
+        if (dm < 1) {
+            dm = 10000
+        }
+        if (dm > 10000) {
+            dm = 10000
+        }
+        var ds = parseInt(json.ds) || 0 //dex slope 10000 = 100.00% / 1 = 0.01%
+        //the max size a dex buy order can be ON the buy book in relation to the current price. 0 = no slope, only max HIVE, 100% means a buy order at 50% of the current tick can be 50% of the dex max HIVE value.
+        if (ds < 0) {
+            ds = 0
+        }
+        if (ds > 10000) {
+            ds = 10000
+        }
         var daoRate = parseInt(json.marketingRate) || 0
         if (daoRate < 1) {
             daoRate = 0
@@ -62,7 +78,9 @@ exports.node_add = function(json, from, active, pc) {
                             contracts: 0,
                             escrows: 0,
                             lastGood: 0,
-                            report: {}
+                            report: {},
+                            dm,
+                            ds
                         }
                     if(mskey)data.mskey = mskey
                     ops = [{
