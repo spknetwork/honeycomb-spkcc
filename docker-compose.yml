@@ -1,12 +1,12 @@
 version: '3'
 services:
-  snap:
-    ports:
-      - 8001:8001
-    restart: unless-stopped
-    build:
-      context: .
-      dockerfile: ./snap/Dockerfile
+  # snap:
+  #   ports:
+  #     - 8001:8001
+  #   restart: unless-stopped
+  #   build:
+  #     context: .
+  #     dockerfile: ./snap/Dockerfile
   ipfs:
     # docker run -d --name ipfs_host -v $ipfs_staging:/export -v $ipfs_data:/data/ipfs -p 4001:4001 -p 127.0.0.1:8080:8080 -p 127.0.0.1:5001:5001 ipfs/go-ipfs:latest
     image: ipfs/go-ipfs:latest
@@ -41,7 +41,7 @@ services:
       - ipfshost=ipfs
       - ipfsprotocol=http
       - ipfsport=5001
-      - SNAPBASE_URL=http://snap:8001
+      # - SNAPBASE_URL=http://snap:8001
     stdin_open: true
     tty: true
   # node-2:
