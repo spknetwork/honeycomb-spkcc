@@ -21,7 +21,7 @@ const Hive = {
                 let ebus = result.filter(tx => tx[1].op[1].id === `${config.prefix}report`), recents = []
                 for (i = ebus.length - 1; i >= 0; i--) {
                     if (JSON.parse(ebus[i][1].op[1].json).hash && parseInt(JSON.parse(ebus[i][1].op[1].json).block) > parseInt(config.override)) {
-                        recents.push(JSON.parse(ebus[i][1].op[1].json).hash)
+                        recents.push([JSON.parse(ebus[i][1].op[1].json).hash, JSON.parse(ebus[i][1].op[1].json).block])
                     }
                 }
                 resolve(recents.shift())

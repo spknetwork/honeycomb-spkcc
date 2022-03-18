@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.0.0b20'
+const VERSION = 'v1.0.0b20r'
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -131,8 +131,8 @@ exports.processor = processor
 //HIVE API CODE
 
 //Start Program Options   
-dynStart()
-//startWith('Qmb9vRn3AH8bjA4BSDqz7hNzfBKDxBiiNXniMmsuFcCL4T', true) //for testing and replaying 58859101
+//dynStart()
+startWith('QmTrCoJTPap6fXHjhcpHMEPvqT2sV7ShGQ54nvhdCoU9VE', true) //for testing and replaying 58859101
 Watchdog.monitor()
 
 // API defs
@@ -665,7 +665,8 @@ function dynStart(account) {
             reports: [],
             hash: {},
             start: false,
-            first: config.engineCrank
+            first: config.engineCrank,
+            when: 0
         }
         for(i in oa){
             consensus_init.reports.push(Hive.getRecentReport(oa[i][0], walletOperationsBitmask))
@@ -678,14 +679,15 @@ function dynStart(account) {
                     consensus_init.hash[r[i]] = 1
                 }
             }
-            for (i in consensus_init.hash) {
-                if (consensus_init.hash[i] > consensus_init.reports.length/2) {
-                    console.log('Starting with: ', i)
-                    startWith(i, true)
+            for (var i = 0; i <  consensus_init.hash.length; i++) {
+                if (consensus_init.hash[i][0] > consensus_init.reports.length/2) {
+                    console.log('Starting with: ', consensus_init.hash[i][0])
+                    startWith(consensus_init.hash[i][0], true)
                     consensus_init.start = true
                     break
-                } else {
-                    consensus_init.first = i
+                } else if (consensus_init.hash[i][1] > consensus_init.when){
+                    consensus_init.first = consensus_init.hash[i][0]
+                    consensus_init.when = consensus_init.hash[i][1]
                 }
             }
             if(!consensus_init.start){
