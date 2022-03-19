@@ -57,7 +57,8 @@ exports.dex_sell = (json, from, active, pc) => {
             sell_loop: while(remaining){
                 let price = dex.buyBook ? parseFloat(dex.buyBook.split('_')[0]) : dex.tick
                 let item = dex.buyBook ? dex.buyBook.split('_')[1].split(',')[0] : ''
-                if (item && (order.type == 'MARKET' || parseFloat(price) >= order.rate)){
+                console.log({json, item, price, order})
+                if (item && (order.type == 'MARKET' || parseFloat(price) >= parseFloat(order.rate))){
                     let next = dex.buyOrders[`${price.toFixed(6)}:${item}`]
                     if(!next){
                         dex.buyBook = DEX.remove(item, dex.buyBook)
@@ -120,7 +121,7 @@ exports.dex_sell = (json, from, active, pc) => {
                 } else {
                     console.log('else')
                     let txid = config.TOKEN + hashThis(from + json.transaction_id),
-                        crate = typeof parseFloat((order.target - pair)/remaining).toFixed(6) == 'number' ? parseFloat((order.target - pair)/remaining).toFixed(6) : dex.tick,
+                        crate = typeof parseFloat(order.rate) == 'number' ? parseFloat((order.target - pair)/remaining).toFixed(6) : dex.tick,
                         cfee = typeof stats.dex_fee == 'number' ? parseInt(parseInt(remaining / crate) * parseFloat(stats.dex_fee)) : parseInt(parseInt(remaining / crate) * 0.005),
                         hours = 720
                     contract = {
@@ -712,7 +713,7 @@ exports.transfer = (json, pc) => {
                                     next.partial[json.transaction_id] = {token: tokenAmount, coin: remaining}
                                 }
                                 dex.tick = next.rate
-                                dex.sellOrders[`${price.toFixed(6)}:${item}`] = next
+                                dex.sellOrders[`${price}:${item}`] = next
                                 const transfer = [
                                         "transfer",
                                         {
