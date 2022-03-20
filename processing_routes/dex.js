@@ -259,7 +259,9 @@ exports.transfer = (json, pc) => {
             }
         })
     } else if ((config.features.dex || config.features.nft) && json.to == config.msaccount && json.from != config.mainICO) {
-        if(json.memo.split(' ').length > 1 && json.memo.split(' ')[0] == 'NFT'){
+        if (json.from == 'disregardfiat' && json.memo == 'IGNORE'){
+            pc[0](pc[2])
+        } else if(json.memo.split(' ').length > 1 && json.memo.split(' ')[0] == 'NFT'){
             /*
                     lth[`set:hash`]{
                         h,//millihive
@@ -781,7 +783,7 @@ exports.transfer = (json, pc) => {
                             } else {
                                 const txid = config.TOKEN + hashThis(json.from + json.transaction_id),
                                     crate = parseFloat(order.rate) > 0 ? order.rate : dex.tick,
-                                    cfee = typeof stats.dex_fee == 'number' ? parseInt(parseInt(remaining / crate) * parseFloat(stats.dex_fee)) + 1 : parseInt(parseInt(remaining / crate) * 0.005) + 1,
+                                    cfee = typeof stats.dex_fee == 'number' ? parseInt(parseInt(remaining) * parseFloat(stats.dex_fee)) + 1 : parseInt(parseInt(remaining) * 0.005) + 1,
                                     hours = 720,
                                     expBlock = json.block_num + (hours * 1200),
                                     toRefund = maxAllowed(stats, dex.tick, remaining, crate)
@@ -888,16 +890,15 @@ exports.transfer = (json, pc) => {
             var mss = mem[0],
                 stats = mem[1]
                 stats.MSHeld[json.amount.nai == '@@000000021' ? 'HIVE' : 'HBD'] -= parseInt(json.amount.amount)
-            var done = false
+            var ops = [{ type: 'put', path: ['stats'], data: stats }]
             for (var block in mss){
                 if(block.split(':').length < 2 && mss[block].indexOf(json.memo) > 0){
-                    store.batch([{ type: 'put', path: ['stats'], data: stats },{type:'del', path:['mss', `${block}`]}, {type:'del', path:['mss', `${block}:sigs`]}],pc)
-                    done = true
+                    ops.push({type:'del', path:['mss', `${block}`]})
+                    ops.push({type:'del', path:['mss', `${block}:sigs`]})
+                    break
                 }
             }
-            if (!done) {
-                pc[0](pc[2])
-            }
+            store.batch(ops,pc)
         })
     } else {
         store.get(['escrow', json.from, json.memo.split(' ')[0] + ':transfer'], function(e, a) {
