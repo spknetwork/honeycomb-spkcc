@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.0.0b22'
+const VERSION = 'v1.0.0r'
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -131,8 +131,8 @@ exports.processor = processor
 //HIVE API CODE
 
 //Start Program Options   
-dynStart()
-//startWith('QmTcMDFyuFmk6js7rHSMsqUbVcUQiJWTRm3gUpND3chgno', true) //for testing and replaying 58859101
+//dynStart()
+startWith('QmazddtUwpzVGyyqCizAyy9C1zLQkgsHCTkW9vkjLLdW4j', true)
 Watchdog.monitor()
 
 // API defs
@@ -483,7 +483,7 @@ function startApp() {
                                 .catch(e => { rej(e) })
                             }))
                         }
-                        if ((num - 18500) % 28800 === 0) { //time for daily magic
+                        if ((num - 18505) % 28800 === 0) { //time for daily magic
                             promises.push(dao(num))
                             block.prev_root = block.root
                             block.root = ''
@@ -692,34 +692,6 @@ function dynStart(account) {
                 startWith(consensus_init.first, false)
             }
         })
-        /*
-    hiveClient.api.getAccountHistory(oa[0], -1, 100, ...walletOperationsBitmask, function(err, result) {
-        if (err) {
-            console.log('errr', err)
-            dynStart(config.msaccount)
-        } else {
-            hiveClient.api.setOptions({ url: config.clientURL });
-            let ebus = result.filter(tx => tx[1].op[1].id === `${config.prefix}report`)
-            for (i = ebus.length - 1; i >= 0; i--) {
-                if (JSON.parse(ebus[i][1].op[1].json).hash && parseInt(JSON.parse(ebus[i][1].op[1].json).block) > parseInt(config.override)) {
-                    recents.push(JSON.parse(ebus[i][1].op[1].json).hash)
-                }
-            }
-            if (recents.length) {
-                const mostRecent = recents.shift()
-                console.log({mostRecent})
-                if (recents.length === 0) {
-                    startWith(config.engineCrank)
-                } else {
-                    startWith(mostRecent)
-                }
-            } else {
-                startWith(config.engineCrank)
-                console.log('IPFS load Failed: Genesis or Backup Replay...')
-            }
-        }
-    });
-    */
     })
 }
 

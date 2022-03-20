@@ -121,8 +121,8 @@ exports.dex_sell = (json, from, active, pc) => {
                 } else {
                     console.log('else')
                     let txid = config.TOKEN + hashThis(from + json.transaction_id),
-                        crate = typeof parseFloat(order.rate) == 'number' ? parseFloat((order.target - pair)/remaining).toFixed(6) : dex.tick,
-                        cfee = typeof stats.dex_fee == 'number' ? parseInt(parseInt(remaining / crate) * parseFloat(stats.dex_fee)) : parseInt(parseInt(remaining / crate) * 0.005),
+                        crate = typeof parseFloat(order.rate) == 'number' ? parseFloat(order.rate).toFixed(6) : dex.tick,
+                        cfee = typeof stats.dex_fee == 'number' ? parseInt(parseInt(remaining) * parseFloat(stats.dex_fee)) : parseInt(parseInt(remaining) * 0.005),
                         hours = 720
                     contract = {
                         txid,

@@ -47,6 +47,7 @@ function dao(num) {
             daops.push({ type: 'del', path: ['br'] });
             daops.push({ type: 'del', path: ['rolling'] });
             daops.push({ type: 'del', path: ['ico'] });
+            // daops.push({ type: 'del', path: ['markets', 'node'] })
             news = v[0] + '*****\n';
             const header = post + news;
             var bals = v[1],
@@ -151,36 +152,36 @@ function dao(num) {
             if(j){
                 for (var node in mnode) { //and pay them
                     const wins = mnode[node].wins
+                    newOwners[node] = {wins}
+                    mnode[node].tw = mnode[node].tw > 0 ? mnode[node].tw + wins : wins
+                    mnode[node].wins = 0
+                    mnode[node].ty = mnode[node].ty > 0 ? mnode[node].ty + mnode[node].yays : mnode[node].yays
+                    mnode[node].yays = 0
                     const gbal = gov[node] || 0
                     const feevote = mnode[node].bidRate > 1000 ? 1000 : mnode[node].bidRate
                     const dmvote = typeof mnode[node].dm != 'number' ? 10000 : mnode[node].dm
-                    const dsvote = typeof mnode[node].ds != 'number' ? 10000 : mnode[node].ds
+                    const dsvote = typeof mnode[node].ds != 'number' ? 0 : mnode[node].ds
+                    mnode[node].ds = dsvote
+                    mnode[node].dm = dmvote
                     dexfeea += parseInt(wins * gbal * feevote);
                     dexfeed += parseInt(wins * gbal * 1000);
                     dexmaxa += parseInt(wins * gbal * dmvote);
                     dexmaxd += parseInt(wins * gbal * 10000);
                     dexslopea += parseInt(wins * gbal * dsvote);
                     dexsloped += parseInt(wins * gbal * 10000);
-                    console.log({dexmaxa, dexmaxd, dexslopea, dexsloped});
                     i = parseInt(wins / j * b);
-                    cbals[node] ? cbals[node] += i : cbals[node] = i;
+                    cbals[node] = cbals[node] ? cbals[node] += i : cbals[node] = i;
                     bals.rn -= i;
                     const _at = _atfun(node);
                     if (i) {
                         post = post + `* ${_at}${node} awarded ${parseFloat(i / 1000).toFixed(3)} ${config.TOKEN} for ${wins} credited transaction(s)\n`;
                         console.log(num + `:@${node} awarded ${parseFloat(i / 1000).toFixed(3)} ${config.TOKEN} for ${wins} credited transaction(s)`);
                     }
-                    newOwners[node] = {wins}
-                    mnode[node].tw += wins
-                    mnode[node].wins = 0
-                    mnode[node].ty += mnode[node].yays
-                    mnode[node].yays = 0
                 }
             }
             stats.dex_fee = parseFloat((dexfeea / dexfeed)/100).toFixed(5);
             stats.dex_max = parseFloat((dexmaxa / dexmaxd)*100).toFixed(2);
             stats.dex_slope = parseFloat((dexslopea / dexsloped)*100).toFixed(2);
-            console.log(stats.dex_max, stats.dex_slope)
             for(var node in newOwners){
                 newOwners[node].g = runners[node]?.g ? runners[node].g : 0;
             }
@@ -573,7 +574,7 @@ exports.Liquidity = Liquidity;
 function accountUpdate(stats, nodes, arr){
     //get runners by gov balance
     //find highest three that also have a public key
-    for (var i = 0; i < arr.length; i++) {
+    for (var i = 0; i < arr.length; i++) { //must have ms keys
         if(!nodes[arr[i]].mskey){
         arr.splice(i, 1)
         i--

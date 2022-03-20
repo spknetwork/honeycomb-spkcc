@@ -566,7 +566,7 @@ const DEX = {
             } else {
                 prices.pop()
                 let str = prices.join(',') + greaterThan
-                if (!prices.length) return greaterThan || ''
+                if (!prices.length) return greaterThan.substr(1) || ''
                 else if (str.substr(0,1) == ',') return str.substr(1)
                 else return string
             }
