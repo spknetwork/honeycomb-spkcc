@@ -35,7 +35,7 @@ const bidRate = ENV.BIDRATE || 500 // your vote for the dex fee 500 = 0.500% Max
 
 //HIVE CONFIGS
 var startURL = ENV.STARTURL || "https://rpc.ecency.com/"
-var clientURL = ENV.APIURL || "https://rpc.ecency.com/"
+var clientURL = ENV.APIURL || "https://api.deathwing.me/"
 const clients = ENV.clients || [
     "https://api.deathwing.me/",
     //"https://api.c0ff33a.uk/",

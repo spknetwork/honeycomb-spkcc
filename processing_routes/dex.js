@@ -1022,11 +1022,14 @@ exports.dex_clear = (json, from, active, pc) => {
 
                     }
                 } else {
+                    pc[0](pc[2])
                     console.log(e)
                 }
             })
         }
         Promise.all(promises).then(empty => {pc[0](pc[2])}).catch(e=>{console.log(e)})
+    } else {
+        pc[0](pc[2])
     }
 }
 
