@@ -993,5 +993,5 @@ function issc(n,b,i,r,a){
             exit(block.chain[block.chain.length - 2].hash, 'Chain Out Of Order')
         } else if (typeof i == 'function'){console.log('Requesting Blocks from:', config.clientURL);i()}
     })
-    .catch(e => { if(r<2){console.log('Retrying IPFS Save');issc(n,b,i,r++, a)}else{exit(plasma.hashLastIBlock, 'IPFS Save Failed')} })
+    .catch(e => { if(r<2){console.log('Retrying IPFS Save');setTimeout(()=>{issc(n,b,i,r++, a)}, 1000)}else{exit(plasma.hashLastIBlock, 'IPFS Save Failed')} })
 }
