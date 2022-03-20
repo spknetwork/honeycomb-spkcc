@@ -179,9 +179,21 @@ module.exports = function(client, hive, currentBlockNumber = 1, blockComputeSpee
         }
         stream.on('data', function(block) {
             var blockNum = parseInt(block.block_id.slice(0, 8), 16);
-            if (blockNum >= currentBlockNumber) {
+            if (blockNum == currentBlockNumber) {
                 processBlock(block, blockNum);
                 currentBlockNumber = blockNum + 1;
+            } else {
+                streamWait()
+                function streamWait(){
+                    setTimeout(function() {
+                        if (blockNum == currentBlockNumber) {
+                            processBlock(block, blockNum);
+                            currentBlockNumber = blockNum + 1;
+                        } else {
+                            streamWait();
+                        }
+                    },500)
+                }
             }
         })
         stream.on('end', function() {
