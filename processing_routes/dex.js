@@ -1107,7 +1107,7 @@ const release = (from, txid, bn, tx_id) => {
                                     ops.push({ type: 'del', path: ['contracts', from, txid] });
                                     ops.push({ type: 'del', path: ['chrono', a.expire_path] });
                                     ops.push({ type: 'del', path: ['dex', 'hive', 'sellOrders', `${a.rate}:${a.txid}`] });
-                                    if(tx_id && config.hookurl){postToDiscord(`${from} has canceled ${txid}`, `${bn}:${tx_id}`)}
+                                    if(tx_id && config.hookurl){postToDiscord(`@${from} has canceled ${txid}`, `${bn}:${tx_id}`)}
                                     store.batch(ops, [resolve, reject]);
                                 }).catch(e => { reject(e); });
                             }
@@ -1123,7 +1123,7 @@ const release = (from, txid, bn, tx_id) => {
                                     ops.push({ type: 'del', path: ['contracts', from, txid] });
                                     ops.push({ type: 'del', path: ['chrono', a.expire_path] });
                                     ops.push({ type: 'del', path: ['dex', 'hbd', 'sellOrders', `${a.rate}:${a.txid}`] });
-                                    if(tx_id && config.hookurl){postToDiscord(`${from} has canceled ${txid}`, `${bn}:${tx_id}`)}
+                                    if(tx_id && config.hookurl){postToDiscord(`@${from} has canceled ${txid}`, `${bn}:${tx_id}`)}
                                     store.batch(ops, [resolve, reject]);
                                 }).catch(e => { reject(e); });
 
@@ -1149,7 +1149,7 @@ const release = (from, txid, bn, tx_id) => {
                                 ops.push({type: 'put', path: ['msa', `refund@${a.from}:${a.txid}:${bn}`], data: stringify(Transfer)})
                                 ops.push({ type: 'del', path: ['contracts', from, a.txid]});
                                 ops.push({ type: 'del', path: ['dex', 'hive', 'buyOrders', `${a.rate}:${a.txid}`] });
-                                if(tx_id && config.hookurl){postToDiscord(`${from} has canceled ${txid}`, `${bn}:${tx_id}`)}
+                                if(tx_id && config.hookurl){postToDiscord(`@${from} has canceled ${txid}`, `${bn}:${tx_id}`)}
                                 store.batch(ops, [resolve, reject]);
                             }
                         });
@@ -1177,7 +1177,7 @@ const release = (from, txid, bn, tx_id) => {
                                 ops.push({type: 'put', path: ['msa', `refund@${a.from}:${a.txid}:${bn}`], data: stringify(Transfer)})
                                 ops.push({ type: 'del', path: ['contracts', from, a.txid]});
                                 ops.push({ type: 'del', path: ['dex', 'hbd', 'buyOrders', `${a.rate}:${a.txid}`] });
-                                if(tx_id && config.hookurl){postToDiscord(`${from} has canceled ${txid}`, `${bn}:${tx_id}`)}
+                                if(tx_id && config.hookurl){postToDiscord(`@${from} has canceled ${txid}`, `${bn}:${tx_id}`)}
                                 store.batch(ops, [resolve, reject]);
                             }
                         });
@@ -1230,32 +1230,55 @@ exports.margins = function(bn) {
             }
             var allowedHive = parseInt(stats.multiSigCollateral * parseFloat(dex.hive.tick)),
                 allowedHBD = parseInt(stats.multiSigCollateral * parseFloat(dex.hbd.tick)),
+                changed = []
                 promises = []
                 if(stats.MSHeld.HIVE > allowedHive)console.log(stats.MSHeld.HIVE , {allowedHive})
                 if(stats.MSHeld.HIVE > allowedHive){
                     var p = dex.hive.buyBook.split(','),
-                        price = p.split('_')[0],
-                        items = p.split('_')
+                        price = p[p.length - 1].split('_')[0],
+                        items = p[p.length - 1].split('_')
                     for(var i = 1; i < items.length; i++){
-                        promises.push(release(dex.hive.buyOrders[`${price}:${items[i]}`].from, items[i], bn, `${bn}_hive_collateral_vop`))
+                        if(dex.hive.buyOrders[`${price}:${items[i]}`])promises.push(release(dex.hive.buyOrders[`${price}:${items[i]}`].from, items[i], bn, `${bn}_hive_collateral_vop`))
+                        else {
+                            changed.push([items[i], 'hive'])
+                        }
                     }
                 }
             if(stats.MSHeld.HBD > allowedHBD){
                 var p = dex.hbd.buyBook.split(','),
-                    price = p.split('_')[0],
-                    items = p.split('_')
+                    price = p[p.length - 1].split('_')[0],
+                    items = p[p.length - 1].split('_')
                 for(var i = 1; i < items.length; i++){
-                    promises.push(release(dex.hbd.buyOrders[`${price}:${items[i]}`].from, items[i], bn, `${bn}_hbd_collateral_vop`))
+                    if(dex.hbd.buyOrders[`${price}:${items[i]}`])promises.push(release(dex.hbd.buyOrders[`${price}:${items[i]}`].from, items[i], bn, `${bn}_hbd_collateral_vop`))
+                    else {
+                        changed.push([items[i], 'hbd'])
+                    }
                 }
             }
             if(promises.length > 0){
                 Promise.all(promises).then(() => {
-                    resolve('Pruned')
+                    if(!changed.length)resolve('Pruned')
+                    else removeItems(changed, resolve)
                 })
             } else {
-                resolve('No pruning')
+                if(!changed.length)resolve('No pruning')
+                else removeItems(changed, resolve)
             }
         })
+    })
+}
+
+function removeItems (arr, p){
+    let phive = getPathObj(['dex', 'hive', 'buyBook']),
+        phbd = getPathObj(['dex', 'hbd', 'buyBook'])
+    Promise.all([phive, phbd]).then(mem => {
+        var hive = mem[0],
+            hbd = mem[1]
+        for(var i = 0; i < arr.length; i++){
+            hive = DEX.remove(arr[i][0], hive)
+            hbd = DEX.remove(arr[i][0], hbd)
+        }
+        store.batch([{type: 'put', path: ['dex', 'hive', 'buyBook'], data: hive},{type: 'put', path: ['dex', 'hbd', 'buyBook'], data: hbd}], [p, 'error', 'Pruned'])
     })
 }
 
