@@ -1275,8 +1275,9 @@ function removeItems (arr, p){
         var hive = mem[0],
             hbd = mem[1]
         for(var i = 0; i < arr.length; i++){
-            hive = DEX.remove(arr[i][0], hive)
-            hbd = DEX.remove(arr[i][0], hbd)
+            console.log('Cleaned: ', arr[i][0])
+            if(arr[i][1] == 'hive')hive = DEX.remove(arr[i][0], hive)
+            if(arr[i][1] == 'hbd')hbd = DEX.remove(arr[i][0], hbd)
         }
         store.batch([{type: 'put', path: ['dex', 'hive', 'buyBook'], data: hive},{type: 'put', path: ['dex', 'hbd', 'buyBook'], data: hbd}], [p, 'error', 'Pruned'])
     })
