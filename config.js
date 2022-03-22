@@ -18,6 +18,7 @@ const status = ENV.status || true
 const dbcs = ENV.DATABASE_URL || '';
 const snapcs = ENV.SNAPBASE_URL || 'http://96.46.48.108:8002'; // get a public facing snapshot server
 const history = ENV.history || 3600
+const stream = ENV.stream || 'irreversible'
 
 // testing configs for replays
 const override = ENV.override || 0 //69116600 //will use standard restarts after this blocknumber
@@ -148,7 +149,8 @@ let config = {
     footer,
     hive_service_fee,
     features,
-    snapcs
+    snapcs,
+    stream
 };
 
 module.exports = config;

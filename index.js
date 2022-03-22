@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.0.3'
+const VERSION = 'v1.0.4'
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -123,7 +123,7 @@ exports.escrow = escrow;
 var startingBlock = config.starting_block
     //var current
     //exports.current = current
-const streamMode = args.mode || 'irreversible';
+const streamMode = config.stream || 'irreversible';
 console.log("Streaming using mode", streamMode);
 var processor;
 exports.processor = processor

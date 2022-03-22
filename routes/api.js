@@ -1715,7 +1715,7 @@ exports.user = (req, res, next) => {
             if(!v[10].s)fetch(`${config.snapcs}/api/snapshot?u=${un}`).then(r => r.json()).then(function(claim) {
             res.send(JSON.stringify({
                 balance: v[0],
-                claim: 0,
+                claim: v[9],
                 drop: {
                     availible: {
                         "amount": parseInt(claim.Larynx * 1000 / 12),

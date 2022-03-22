@@ -148,7 +148,7 @@ function dao(num) {
                     return '@';
                 }
             }
-            var newOwners = {}, dexfeea = 0, dexfeed = 0, dexmaxa = 1, dexslopea = 0, dexmaxd = 1, dexsloped = 1
+            var newOwners = {}, dexfeea = 1, dexfeed = 1, dexmaxa = 1, dexslopea = 0, dexmaxd = 1, dexsloped = 1
             if(j){
                 for (var node in mnode) { //and pay them
                     const wins = mnode[node].wins
