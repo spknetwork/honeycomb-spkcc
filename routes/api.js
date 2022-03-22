@@ -1740,7 +1740,7 @@ exports.user = (req, res, next) => {
             }).catch(e=>{
             res.send(JSON.stringify({
                 balance: v[0],
-                claim: 0,
+                claim: v[9],
                 drop: {
                     availible: {
                         "amount": 0,
@@ -1766,7 +1766,7 @@ exports.user = (req, res, next) => {
             else {
                 res.send(JSON.stringify({
                 balance: v[0],
-                claim: 0,
+                claim: v[9],
                 drop: {
                     availible: {
                         "amount": v[10].s,
