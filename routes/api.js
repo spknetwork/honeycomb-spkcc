@@ -683,8 +683,12 @@ exports.mirrors = (req, res, next) => {
 exports.runners = (req, res, next) => {
     res.setHeader('Content-Type', 'application/json')
     store.get(['runners'], function(err, obj) {
-        var runners = obj
+        var runners = obj, result = []
+        for (var a in runners) {
+            result.push(runners[a])
+        }
         res.send(JSON.stringify({
+            result,
             runners,
             node: config.username,
             behind: RAM.behind,
@@ -1680,18 +1684,27 @@ exports.coincheck = (state) => {
 }
 
 exports.coin = (req, res, next) => {
-    var state = {}
-    res.setHeader('Content-Type', 'application/json')
-    store.get([], function(err, obj) {
-        let info = exports.coincheck(obj)
+    if (config.mode == 'normal'){
         res.send(JSON.stringify({
-            check: info.check,
-            info: info.info,
-            node: config.username,
-            behind: RAM.behind,
-            VERSION
-        }, null, 3))
-    });
+                check: 'disabled',
+                info: 'disabled',
+                node: config.username,
+                behind: RAM.behind,
+                VERSION
+            }, null, 3))
+    } else {
+        res.setHeader('Content-Type', 'application/json')
+        store.get([], function(err, obj) {
+            let info = exports.coincheck(obj)
+            res.send(JSON.stringify({
+                check: info.check,
+                info: info.info,
+                node: config.username,
+                behind: RAM.behind,
+                VERSION
+            }, null, 3))
+        });
+    }
 }
 
 exports.user = (req, res, next) => {
@@ -1711,7 +1724,18 @@ exports.user = (req, res, next) => {
     Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims])
         .then(function(v) {
             var arr = []
-            for (var i in v[3]) {arr.push(v[3][i])}
+            for (var i in v[3]) {
+                var c = v[3][i]
+                if(c.partial){
+                    c.partials = []
+                    for(var p in c.partial){
+                        var j = c.partial[p]
+                        j.txid = p
+                        c.partials.push(j)
+                    }
+                }
+                arr.push(c)
+            }
             if(!v[10].s)fetch(`${config.snapcs}/api/snapshot?u=${un}`).then(r => r.json()).then(function(claim) {
             res.send(JSON.stringify({
                 balance: v[0],
@@ -1826,17 +1850,26 @@ exports.blog = (req, res, next) => {
 }
 
 exports.state = (req, res, next) => {
-    var state = {}
-    res.setHeader('Content-Type', 'application/json')
-    store.get([], function(err, obj) {
-        state = obj,
+    if(config.mode == 'normal'){
         res.send(JSON.stringify({
-            state,
-            node: config.username,
-            behind: RAM.behind,
-            VERSION
-        }, null, 3))
-    });
+                state: 'normal',
+                node: config.username,
+                behind: RAM.behind,
+                VERSION
+            }, null, 3))
+    } else {
+        var state = {}
+        res.setHeader('Content-Type', 'application/json')
+        store.get([], function(err, obj) {
+            state = obj,
+            res.send(JSON.stringify({
+                state,
+                node: config.username,
+                behind: RAM.behind,
+                VERSION
+            }, null, 3))
+        });
+    }
 }
 
 exports.pending = (req, res, next) => {
