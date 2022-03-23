@@ -685,11 +685,16 @@ exports.runners = (req, res, next) => {
     store.get(['runners'], function(err, obj) {
         var runners = obj, result = []
         for (var a in runners) {
-            result.push(runners[a])
+            var node = runners[a]
+            node.account = a
+            result.push(node)
         }
         res.send(JSON.stringify({
             result,
             runners,
+            latest: [
+                {api: "https://spkinstant.hivehoneycomb.com"}
+            ],
             node: config.username,
             behind: RAM.behind,
             VERSION
