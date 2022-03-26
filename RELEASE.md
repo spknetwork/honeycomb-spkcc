@@ -4,7 +4,7 @@
    * Stop 0 hive transfers
    * DEX will put extra remaining in fees to reduce 0 value orders
    * Added a process to claim dex fees
-   * New Healing Algorithm to reduce to of no consensus
+   * New Healing Algorithm to reduce time of no consensus
    * Added checks for negative rate asks and bids
    * Force Remove 0.000 Transfers from queue
    * Removed Processor intensive API from standard suite (can run in test mode for these APIs)

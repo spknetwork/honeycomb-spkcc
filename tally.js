@@ -255,7 +255,7 @@ exports.tally = (num, plasma, isStreaming) => {
                             for (node in stats.ms.active_account_auths) {
                                 if(Object.keys(still_running).includes(node))legal++
                             }
-                            if(Object.keys(still_running).length > 1 && legal >= stats.ms.active_threshold) ops.push(
+                            if(Object.keys(still_running).length > 1 && legal) ops.push(
                                 { type: 'put', path: ['runners'], data: still_running })
                             else if (Object.keys(runners).length)ops.push({ type: 'put', path: ['runners'], data: runners })
                             else ops.push({ type: 'put', path: ['runners'], data: stats.ms.active_account_auths })
