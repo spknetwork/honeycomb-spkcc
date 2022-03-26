@@ -1,5 +1,5 @@
 const { onStreamingStart } = require('./onStreamingStart')
-const { send, claim, drop_claim } = require('./send')
+const { send, shares_claim, drop_claim } = require('./send')
 const { gov_up, gov_down } = require('./gov')
 const { power_up, power_down, power_grant } = require('./power')
 const { delegate_vesting_shares } = require('./delegate_vesting_shares')
@@ -93,7 +93,7 @@ module.exports = {
     q4d,
     report,
     send,
-    claim,
+    shares_claim,
     sig_submit,
     osig_submit,
     transfer,

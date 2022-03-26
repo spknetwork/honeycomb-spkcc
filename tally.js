@@ -80,6 +80,7 @@ exports.tally = (num, plasma, isStreaming) => {
                             }
                     }
                     let threshhold = tally.agreements.votes
+                    let altThreshhold = tally.agreements.votes - stats.chaos
                     if (Object.keys(runners).length > threshhold) threshhold = Object.keys(runners).length
                     for (hash in tally.agreements.hashes) {
                         if (tally.agreements.tally[tally.agreements.hashes[hash]] > (threshhold / 2)) {
@@ -87,11 +88,28 @@ exports.tally = (num, plasma, isStreaming) => {
                             break;
                         }
                     }
+                    if (!consensus && stats.chaos) {
+                        for (hash in tally.agreements.hashes) {
+                        if (tally.agreements.tally[tally.agreements.hashes[hash]] > (altThreshhold / 2)) {
+                            var owners = 0
+                            for (var owner in stats.ms.active_account_auths){
+                                if(nodes[owner].report.hash == tally.agreements.hashes[hash]){
+                                    owners++
+                                }
+                            }
+                            if(owners >= stats.ms.active_threshold){
+                                consensus = tally.agreements.hashes[hash]
+                            break;
+                            }
+                        }
+                    }
+                    }
                     let still_running = {},
                         election = {},
                         new_queue = {}
                     console.log('Consensus: ' + consensus)
                     if (consensus) {
+                        stats.chaos = 0
                         stats.hashLastIBlock = consensus;
                         stats.lastIBlock = num - 100
                         let counting_array = []
@@ -191,6 +209,7 @@ exports.tally = (num, plasma, isStreaming) => {
                             nodes[node].wins++;
                         }
                     } else {
+                        stats.chaos++;
                         new_queue = v[6]
                         still_running = runners
                     }

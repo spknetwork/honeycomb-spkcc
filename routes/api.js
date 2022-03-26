@@ -683,9 +683,18 @@ exports.mirrors = (req, res, next) => {
 exports.runners = (req, res, next) => {
     res.setHeader('Content-Type', 'application/json')
     store.get(['runners'], function(err, obj) {
-        var runners = obj
+        var runners = obj, result = []
+        for (var a in runners) {
+            var node = runners[a]
+            node.account = a
+            result.push(node)
+        }
         res.send(JSON.stringify({
+            result,
             runners,
+            latest: [
+                {api: "https://spkinstant.hivehoneycomb.com"}
+            ],
             node: config.username,
             behind: RAM.behind,
             VERSION
@@ -1680,18 +1689,27 @@ exports.coincheck = (state) => {
 }
 
 exports.coin = (req, res, next) => {
-    var state = {}
-    res.setHeader('Content-Type', 'application/json')
-    store.get([], function(err, obj) {
-        let info = exports.coincheck(obj)
+    if (config.mode == 'normal'){
         res.send(JSON.stringify({
-            check: info.check,
-            info: info.info,
-            node: config.username,
-            behind: RAM.behind,
-            VERSION
-        }, null, 3))
-    });
+                check: 'disabled',
+                info: 'disabled',
+                node: config.username,
+                behind: RAM.behind,
+                VERSION
+            }, null, 3))
+    } else {
+        res.setHeader('Content-Type', 'application/json')
+        store.get([], function(err, obj) {
+            let info = exports.coincheck(obj)
+            res.send(JSON.stringify({
+                check: info.check,
+                info: info.info,
+                node: config.username,
+                behind: RAM.behind,
+                VERSION
+            }, null, 3))
+        });
+    }
 }
 
 exports.user = (req, res, next) => {
@@ -1711,11 +1729,22 @@ exports.user = (req, res, next) => {
     Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims])
         .then(function(v) {
             var arr = []
-            for (var i in v[3]) {arr.push(v[3][i])}
+            for (var i in v[3]) {
+                var c = v[3][i]
+                if(c.partial){
+                    c.partials = []
+                    for(var p in c.partial){
+                        var j = c.partial[p]
+                        j.txid = p
+                        c.partials.push(j)
+                    }
+                }
+                arr.push(c)
+            }
             if(!v[10].s)fetch(`${config.snapcs}/api/snapshot?u=${un}`).then(r => r.json()).then(function(claim) {
             res.send(JSON.stringify({
                 balance: v[0],
-                claim: 0,
+                claim: v[9],
                 drop: {
                     availible: {
                         "amount": parseInt(claim.Larynx * 1000 / 12),
@@ -1740,7 +1769,7 @@ exports.user = (req, res, next) => {
             }).catch(e=>{
             res.send(JSON.stringify({
                 balance: v[0],
-                claim: 0,
+                claim: v[9],
                 drop: {
                     availible: {
                         "amount": 0,
@@ -1766,7 +1795,7 @@ exports.user = (req, res, next) => {
             else {
                 res.send(JSON.stringify({
                 balance: v[0],
-                claim: 0,
+                claim: v[9],
                 drop: {
                     availible: {
                         "amount": v[10].s,
@@ -1826,26 +1855,47 @@ exports.blog = (req, res, next) => {
 }
 
 exports.state = (req, res, next) => {
-    var state = {}
-    res.setHeader('Content-Type', 'application/json')
-    store.get([], function(err, obj) {
-        state = obj,
+    if(config.mode == 'normal'){
         res.send(JSON.stringify({
-            state,
+                state: 'normal',
+                node: config.username,
+                behind: RAM.behind,
+                VERSION
+            }, null, 3))
+    } else {
+        var state = {}
+        res.setHeader('Content-Type', 'application/json')
+        store.get([], function(err, obj) {
+            state = obj,
+            res.send(JSON.stringify({
+                state,
+                node: config.username,
+                behind: RAM.behind,
+                VERSION
+            }, null, 3))
+        });
+    }
+}
+
+exports.pending = (req, res, next) => {
+    let Pmso = getPathObj(['mso']),
+        Pmsso = getPathObj(['msso']),
+        Pmss = getPathObj(['mss']),
+        Pmsa = getPathObj(['msa'])
+    Promise.all([Pmso, Pmsso, Pmss, Pmsa]).then(mem => {
+        res.setHeader('Content-Type', 'application/json');
+        res.send(JSON.stringify({
+            mso: mem[0],
+            msso: mem[1],
+            mss: mem[2],
+            msa: mem[3],
+            nodeOps: GetNodeOps(),
+            plasma: plasma,
             node: config.username,
             behind: RAM.behind,
             VERSION
         }, null, 3))
-    });
-}
-
-exports.pending = (req, res, next) => {
-    res.setHeader('Content-Type', 'application/json');
-    result = {
-        nodeOps: GetNodeOps(),
-        plasma: plasma
-    }
-    res.send(JSON.stringify(result, null, 3))
+    })
 }
 
 //heroku force https
