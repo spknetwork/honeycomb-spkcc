@@ -1878,12 +1878,24 @@ exports.state = (req, res, next) => {
 }
 
 exports.pending = (req, res, next) => {
-    res.setHeader('Content-Type', 'application/json');
-    result = {
-        nodeOps: GetNodeOps(),
-        plasma: plasma
-    }
-    res.send(JSON.stringify(result, null, 3))
+    let Pmso = getPathObj(['mso']),
+        Pmsso = getPathObj(['msso']),
+        Pmss = getPathObj(['mss']),
+        Pmsa = getPathObj(['msa'])
+    Promise.all([Pmso, Pmsso, Pmss, Pmsa]).then(mem => {
+        res.setHeader('Content-Type', 'application/json');
+        res.send(JSON.stringify({
+            mso: mem[0],
+            msso: mem[1],
+            mss: mem[2],
+            msa: mem[3],
+            nodeOps: GetNodeOps(),
+            plasma: plasma,
+            node: config.username,
+            behind: RAM.behind,
+            VERSION
+        }, null, 3))
+    })
 }
 
 //heroku force https

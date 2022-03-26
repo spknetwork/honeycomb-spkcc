@@ -35,6 +35,10 @@ exports.dex_sell = (json, from, active, pc) => {
                 amount: json[config.jsonTokenName]
             }
         }
+        if(parseFloat(order.rate) < 0){
+            order.type = "MARKET",
+            delete order.rate
+        }
         order[config.jsonTokenName] = parseInt(json[config.jsonTokenName])
     Promise.all([PfromBal, PStats, PSB]).then(a => {
         let bal = a[0],
@@ -65,6 +69,7 @@ exports.dex_sell = (json, from, active, pc) => {
                         continue sell_loop
                     }
                     if (next.amount <= remaining){
+                        if(next[order.pair]){
                             filled += next.amount
                             adds.push([next.from, next.amount - next.fee])
                             his[`${json.block_num}:${i}:${json.transaction_id}`] = {type: 'sell', t:Date.parse(json.timestamp + '.000Z'), block: json.block_num, base_vol: next.amount, target_vol: next[order.pair], target: order.pair, price: next.rate, id: json.transaction_id + i}
@@ -89,10 +94,19 @@ exports.dex_sell = (json, from, active, pc) => {
                             ops.push({type: 'del', path: ['dex', order.pair, 'buyOrders', `${price.toFixed(6)}:${item}`]}) //remove the order
                             ops.push({type: 'del', path: ['contracts', next.from , item]}) //remove the contract
                             ops.push({type: 'del', path: ['chrono', next.expire_path]}) //remove the chrono
-
-                        } else {
-                            const thisfee = parseInt((remaining/next.amount)*next.fee)
-                            const thistarget = parseInt((remaining/next.amount)*next[order.pair])
+                        } else { 
+                            fee += next.fee
+                            fee += next.amount
+                            dex.buyBook = DEX.remove(item, dex.buyBook)
+                            delete dex.buyOrders[`${price.toFixed(6)}:${item}`]
+                            ops.push({type: 'del', path: ['dex', order.pair, 'buyOrders', `${price.toFixed(6)}:${item}`]}) //remove the order
+                            ops.push({type: 'del', path: ['contracts', next.from , item]}) //remove the contract
+                            ops.push({type: 'del', path: ['chrono', next.expire_path]}) //remove the chrono
+                        }
+                    } else {
+                        const thisfee = parseInt((remaining/next.amount)*next.fee)
+                        const thistarget = parseInt((remaining/next.amount)*next[order.pair])
+                        if(thistarget){
                             next.fee -= thisfee
                             next[order.pair] -= thistarget
                             next.amount -= remaining
@@ -117,7 +131,11 @@ exports.dex_sell = (json, from, active, pc) => {
                             ops.push({type: 'put', path: ['contracts', next.from , item], data: next}) //remove the contract
                             dex.buyOrders[`${price.toFixed(6)}:${item}`] = next
                             remaining = 0
+                        } else {
+                            fee += remaining
+                            remaining = 0
                         }
+                    }
                 } else {
                     console.log('else')
                     let txid = config.TOKEN + hashThis(from + json.transaction_id),
@@ -640,6 +658,10 @@ exports.transfer = (json, pc) => {
                 order.type = 'LIMIT'
                 order.rate = parseFloat(order.rate).toFixed(6)
             }
+            if(parseFloat(order.rate) < 0){
+                order.type = 'MARKET'
+                order.rate = 0
+            }
             order.pair = json.amount.nai == '@@000000021' ? 'hive' : 'hbd'
             order.amount = parseInt(json.amount.amount)
             //console.log({order})
@@ -672,7 +694,8 @@ exports.transfer = (json, pc) => {
                             var next = dex.sellOrders[`${price}:${item}`]
                             console.log({next})
                             if (next && next[order.pair] <= remaining){
-                                filled += next.amount - next.fee
+                                if (next[order.pair]){
+                                    filled += next.amount - next.fee
                                 bal += next.amount - next.fee //update the balance
                                 fee += next.fee //add the fees
                                 remaining -= next[order.pair]
@@ -696,6 +719,15 @@ exports.transfer = (json, pc) => {
                                 ops.push({type: 'del', path: ['dex', order.pair, 'sellOrders', `${price}:${item}`]}) //remove the order
                                 ops.push({type: 'del', path: ['contracts', next.from , item]}) //remove the contract
                                 ops.push({type: 'del', path: ['chrono', next.expire_path]}) //remove the chrono
+                                } else {
+                                    fee += next.fee
+                                    fee += next.amount
+                                    dex.sellBook = DEX.remove(item, dex.sellBook) //adjust the orderbook
+                                    delete dex.sellOrders[`${price}:${item}`]
+                                    ops.push({type: 'del', path: ['dex', order.pair, 'sellOrders', `${price}:${item}`]}) //remove the order
+                                    ops.push({type: 'del', path: ['contracts', next.from , item]}) //remove the contract
+                                    ops.push({type: 'del', path: ['chrono', next.expire_path]}) //remove the chrono
+                                }
                             } else if(!next && dex.sellBook.indexOf(item) > -1) {
                                 console.log(dex.sellBook)
                                 dex.sellBook = DEX.remove(item, dex.sellBook)

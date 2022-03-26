@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.0.4'
+const VERSION = 'v1.0.4r'
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -131,8 +131,8 @@ exports.processor = processor
 //HIVE API CODE
 
 //Start Program Options   
-dynStart()
-//startWith('QmTvztMTXPQ3RqrH38xDzLhzDGrUKLQRfRVpSrce8XrUxi', true)
+//dynStart()
+startWith('QmUpd5quQduA9gzJoL3oNEj7s2cHgmCE3MmuZRpq31TsCH', true)
 Watchdog.monitor()
 
 // API defs
@@ -219,6 +219,7 @@ function startApp() {
     processor = hiveState(client, hive, startingBlock, 10, config.prefix, streamMode, cycleAPI);
     processor.on('send', HR.send);
     processor.on('claim', HR.drop_claim);
+    processor.on('shares_claim', HR.shares_claim);
     processor.on('node_add', HR.node_add);
     processor.on('node_delete', HR.node_delete);
     processor.on('report', HR.report);
@@ -716,43 +717,15 @@ function startWith(hash, second) {
                         if (!e && (second || data[0] > API.RAM.head - 325)) {
                             if (hash) {
                                 var cleanState = data[1]
-                                /*
-                                delete cleanState.msso
+                                cleanState.mss = {
+                                    ['62945351']: `{\"expiration\":\"2022-03-26T01:36:09\",\"extensions\":[],\"operations\":[[\"transfer\",{\"amount\":\"14.000 HIVE\",\"from\":\"spk-cc\",\"memo\":\"Partial Filled LARYNXQmeoCrxw1AhggLPv8CjCunt8oPUsQvHoD8xXPsneNAVFDE:a1a42ba7b0309588e1db81aa66a9ab1aa413944f,Partial Filled LARYNXQmeoCrxw1AhggLPv8CjCunt8oPUsQvHoD8xXPsneNAVFDE:a5e4d64c71df805b5f357cb8acf53111b882c2a3,Partial Filled LARYNXQmeoCrxw1AhggLPv8CjCunt8oPUsQvHoD8xXPsneNAVFDE:b13231f08744bb2458d1a171ffff74efdf5292b9,hive:62939950\",\"to\":\"cryptobrewmaster\"}]],\"ref_block_num\":30791,\"ref_block_prefix\":290411922}`
+                                }
+                                delete cleanState.mso
                                 cleanState.runners = {
                                     regardspk: {
                                         g: 1
                                     }
                                 }
-                                cleanState.dex.hive.buyBook = '0.100000_LARYNXQma5oc2b9ZdzoopAgwXBSDt3jNL8W82GLXhKhUcduLeHwo'
-                                cleanState.dex.hive.buyOrders = {
-                                    ["0.100000:LARYNXQma5oc2b9ZdzoopAgwXBSDt3jNL8W82GLXhKhUcduLeHwo"]: {
-                                        "amount": 100,
-                                        "block": 62333881,
-                                        "expire_path": "63197881:QmabtCEwsKm9LJmt6WA2N2c8kvnWXaPxoAAvZixrwEP7hs",
-                                        "fee": 1,
-                                        "from": "balvinder294",
-                                        "hbd": 0,
-                                        "hive": 10,
-                                        "rate": "0.100000",
-                                        "txid": "LARYNXQma5oc2b9ZdzoopAgwXBSDt3jNL8W82GLXhKhUcduLeHwo",
-                                        "type": "hive:buy"
-                                    }
-                                }
-                                cleanState.contracts.balvinder294 = {
-                                    "LARYNXQma5oc2b9ZdzoopAgwXBSDt3jNL8W82GLXhKhUcduLeHwo": {
-                                    "amount": 100,
-                                    "block": 62333881,
-                                    "expire_path": "63197881:QmabtCEwsKm9LJmt6WA2N2c8kvnWXaPxoAAvZixrwEP7hs",
-                                    "fee": 1,
-                                    "from": "balvinder294",
-                                    "hbd": 0,
-                                    "hive": 10,
-                                    "rate": "0.100000",
-                                    "txid": "LARYNXQma5oc2b9ZdzoopAgwXBSDt3jNL8W82GLXhKhUcduLeHwo",
-                                    "type": "hive:buy"
-                                    }
-                                }
-                                */
                                 store.put([], cleanState, function(err) {
                                     if (err) {
                                         console.log('errr',err)

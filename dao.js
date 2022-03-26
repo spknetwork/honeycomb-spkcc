@@ -35,7 +35,7 @@ function dao(num) {
             Pdex = getPathObj(['dex']),
             Pbr = getPathObj(['br']),
             Ppbal = getPathNum(['gov', 't']),
-            Pgov = getPathNum(['gov']),
+            Pgov = getPathObj(['gov']),
             Pnomen = getPathObj(['nomention']),
             Pposts = getPathObj(['posts']),
             Pfeed = getPathObj(['feed']),
@@ -148,7 +148,7 @@ function dao(num) {
                     return '@';
                 }
             }
-            var newOwners = {}, dexfeea = 1, dexfeed = 1, dexmaxa = 1, dexslopea = 0, dexmaxd = 1, dexsloped = 1
+            var newOwners = {}, dexfeea = 0, dexfeed = 1, dexmaxa = 0, dexslopea = 0, dexmaxd = 1, dexsloped = 1
             if(j){
                 for (var node in mnode) { //and pay them
                     const wins = mnode[node].wins
@@ -158,7 +158,7 @@ function dao(num) {
                     mnode[node].ty = mnode[node].ty > 0 ? mnode[node].ty + mnode[node].yays : mnode[node].yays
                     mnode[node].yays = 0
                     const gbal = gov[node] || 0
-                    const feevote = mnode[node].bidRate > 1000 ? 1000 : mnode[node].bidRate
+                    const feevote = mnode[node].bidRate > 1000 || mnode[node].bidRate < 0 || typeof mnode[node].bidRate != 'number' ? 1000 : mnode[node].bidRate
                     const dmvote = typeof mnode[node].dm != 'number' ? 10000 : mnode[node].dm
                     const dsvote = typeof mnode[node].ds != 'number' ? 0 : mnode[node].ds
                     mnode[node].ds = dsvote
@@ -311,7 +311,7 @@ function dao(num) {
                         his.push(dex.hive.his[int]);
                         daops.push({ type: 'del', path: ['dex', 'hive', 'his', int] });
                     } else {
-                        vol = parseInt(parseInt(dex.hive.his[int].base_vol) + vol);
+                        vol += parseInt(dex.hive.his[int].base_vol);
                         vols = parseInt(parseInt(dex.hive.his[int].target_vol) + vols);
                     }
                 }
@@ -320,7 +320,7 @@ function dao(num) {
                         hisb.push(dex.hbd.his[int]);
                         daops.push({ type: 'del', path: ['dex', 'hbd', 'his', int] });
                     } else {
-                        vol = parseInt(parseInt(dex.hbd.his[int].amount) + vol);
+                        vol += parseInt(dex.hbd.his[int].base_vol);
                         volhbd = parseInt(parseInt(dex.hbd.his[int].target_vol)  + volhbd);
                     }
                 }
@@ -468,7 +468,10 @@ function dao(num) {
                     })
                 }
             ];
-            if(up_op)daops.push({ type: 'put', path: ['mso', `${num}:ac`], data: stringify(['account_update', up_op]) });
+            if(up_op){
+                daops.push({ type: 'del', path: ['mso']});
+                daops.push({ type: 'put', path: ['mso', `${num}:ac`], data: stringify(['account_update', up_op]) });
+            }
             daops.push({ type: 'put', path: ['dex'], data: dex });
             daops.push({ type: 'put', path: ['stats'], data: stats });
             daops.push({ type: 'put', path: ['balances'], data: bals });

@@ -40,27 +40,19 @@ exports.send = (json, from, active, pc) => {
         .catch(e => { console.log(e); });
 }
 
-exports.claim = (json, from, active, pc) => {
+exports.shares_claim = (json, from, active, pc) => {
     let fbalp = getPathNum(['cbalances', from]),
-        tbp = getPathNum(['balances', from]),
-        splitp = getPathNum(['gov', from]),
-        totp = getPathNum(['gov', 't']);
-    Promise.all([fbalp, tbp, splitp, totp])
+        tbp = getPathNum(['balances', from])
+    Promise.all([fbalp, tbp])
         .then(bals => {
             let fbal = bals[0],
                 tbal = bals[1],
-                split = bals[2],
-                tot = bals[3],
                 ops = [],
                 claim = parseInt(fbal);
             if (claim > 0) {
-                const half = parseInt(claim / 2),
-                    other = claim - half,
-                    msg = `@${from}| Claimed ${parseFloat(parseInt(claim) / 1000).toFixed(3)} ${config.TOKEN} - Half locked in gov`
+                const msg = `@${from}| Claimed ${parseFloat(parseInt(claim) / 1000).toFixed(3)} ${config.TOKEN}`
                 ops.push({ type: 'del', path: ['cbalances', from] });
-                ops.push({ type: 'put', path: ['balances', from], data: parseInt(tbal + half) });
-                ops.push({ type: 'put', path: ['gov', from], data: parseInt(split + other) });
-                ops.push({ type: 'put', path: ['gov', 't'], data: parseInt(tot + other) });
+                ops.push({ type: 'put', path: ['balances', from], data: parseInt(tbal + claim) });
                 if (config.hookurl || config.status) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
                 ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
             } else {
