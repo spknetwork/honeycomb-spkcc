@@ -50,7 +50,7 @@ exports.shares_claim = (json, from, active, pc) => {
                 ops = [],
                 claim = parseInt(fbal);
             if (claim > 0) {
-                const msg = `@${from}| Claimed ${parseFloat(parseInt(claim) / 1000).toFixed(3)} ${config.TOKEN}`
+                const msg = `@${from}| Shares claimed: ${parseFloat(parseInt(claim) / 1000).toFixed(3)} ${config.TOKEN}`
                 ops.push({ type: 'del', path: ['cbalances', from] });
                 ops.push({ type: 'put', path: ['balances', from], data: parseInt(tbal + claim) });
                 if (config.hookurl || config.status) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)

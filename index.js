@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.0.5'
+const VERSION = 'v1.0.6r'
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -131,8 +131,8 @@ exports.processor = processor
 //HIVE API CODE
 
 //Start Program Options   
-dynStart()
-//startWith('QmdAomk8uQ4HXPMHJWjy6Xzpb7f1ysgaAStj5WSj7g3ESm', true)
+//dynStart()
+startWith('QmQ7HJmJWjMqJ9hUtyCJvAkV2vgiAk6KD6WSizQtF5siEc', true)
 Watchdog.monitor()
 
 // API defs
@@ -717,15 +717,6 @@ function startWith(hash, second) {
                         if (!e && (second || data[0] > API.RAM.head - 325)) {
                             if (hash) {
                                 var cleanState = data[1]
-                                cleanState.mss = {
-                                    ['62945351']: `{\"expiration\":\"2022-03-26T01:36:09\",\"extensions\":[],\"operations\":[[\"transfer\",{\"amount\":\"14.000 HIVE\",\"from\":\"spk-cc\",\"memo\":\"Partial Filled LARYNXQmeoCrxw1AhggLPv8CjCunt8oPUsQvHoD8xXPsneNAVFDE:a1a42ba7b0309588e1db81aa66a9ab1aa413944f,Partial Filled LARYNXQmeoCrxw1AhggLPv8CjCunt8oPUsQvHoD8xXPsneNAVFDE:a5e4d64c71df805b5f357cb8acf53111b882c2a3,Partial Filled LARYNXQmeoCrxw1AhggLPv8CjCunt8oPUsQvHoD8xXPsneNAVFDE:b13231f08744bb2458d1a171ffff74efdf5292b9,hive:62939950\",\"to\":\"cryptobrewmaster\"}]],\"ref_block_num\":30791,\"ref_block_prefix\":290411922}`
-                                }
-                                delete cleanState.mso
-                                cleanState.runners = {
-                                    regardspk: {
-                                        g: 1
-                                    }
-                                }
                                 store.put([], cleanState, function(err) {
                                     if (err) {
                                         console.log('errr',err)

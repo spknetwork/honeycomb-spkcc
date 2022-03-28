@@ -1,3 +1,9 @@
+### 1.0.6
+   * Update fee calculation for buy orders
+   * Fix account update signing and resigning
+   * Remove 1.0.4 data insertion
+### 1.0.5
+   * Won't post 0 amount orders if the order was safely refunded
 ### 1.0.4
    * DAO Fee calculation
    * Running total DAO token calculation

@@ -815,10 +815,10 @@ exports.transfer = (json, pc) => {
                             } else {
                                 const txid = config.TOKEN + hashThis(json.from + json.transaction_id),
                                     crate = parseFloat(order.rate) > 0 ? order.rate : dex.tick,
-                                    cfee = typeof stats.dex_fee == 'number' ? parseInt(parseInt(remaining) * parseFloat(stats.dex_fee)) + 1 : parseInt(parseInt(remaining) * 0.005) + 1,
-                                    hours = 720,
-                                    expBlock = json.block_num + (hours * 1200),
                                     toRefund = maxAllowed(stats, dex.tick, remaining, crate)
+                                    remaining = remaining - toRefund
+                                const hours = 720,
+                                    expBlock = json.block_num + (hours * 1200)
                                 if (toRefund){
                                     const transfer = [
                                         "transfer",
@@ -829,7 +829,6 @@ exports.transfer = (json, pc) => {
                                             "memo": `Partial refund due to collateral limits ${json.from}:${json.transaction_id}`
                                         }
                                     ]
-                                    remaining -= toRefund
                                     ops.push({type: 'put', path: ['msa', `Refund@${json.from}:${json.transaction_id}:${json.block_num}`], data: stringify(transfer)})
                                 }
                                 contract = {
@@ -837,13 +836,14 @@ exports.transfer = (json, pc) => {
                                     from: json.from,
                                     hive: 0,
                                     hbd: 0,
-                                    fee: cfee,
+                                    fee: 0,
                                     amount: 0,
                                     rate: crate,
                                     block: json.block_num,
                                     type: `${order.pair}:buy`
                                 }
                                 contract.amount = parseInt(remaining / crate)
+                                cfee = parseFloat(stats.dex_fee) > 0 ? parseInt(parseInt(contract.amount) * parseFloat(stats.dex_fee)) + 1 : parseInt(contract.amount * 0.005) + 1,
                                 contract[order.pair] = remaining
                                 if(remaining){
                                     dex.buyBook = DEX.insert(txid, crate, dex.buyBook, 'buy')
