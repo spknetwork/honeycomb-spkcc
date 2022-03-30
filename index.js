@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.0.7r'
+const VERSION = 'v1.0.7'
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -429,7 +429,9 @@ function startApp() {
                                     osig_submit(osign(num, 'mso', mso_keys, bh))
                                     .then(nodeOp => {
                                         res('SAT')
-                                        if(plasma.rep && nodeOp[1][1].sig)NodeOps.unshift(nodeOp)
+                                        try{
+                                            if(plasma.rep && JSON.parse(nodeOp[1][1].json).sig)NodeOps.unshift(nodeOp)
+                                        }catch(e){}
                                     })
                                     .catch(e => { rej(e) })
                                 }))
@@ -438,7 +440,9 @@ function startApp() {
                                     osig_submit(osign(num, 'msso', msso, bh))
                                     .then(nodeOp => {
                                         res('SAT')
-                                        if(plasma.rep && nodeOp[1][1].sig)NodeOps.unshift(nodeOp) //check to see if sig
+                                        try {
+                                            if(plasma.rep && JSON.parse(nodeOp[1][1].json).sig)NodeOps.unshift(nodeOp) //check to see if sig
+                                        }catch(e){}
                                     })
                                     .catch(e => { rej(e) })
                                 }))
