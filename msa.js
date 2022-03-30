@@ -122,7 +122,7 @@ exports.osign = (num, type, missed, bh) => {
                     for(var i = 0; i < missed.length; i++){
                         ops.push({type:'del', path:[type, `${missed[i]}`]})
                     }
-                    ops.push({type: 'put', path: ['msso', `${num}`], data: stringify(op)})
+                    if(op.operations)ops.push({type: 'put', path: ['msso', `${num}`], data: stringify(op)})
                     if(op.operations && mem[1].ms.active_account_auths[config.username]  && config.msowner){
                         const stx = hiveClient.auth.signTransaction(op, [config.msowner])
                         sig.sig = stx.signatures[0]

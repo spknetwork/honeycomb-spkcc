@@ -132,7 +132,7 @@ exports.processor = processor
 
 //Start Program Options   
 //dynStart()
-startWith('Qme19dQFxcKbSikgAsuXAybVhntqr1tmAXb79vfyHSWpfF', true)
+startWith('QmbRrcXKV95RtGmLZrPjrnBANP8dvyRp1E1GgXuLcw8JPn', true)
 Watchdog.monitor()
 
 // API defs
@@ -438,6 +438,7 @@ function startApp() {
                                     osig_submit(osign(num, 'msso', msso, bh))
                                     .then(nodeOp => {
                                         res('SAT')
+                                        console.log(nodeOp)
                                         if(plasma.rep)NodeOps.unshift(nodeOp) //check to see if sig
                                     })
                                     .catch(e => { rej(e) })
