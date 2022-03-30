@@ -776,6 +776,7 @@ exports.protocol = (req, res, next) => {
             multisig: config.msaccount,
             jsontoken: config.jsonTokenName,
             memoKey: config.msPubMemo,
+            features: config.featuresModel,
             behind: RAM.behind,
             info: '/markets will return node information and published APIs for the consensus nodes, you may check these other APIs to ensure that the information in the API is in consensus.\nThe prefix is used to address this tokens architecture built on Hive.',
             VERSION
