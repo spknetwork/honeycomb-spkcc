@@ -131,8 +131,8 @@ exports.processor = processor
 //HIVE API CODE
 
 //Start Program Options   
-//dynStart()
-startWith('QmbRrcXKV95RtGmLZrPjrnBANP8dvyRp1E1GgXuLcw8JPn', true)
+dynStart()
+//startWith('QmbRrcXKV95RtGmLZrPjrnBANP8dvyRp1E1GgXuLcw8JPn', true)
 Watchdog.monitor()
 
 // API defs
@@ -429,7 +429,7 @@ function startApp() {
                                     osig_submit(osign(num, 'mso', mso_keys, bh))
                                     .then(nodeOp => {
                                         res('SAT')
-                                        if(plasma.rep)NodeOps.unshift(nodeOp)
+                                        if(plasma.rep && nodeOp[1][1].sig)NodeOps.unshift(nodeOp)
                                     })
                                     .catch(e => { rej(e) })
                                 }))
@@ -438,8 +438,7 @@ function startApp() {
                                     osig_submit(osign(num, 'msso', msso, bh))
                                     .then(nodeOp => {
                                         res('SAT')
-                                        console.log(nodeOp)
-                                        if(plasma.rep)NodeOps.unshift(nodeOp) //check to see if sig
+                                        if(plasma.rep && nodeOp[1][1].sig)NodeOps.unshift(nodeOp) //check to see if sig
                                     })
                                     .catch(e => { rej(e) })
                                 }))
