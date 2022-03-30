@@ -47,6 +47,14 @@ exports.node_add = function(json, from, active, pc) {
         if (ds > 10000) {
             ds = 10000
         }
+        var dv = parseInt(json.ds) || 0 //dao vote 10000 = 100.00% / 1 = 0.01%
+        //the portion of the claim that will be put into the chains DAO. Recommend 10-15%
+        if (dv < 0) {
+            dv = 1500
+        }
+        if (dv > 10000) {
+            dv = 1500
+        }
         var daoRate = parseInt(json.marketingRate) || 0
         if (daoRate < 1) {
             daoRate = 0
@@ -80,7 +88,8 @@ exports.node_add = function(json, from, active, pc) {
                             lastGood: 0,
                             report: {},
                             dm,
-                            ds
+                            ds,
+                            dv
                         }
                     if(mskey)data.mskey = mskey
                     ops = [{

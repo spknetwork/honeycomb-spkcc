@@ -1,3 +1,11 @@
+### 1.0.7
+   * Fixed release(txid) to wait for promises (order canceling)
+   * Adust elmerlin balance by 9566.250 for release error in block 63014889
+   * Adjust MSHeld Balance by 56 HIVE due to 1.0.4 errors
+   * Added a non-claim to DAO routine
+   * Added voting for DAO routine
+   * Added partial fill tracking on buy orders
+   * Fixed Account Update
 ### 1.0.6
    * Update fee calculation for buy orders
    * Fix account update signing and resigning

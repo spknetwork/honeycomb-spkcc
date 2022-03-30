@@ -148,7 +148,7 @@ function dao(num) {
                     return '@';
                 }
             }
-            var newOwners = {}, dexfeea = 0, dexfeed = 1, dexmaxa = 0, dexslopea = 0, dexmaxd = 1, dexsloped = 1
+            var newOwners = {}, dexfeea = 0, dexfeed = 1, dexmaxa = 0, dexslopea = 0, dexmaxd = 1, dexsloped = 1, dva = 0, dvd = 1
             if(j){
                 for (var node in mnode) { //and pay them
                     const wins = mnode[node].wins
@@ -161,6 +161,7 @@ function dao(num) {
                     const feevote = mnode[node].bidRate > 1000 || mnode[node].bidRate < 0 || typeof mnode[node].bidRate != 'number' ? 1000 : mnode[node].bidRate
                     const dmvote = typeof mnode[node].dm != 'number' ? 10000 : mnode[node].dm
                     const dsvote = typeof mnode[node].ds != 'number' ? 0 : mnode[node].ds
+                    const dvvote = typeof mnode[node].dv != 'number' ? 1500 : mnode[node].dv
                     mnode[node].ds = dsvote
                     mnode[node].dm = dmvote
                     dexfeea += parseInt(wins * gbal * feevote);
@@ -169,6 +170,8 @@ function dao(num) {
                     dexmaxd += parseInt(wins * gbal * 10000);
                     dexslopea += parseInt(wins * gbal * dsvote);
                     dexsloped += parseInt(wins * gbal * 10000);
+                    dva += parseInt(wins * gbal * dvvote);
+                    dvd += parseInt(wins * gbal * 10000);
                     i = parseInt(wins / j * b);
                     cbals[node] = cbals[node] ? cbals[node] += i : cbals[node] = i;
                     bals.rn -= i;
@@ -182,6 +185,7 @@ function dao(num) {
             stats.dex_fee = parseFloat((dexfeea / dexfeed)/100).toFixed(5);
             stats.dex_max = parseFloat((dexmaxa / dexmaxd)*100).toFixed(2);
             stats.dex_slope = parseFloat((dexslopea / dexsloped)*100).toFixed(2);
+            stats.daoclaim.v = parseInt(dva / dvd);
             for(var node in newOwners){
                 newOwners[node].g = runners[node]?.g ? runners[node].g : 0;
             }

@@ -112,6 +112,17 @@ exports.dex_sell = (json, from, active, pc) => {
                             next.amount -= remaining
                             filled += remaining
                             pair += thistarget
+                            var partial = {
+                                coin: thistarget,
+                                token: remaining + thisfee
+                            }
+                            if(next.partial){
+                                next.partial[`${json.transaction_id}`] = partial
+                            } else {
+                                next.partial = {
+                                    [`${json.transaction_id}`]: partial
+                                }
+                            }
                             adds.push([next.from, remaining - thisfee])
                             dex.tick = price.toFixed(6)
                             his[`${json.block_num}:${i}:${json.transaction_id}`] = {type: 'sell', t:Date.parse(json.timestamp), block: json.block_num, base_vol: remaining, target_vol: thistarget + thisfee, target: order.pair, price: next.rate, id: json.transaction_id + i}
@@ -1011,11 +1022,12 @@ exports.transfer = (json, pc) => {
 
 exports.dex_clear = (json, from, active, pc) => {
     if (active) {
-        var q = [],
-            promises = []
+        var q = []
         if (typeof json.txid == 'string') {
             q.push(json.txid)
-        } 
+        } else {
+            pc[0](pc[2])
+        }
         // else {
         //     q = json.txid
         // } //book string collision
@@ -1026,34 +1038,34 @@ exports.dex_clear = (json, from, active, pc) => {
                     switch (b.type) {
                         case 'hive:sell':
                             store.get(['dex', 'hive', 'sellOrders', `${b.rate}:${b.txid}`], function(e, a) {
-                                if (e) { console.log(e) } else if (isEmpty(a)) { console.log('Nothing here' + b.txid) } else {
-                                    promises.push(new Promise ((res,rej)=>{release(from, b.txid, json.block_num, json.transaction_id).then(y => {res(y)}).catch(e=>{rej(e)})}))
+                                if (e) { pc[0](pc[2]) } else if (isEmpty(a)) { console.log('Nothing here' + b.txid) } else {
+                                    release(from, b.txid, json.block_num, json.transaction_id).then(y => pc[0](pc[2])).catch(e=>{rej(e)})
                                 }
                             })
                             break
                         case 'hbd:sell':
                             store.get(['dex', 'hbd', 'sellOrders', `${b.rate}:${b.txid}`], function(e, a) {
-                                if (e) { console.log(e) } else if (isEmpty(a)) { console.log('Nothing here' + b.txid) } else {
-                                    promises.push(new Promise ((res,rej)=>{release(from, b.txid, json.block_num, json.transaction_id).then(y => {res(y)}).catch(e=>{rej(e)})}))
+                                if (e) { pc[0](pc[2]) } else if (isEmpty(a)) { console.log('Nothing here' + b.txid) } else {
+                                    release(from, b.txid, json.block_num, json.transaction_id).then(y => pc[0](pc[2])).catch(e=>{rej(e)})
                                 }
                             })
                             break
                         case 'hive:buy':
                             store.get(['dex', 'hive', 'buyOrders', `${b.rate}:${b.txid}`], function(e, a) {
-                                if (e) { console.log(e) } else if (isEmpty(a)) { console.log('Nothing here' + b.txid) } else {
-                                    promises.push(new Promise ((res,rej)=>{release(from, b.txid, json.block_num, json.transaction_id).then(y => {res(y)}).catch(e=>{rej(e)})}))
+                                if (e) { pc[0](pc[2]) } else if (isEmpty(a)) { console.log('Nothing here' + b.txid) } else {
+                                    release(from, b.txid, json.block_num, json.transaction_id).then(y => pc[0](pc[2])).catch(e=>{rej(e)})
                                 }
                             })
                             break
                         case 'hbd:buy':
                             store.get(['dex', 'hbd', 'buyOrders', `${b.rate}:${b.txid}`], function(e, a) {
-                                if (e) { console.log(e) } else if (isEmpty(a)) { console.log('Nothing here' + b.txid) } else {
-                                    promises.push(new Promise ((res,rej)=>{release(from, b.txid, json.block_num, json.transaction_id).then(y => {res(y)}).catch(e=>{rej(e)})}))
+                                if (e) { pc[0](pc[2]) } else if (isEmpty(a)) { console.log('Nothing here' + b.txid) } else {
+                                    release(from, b.txid, json.block_num, json.transaction_id).then(y => pc[0](pc[2])).catch(e=>{rej(e)})
                                 }
                             })
                             break
                         default:
-
+                            pc[0](pc[2])
                     }
                 } else {
                     pc[0](pc[2])
@@ -1061,7 +1073,6 @@ exports.dex_clear = (json, from, active, pc) => {
                 }
             })
         }
-        Promise.all(promises).then(empty => {pc[0](pc[2])}).catch(e=>{console.log(e)})
     } else {
         pc[0](pc[2])
     }

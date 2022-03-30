@@ -66,20 +66,39 @@ exports.shares_claim = (json, from, active, pc) => {
 
 exports.drop_claim = (json, from, active, pc) => {
     let tbp = getPathNum(['balances', from]),
+        rd = getPathNum(['balances', 'rd']),
         totp = getPathNum(['stats', 'tokenSupply']),
-        track = getPathObj(['snap', from])
-    Promise.all([tbp, totp, track])
+        track = getPathObj(['snap', from]),
+        burn = getPathObj(['stats', 'daoclaim'])
+    Promise.all([tbp, totp, track, burn, rd])
         .then(mem => {
             let tbal = mem[0],
                 supply = mem[1],
                 trak = mem[2],
-                ops = []
+                dao = mem[3],
+                rdbal = mem[4],
+                ops = [],
+                newClaim = 0
+            if(dao.m != json.timestamp.split('-')[1] && (json.timestamp.split('-')[0] == '2022' || json.timestamp.split('-')[0] == '2023') && parseInt(json.timestamp.split('-')[1]) < 4){
+                dao.m = json.timestamp.split('-')[1] //set month
+                newClaim = parseInt((supply - dao.ct) * (dao.v/10000))//only distribute based on new supply
+                dao[json.timestamp.split('-')[1]] = newClaim //set claim reciept by month
+                dao.t += newClaim //add to total
+                dao.ct = supply + newClaim //track the current supply so new tokens only get issued off claims
+                ops.push({ type: 'put', path: ['balances', 'rd'], data: parseInt(rdbal + newClaim) }); //dao account
+                ops.push({ type: 'put', path: ['stats', 'daoclaim'], data: dao }); //this obect
+                ops.push({ type: 'put', path: ['stats', 'tokenSupply'], data: supply + newClaim }); //update supply
+            }
             if (trak.t) { //get from memory
                 if(trak.l.split('').pop() != parseInt(json.timestamp.split('-')[1], 10).toString(16) && (json.timestamp.split('-')[0] == '2022' || json.timestamp.split('-')[0] == '2023' && parseInt(json.timestamp.split('-')[1]) < 3)){
                     trak.l = parseInt(json.timestamp.split('-')[1], 10).toString(16)
                     trak.t += parseInt(json.timestamp.split('-')[1], 10).toString(16)
+                    if(!newClaim)ops.push({ type: 'put', path: ['stats', 'tokenSupply'], data: parseInt(supply + trak.s) });
+                    else {
+                        ops.pop()
+                        ops.push({ type: 'put', path: ['stats', 'tokenSupply'], data: parseInt(supply + trak.s + newClaim) }); //update supply with new claim
+                    }
                     ops.push({ type: 'put', path: ['balances', from], data: parseInt(tbal + trak.s) });
-                    ops.push({ type: 'put', path: ['stats', 'tokenSupply'], data: parseInt(supply + trak.s) });
                     ops.push({ type: 'put', path: ['snap', from], data: trak });
                     let msg = `@${from}| Claimed ${parseFloat(parseInt(trak.s) / 1000).toFixed(3)} ${config.TOKEN}`
                     if (config.hookurl || config.status) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
@@ -99,8 +118,12 @@ exports.drop_claim = (json, from, active, pc) => {
                         t: parseInt(json.timestamp.split('-')[1], 10).toString(16), // total claims
                         l: parseInt(json.timestamp.split('-')[1], 10).toString(16), // last claim month int
                     }
+                    if(!newClaim)ops.push({ type: 'put', path: ['stats', 'tokenSupply'], data: parseInt(supply + trak.s) });
+                    else {
+                        ops.pop()
+                        ops.push({ type: 'put', path: ['stats', 'tokenSupply'], data: parseInt(supply + trak.s + newClaim) }); //update supply with new claim
+                    }
                     ops.push({ type: 'put', path: ['balances', from], data: parseInt(tbal + trak.s) });
-                    ops.push({ type: 'put', path: ['stats', 'tokenSupply'], data: parseInt(supply + trak.s) });
                     ops.push({ type: 'put', path: ['snap', from], data: trak });
                     let msg = `@${from}| Claimed ${parseFloat(parseInt(trak.s) / 1000).toFixed(3)} ${config.TOKEN}`
                     if (config.hookurl || config.status) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
@@ -113,8 +136,12 @@ exports.drop_claim = (json, from, active, pc) => {
                         t: parseInt(json.timestamp.split('-')[1], 10).toString(16), // total claims
                         l: parseInt(json.timestamp.split('-')[1], 10).toString(16), // last claim month int
                     }
+                    if(!newClaim)ops.push({ type: 'put', path: ['stats', 'tokenSupply'], data: parseInt(supply + trak.s) });
+                    else {
+                        ops.pop()
+                        ops.push({ type: 'put', path: ['stats', 'tokenSupply'], data: parseInt(supply + trak.s + newClaim) }); //update supply with new claim
+                    }
                     ops.push({ type: 'put', path: ['balances', from], data: parseInt(tbal + trak.s) });
-                    ops.push({ type: 'put', path: ['stats', 'tokenSupply'], data: parseInt(supply + trak.s) });
                     ops.push({ type: 'put', path: ['snap', from], data: trak });
                     let msg = `@${from}| Claimed ${parseFloat(parseInt(trak.s) / 1000).toFixed(3)} ${config.TOKEN}`
                     if (config.hookurl || config.status) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)

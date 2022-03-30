@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.0.6'
+const VERSION = 'v1.0.7r'
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -131,8 +131,8 @@ exports.processor = processor
 //HIVE API CODE
 
 //Start Program Options   
-dynStart()
-//startWith('QmQ7HJmJWjMqJ9hUtyCJvAkV2vgiAk6KD6WSizQtF5siEc', true)
+//dynStart()
+startWith('Qme19dQFxcKbSikgAsuXAybVhntqr1tmAXb79vfyHSWpfF', true)
 Watchdog.monitor()
 
 // API defs
@@ -307,7 +307,8 @@ function startApp() {
                         mss = mem[1], //resign mss
                         msa = mem[2], //if length > 80... sign these
                         mso = mem[3],
-                        msso = mem[4]
+                        msso = mem[4],
+                        mso_keys = Object.keys(mso)
                     let chrops = {},
                         msa_keys = Object.keys(msa)
                     for (var i in a) {
@@ -423,9 +424,9 @@ function startApp() {
                     return new Promise((res, rej)=>{
                         let promises = [HR.margins()]
                         if(num % 100 !== 50){
-                            if(mso.length){
+                            if(mso_keys.length){
                                 promises.push(new Promise((res,rej)=>{
-                                    osig_submit(consolidate(num, plasma, bh, 'owner'))
+                                    osig_submit(osign(num, 'mso', mso_keys, bh))
                                     .then(nodeOp => {
                                         res('SAT')
                                         if(plasma.rep)NodeOps.unshift(nodeOp)
@@ -434,7 +435,7 @@ function startApp() {
                                 }))
                             } else if(msso.length){
                                 promises.push(new Promise((res,rej)=>{
-                                    osig_submit(osign(num, plasma, msso, bh))
+                                    osig_submit(osign(num, 'msso', msso, bh))
                                     .then(nodeOp => {
                                         res('SAT')
                                         if(plasma.rep)NodeOps.unshift(nodeOp) //check to see if sig
@@ -717,6 +718,22 @@ function startWith(hash, second) {
                         if (!e && (second || data[0] > API.RAM.head - 325)) {
                             if (hash) {
                                 var cleanState = data[1]
+                                // cleanState.stats.daoclaim = {
+                                //         m:'03',
+                                //         ct: 0,
+                                //         t: 0,
+                                //         v: 1500,
+                                //     }
+                                //     cleanState.balances.elmerlin += 9566250
+                                //     cleanState.stats.MSHeld.HIVE += 56000
+                                //     cleanState.runners = {
+                                //         regardspk:{
+                                //             g:30891053
+                                //         },
+                                //         ['pizza.spk']:{
+                                //             g:2920386
+                                //         }
+                                //     }
                                 store.put([], cleanState, function(err) {
                                     if (err) {
                                         console.log('errr',err)
