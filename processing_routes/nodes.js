@@ -47,7 +47,7 @@ exports.node_add = function(json, from, active, pc) {
         if (ds > 10000) {
             ds = 10000
         }
-        var dv = parseInt(json.ds) || 0 //dao vote 10000 = 100.00% / 1 = 0.01%
+        var dv = parseInt(json.dv) || 0 //dao vote 10000 = 100.00% / 1 = 0.01%
         //the portion of the claim that will be put into the chains DAO. Recommend 10-15%
         if (dv < 0) {
             dv = 1500
@@ -101,6 +101,10 @@ exports.node_add = function(json, from, active, pc) {
                     var b = a;
                     b.domain = json.domain ? json.domain : b.domain;
                     b.bidRate = bid ? bid : b.bidRate;
+                    b.dm = dm ? dm : b.dm || 10000;
+                    b.ds = ds ? ds : b.ds || 0;
+                    b.dv = dv ? dv : b.dv || 1500;
+                    b.liquidity = liquidity ? liquidity : b.liquidity || 100;
                     if(mskey)b.mskey = mskey
                     ops = [{ type: 'put', path: ['markets', 'node', from], data: b }]
                 }
