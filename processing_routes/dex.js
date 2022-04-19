@@ -151,7 +151,7 @@ exports.dex_sell = (json, from, active, pc) => {
                     console.log('else')
                     let txid = config.TOKEN + hashThis(from + json.transaction_id),
                         crate = typeof parseFloat(order.rate) == 'number' ? parseFloat(order.rate).toFixed(6) : dex.tick,
-                        cfee = typeof stats.dex_fee == 'number' ? parseInt(parseInt(remaining) * parseFloat(stats.dex_fee)) : parseInt(parseInt(remaining) * 0.005),
+                        cfee = typeof stats.dex_fee == 'string' ? parseInt(parseInt(remaining) * parseFloat(stats.dex_fee)) : parseInt(parseInt(remaining) * 0.005),
                         hours = 720
                     contract = {
                         txid,
@@ -162,7 +162,8 @@ exports.dex_sell = (json, from, active, pc) => {
                         amount: remaining,
                         rate: crate,
                         block: json.block_num,
-                        type: `${order.pair}:sell`
+                        type: `${order.pair}:sell`,
+                        hive_id: json.transaction_id,
                     }
                     contract[order.pair] = parseInt(remaining * parseFloat(crate))
                     dex.sellBook = DEX.insert(txid, crate, dex.sellBook, 'sell')
@@ -628,7 +629,7 @@ exports.transfer = (json, pc) => {
                         if(set != 'Qm') set.u = NFT.move(uid, json.from, set.u)//update set
                         else set.u = json.from
                         ops.push({ type: 'put', path: ['nfts', json.from, item], data: nft }) //update nft
-                        const msg = `Sell of ${listing.o}'s ${item} finalized for ${nai(json.amount)} to ${json.from}`
+                        const msg = `Sell of ${listing.o}'s ${item} finalized for ${Transfer[1].amount} to ${json.from}`
                         ops.push({ type: 'put', path: ['feed', `${json.block_num}:vop_${json.transaction_id}`], data: msg })
                         ops.push({ type: 'put', path: ['msa', `${json.block_num}:vop_${json.transaction_id}`], data: stringify(Transfer) })
                         if(config.hookurl)postToDiscord(msg, `${json.block_num}:vop_${json.transaction_id}`)
@@ -851,7 +852,8 @@ exports.transfer = (json, pc) => {
                                     amount: 0,
                                     rate: crate,
                                     block: json.block_num,
-                                    type: `${order.pair}:buy`
+                                    type: `${order.pair}:buy`,
+                                    hive_id: json.transaction_id,
                                 }
                                 contract.amount = parseInt(remaining / crate)
                                 cfee = parseFloat(stats.dex_fee) > 0 ? parseInt(parseInt(contract.amount) * parseFloat(stats.dex_fee)) + 1 : parseInt(contract.amount * 0.005) + 1,

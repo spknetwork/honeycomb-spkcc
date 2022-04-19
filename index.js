@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.0.8'
+const VERSION = 'v1.0.9r' //Did you change the package version?
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -722,22 +722,11 @@ function startWith(hash, second) {
                         if (!e && (second || data[0] > API.RAM.head - 325)) {
                             if (hash) {
                                 var cleanState = data[1]
-                                // cleanState.stats.daoclaim = {
-                                //         m:'03',
-                                //         ct: 0,
-                                //         t: 0,
-                                //         v: 1500,
-                                //     }
-                                //     cleanState.balances.elmerlin += 9566250
-                                //     cleanState.stats.MSHeld.HIVE += 56000
-                                //     cleanState.runners = {
-                                //         regardspk:{
-                                //             g:30891053
-                                //         },
-                                //         ['pizza.spk']:{
-                                //             g:2920386
-                                //         }
-                                //     }
+                                delete cleanState.snap.zeruxanime
+                                delete cleanState.snap.stonesiege
+                                delete cleanState.snap.taintedblood
+                                delete cleanState.snap.mosa71
+                                delete cleanState.snap.bebeomega
                                 store.put([], cleanState, function(err) {
                                     if (err) {
                                         console.log('errr',err)
