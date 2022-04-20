@@ -103,7 +103,7 @@ const featuresModel = {
             pow_val: '',
             powdn_id: 'power_down',
             powdn_B: false,
-            powsel_up: true,
+            powsel_up: false,
             govup_id: 'gov_up',
             govup_B: true,
             gov_val: '',

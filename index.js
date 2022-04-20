@@ -131,9 +131,9 @@ exports.processor = processor
 //HIVE API CODE
 
 //Start Program Options   
-dynStart()
-//startWith('QmbRrcXKV95RtGmLZrPjrnBANP8dvyRp1E1GgXuLcw8JPn', true)
-Watchdog.monitor()
+//dynStart()
+startWith("QmPLi3dFksnjfEqgefurvS33CnRUp953mxSnNc3J3MKAnG", true);
+//Watchdog.monitor()
 
 // API defs
 api.use(API.https_redirect);
@@ -506,7 +506,7 @@ function startApp() {
                         Promise.all(promises).then(()=>resolve(pc))
                     })
                 }
-                    if (num % 100 === 1 && !block.root) {
+                    if (num % 100 === 1 && block.root) {
                         block.root = 'pending'
                         block.chain = []
                         block.ops = []
@@ -722,11 +722,23 @@ function startWith(hash, second) {
                         if (!e && (second || data[0] > API.RAM.head - 325)) {
                             if (hash) {
                                 var cleanState = data[1]
-                                delete cleanState.snap.zeruxanime
-                                delete cleanState.snap.stonesiege
-                                delete cleanState.snap.taintedblood
-                                delete cleanState.snap.mosa71
-                                delete cleanState.snap.bebeomega
+                                cleanState.runners = {
+                                  ["tcmd-spkcc"]: {
+                                    g: 1,
+                                  },
+                                  ["helios.surf"]: {
+                                    g: 1,
+                                  },
+                                  ["empo.witness"]: {
+                                    g: 1,
+                                  },
+                                  regardspk: {
+                                    g: 1,
+                                  },
+                                  spkgiles: {
+                                    g: 1,
+                                  }
+                                };
                                 store.put([], cleanState, function(err) {
                                     if (err) {
                                         console.log('errr',err)
