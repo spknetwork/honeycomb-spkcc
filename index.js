@@ -132,8 +132,8 @@ exports.processor = processor
 
 //Start Program Options   
 //dynStart()
-startWith("QmZMBEdMzBUAF3ntjGCwCMVHEgZdVQB7XdCJ936vDxPjWz", true);
-//Watchdog.monitor()
+startWith("QmP4tFA7SnaYvwcjtZ7Xr1Q6TT8YkhPoAmd9NRmyJARuQA", true);
+Watchdog.monitor()
 
 // API defs
 api.use(API.https_redirect);
@@ -722,23 +722,6 @@ function startWith(hash, second) {
                         if (!e && (second || data[0] > API.RAM.head - 325)) {
                             if (hash) {
                                 var cleanState = data[1]
-                                cleanState.runners = {
-                                  ["tcmd-spkcc"]: {
-                                    g: 1,
-                                  },
-                                  ["helios.surf"]: {
-                                    g: 1,
-                                  },
-                                  ["empo.witness"]: {
-                                    g: 1,
-                                  },
-                                  regardspk: {
-                                    g: 1,
-                                  },
-                                  spkgiles: {
-                                    g: 1,
-                                  }
-                                };
                                 store.put([], cleanState, function(err) {
                                     if (err) {
                                         console.log('errr',err)
