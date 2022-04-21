@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.0.9-release help' //Did you change the package version?
+const VERSION = 'v1.0.9' //Did you change the package version?
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -506,7 +506,7 @@ function startApp() {
                         Promise.all(promises).then(()=>resolve(pc))
                     })
                 }
-                    if (num % 100 === 1 && block.root) {
+                    if (num % 100 === 1 && !block.root) {
                         block.root = 'pending'
                         block.chain = []
                         block.ops = []
