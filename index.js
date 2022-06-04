@@ -678,8 +678,13 @@ function dynStart(account) {
         }
         Promise.all(consensus_init.reports).then(r =>{
             for(i = 0; i < r.length; i++){
-                if(!i)consensus_init.first = r[i][0]
-                if(consensus_init.hash[r[i][0]]){
+                if (typeof r[i] === 'undefined') {
+                    continue
+                }
+                if (!i) {
+                    consensus_init.first = r[i][0]
+                }
+                if (consensus_init.hash[r[i][0]]) {
                     consensus_init.hash[r[i][0]]++
                 } else {
                     consensus_init.hash[r[i][0]] = 1
