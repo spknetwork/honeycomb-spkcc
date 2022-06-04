@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.0.10' //Did you change the package version?
+const VERSION = 'v1.0.11' //Did you change the package version?
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -17,11 +17,7 @@ const express = require('express');
 const stringify = require('json-stable-stringify');
 const IPFS = require('ipfs-http-client-lite'); //ipfs-http-client doesn't work
 const fetch = require('node-fetch');
-var ipfs = new IPFS({    
-    host: config.ipfshost,
-    port: config.ipfsport,
-    protocol: config.ipfsprotocol
-})
+var ipfs = IPFS(`${config.ipfsprotocol}://${config.ipfshost}:${config.ipfsport}`)
 console.log(`IPFS: ${config.ipfshost == 'ipfs' ? 'DockerIPFS' : config.ipfshost}:${config.ipfsport}`)
 exports.ipfs = ipfs;
 const rtrades = require('./rtrades');
@@ -131,7 +127,7 @@ exports.processor = processor
 
 //Start Program Options   
 dynStart()
-//startWith("QmQdeQWiD1ZjLn6N18izaJYi8sUfib2WZFfd91MHg1945F", true);
+//startWith("QmbnDcvPvFeFdZD8LKavBDS1f1vj9M5dcksJpZaf8ngtQf", true);
 Watchdog.monitor()
 
 // API defs
@@ -677,15 +673,12 @@ function dynStart(account) {
         }
         Promise.all(consensus_init.reports).then(r =>{
             for(i = 0; i < r.length; i++){
-                if (typeof r[i] === 'undefined') {
-                    continue
+                if (!consensus_init.first && r[i]) {
+                  consensus_init.first = r[i][0];
                 }
-                if (!i) {
-                    consensus_init.first = r[i][0]
-                }
-                if (consensus_init.hash[r[i][0]]) {
+                if (r[i] && consensus_init.hash[r[i][0]]) {
                     consensus_init.hash[r[i][0]]++
-                } else {
+                } else if (r[i]) {
                     consensus_init.hash[r[i][0]] = 1
                 }
             }

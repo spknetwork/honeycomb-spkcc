@@ -89,7 +89,7 @@ exports.dex_sell = (json, from, active, pc) => {
             (order.type == "MARKET" ||
               parseFloat(price) >= parseFloat(order.rate))
           ) {
-            let next = dex.buyOrders[`${price.toFixed(6)}:${item}`];
+            let next = dex.buyOrders?.[`${price.toFixed(6)}:${item}`];
             if (!next) {
               dex.buyBook = DEX.remove(item, dex.buyBook);
               continue sell_loop;
@@ -511,17 +511,17 @@ exports.transfer = (json, pc) => {
       json.memo.split(" ")[0] == "NFT"
     ) {
       /*
-                          lth[`set:hash`]{
-                              h,//millihive
-                              b,//millihbd
-                              q,//qty
-                              d,//distro string
-                              i:`${json.set}:${hash}`,//item for canceling
-                              e:'pb:startdate_enddate,max:3',
-                              s:'account1_1,account2_2,account3_1',
-                              p,//pending sales 
-                          }
-                  */
+                    lth[`set:hash`]{
+                        h,//millihive
+                        b,//millihbd
+                        q,//qty
+                        d,//distro string
+                        i:`${json.set}:${hash}`,//item for canceling
+                        e:'pb:startdate_enddate,max:3',
+                        s:'account1_1,account2_2,account3_1',
+                        p,//pending sales 
+                    }
+            */
       let item = json.memo.split(" ")[1],
         setname = item.split(":")[0],
         Pset = getPathObj(["sets", setname]),
@@ -2265,7 +2265,7 @@ function maxAllowed(stats, tick, remaining, crate) {
   const max =
     stats.safetyLimit *
     tick *
-    (1 - (crate / tick) * (stats.dex_slope / 100)) *
+    (1 - (crate < tick ? (crate / tick) : 0 ) * (stats.dex_slope / 100)) *
     (stats.dex_max / 100);
   return max > remaining ? 0 : parseInt(remaining - max);
 }
