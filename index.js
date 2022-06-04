@@ -13,10 +13,9 @@ var block = {
     chain:[]
 }
 exports.block = block
-const args = require('minimist')(process.argv.slice(2));
 const express = require('express');
 const stringify = require('json-stable-stringify');
-const IPFS = require('ipfs-api'); //ipfs-http-client doesn't work
+const IPFS = require('ipfs-http-client-lite'); //ipfs-http-client doesn't work
 const fetch = require('node-fetch');
 var ipfs = new IPFS({    
     host: config.ipfshost,
