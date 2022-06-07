@@ -90,8 +90,12 @@ exports.consolidate = (num, plasma, bh, owner) => {
                 }
                 ops.push({type: 'put', path: [queryf, `${num}`], data: stringify(op)})
                 if(config.msowner && config.active && txs.length){
+                    try{
                     const stx = hiveClient.auth.signTransaction(op, [sel_key])
                     sig.sig = stx.signatures[0]
+                    } catch(e){
+                        console.log(op.operations[0])
+                    }
                 }
                 store.batch(ops, [resolve, reject, sig])
             }

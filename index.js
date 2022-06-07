@@ -121,13 +121,13 @@ var startingBlock = config.starting_block
 const streamMode = config.stream || 'irreversible';
 console.log("Streaming using mode", streamMode);
 var processor;
-exports.processor = processor
+exports.processor = processor 
 
 //HIVE API CODE
 
 //Start Program Options   
-dynStart()
-//startWith("QmbnDcvPvFeFdZD8LKavBDS1f1vj9M5dcksJpZaf8ngtQf", true);
+//dynStart()
+startWith("QmRAVcEbMyAgc78jVZrq8B25gFWRM4Z5ET42ASXJF9nAxN", true);
 Watchdog.monitor()
 
 // API defs
