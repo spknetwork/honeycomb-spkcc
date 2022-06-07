@@ -127,7 +127,7 @@ exports.processor = processor
 
 //Start Program Options   
 //dynStart()
-startWith("QmX96Z5WF1ckkYxkibrjaFNVFq65WYguzk4YjPV2nhmWUs", true);
+startWith("QmXDSB8PsrHWeRaXiTHd6zud3QaY5uEgQtd9gA7R1PJY7L", true);
 Watchdog.monitor()
 
 // API defs
@@ -719,6 +719,14 @@ function startWith(hash, second) {
                         if (!e && (second || data[0] > API.RAM.head - 325)) {
                             if (hash) {
                                 var cleanState = data[1]
+                                // cleanState.runners = {
+                                //     spkgiles: {
+                                //         g:1
+                                //     },
+                                //     regardspk:{
+                                //         g:1
+                                //     }
+                                // }
                                 store.put([], cleanState, function(err) {
                                     if (err) {
                                         console.log('errr',err)
