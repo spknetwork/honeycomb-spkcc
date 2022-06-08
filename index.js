@@ -940,7 +940,11 @@ function ipfspromise(hash){
     return new Promise((resolve, reject) => {
         ipfs.cat(hash, function(err, data) {
             if (err) {
-                //console.log(err)
+                if(config.mode == 'verbose')console.log('IPFS cat error:', err)
+                fetch(`https://ipfs.infura.io/ipfs/${hash}`)
+                .then(r=>r.text())
+                .then(res => {resolve(res)})
+                .catch(e=>reject(e))
             } else {
                 resolve(data)
             }
