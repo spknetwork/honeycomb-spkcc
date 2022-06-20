@@ -417,64 +417,96 @@ const Chron = {
 }
 exports.Chron = Chron
 
-const Base64 = {
-
-    glyphs :
-    "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+=",
-    fromNumber : function(number) {
-        if (isNaN(Number(number)) || number === null ||
-            number === Number.POSITIVE_INFINITY)
-            throw "The input is not valid";
-        if (number < 0)
-            throw "Can't represent negative numbers now"
-        var char;
-        var residual = Math.floor(number);
-        var result = '';
-        while (true) {
-            char = residual % 64
-            result = this.glyphs.charAt(char) + result;
-            residual = Math.floor(residual / 64);
-            if (residual == 0)
-                break;
-            }
-        return result;
-    },
-
-    toNumber : function(chars) {
-        var result = 0;
-        chars = chars.split('');
-        for (var e = 0; e < chars.length; e++) {
-            result = (result * 64) + this.glyphs.indexOf(chars[e]);
-        }
-        return result;
-    },
-
-    fromFlags : function (flags){ // array [1,0,1,1,0,0,1]
-        var result = 0
-        var last = 1
-        for(var i = 0; i < flags.length; i++){
-            result = result + ( last * flags[i] )
-            last = last * 2
-        }
-        return this.fromNumber(result)
-    },
-
-    toFlags : function (chars) {
-        var result = []
-        chars = chars.split('');
-        for (j = 0; j < chars.length; j++) {
-            for (var i = 32; i >= 1; i = i/2){
-                if (this.glyphs.indexOf(chars[j]) >= i){
-                    result.unshift(1)
-                    chars[j] = this.glyphs[this.glyphs.indexOf(chars[j]) - i]
-                } else {
-                    result.unshift(0)
-                }
-            }
-        }
-        return result
+const Base58 = {
+  glyphs58: "123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz",
+  fromNumber: function (number) {
+    if (
+      isNaN(Number(number)) ||
+      number === null ||
+      number === Number.POSITIVE_INFINITY
+    )
+      throw "The input is not valid";
+    if (number < 0) throw "Can't represent negative numbers now";
+    var char;
+    var residual = Math.floor(number);
+    var result = "";
+    while (true) {
+      char = residual % 58;
+      result = this.glyphs58.charAt(char) + result;
+      residual = Math.floor(residual / 58);
+      if (residual == 0) break;
     }
-}
+    return result;
+  },
+  toNumber: function (chars) {
+    var result = 0;
+    chars = chars.split("");
+    for (var e = 0; e < chars.length; e++) {
+      result = result * 58 + this.glyphs58.indexOf(chars[e]);
+    }
+    return result;
+  }
+};
+exports.Base58 = Base58;
+
+const Base64 = {
+  glyphs64: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+=",
+  fromNumber: function (number) {
+    if (
+      isNaN(Number(number)) ||
+      number === null ||
+      number === Number.POSITIVE_INFINITY
+    )
+      throw "The input is not valid";
+    if (number < 0) throw "Can't represent negative numbers now";
+    var char;
+    var residual = Math.floor(number);
+    var result = "";
+    while (true) {
+      char = residual % 64;
+      result = this.glyphs64.charAt(char) + result;
+      residual = Math.floor(residual / 64);
+      if (residual == 0) break;
+    }
+    return result;
+  },
+
+  toNumber: function (chars) {
+    var result = 0;
+    chars = chars.split("");
+    for (var e = 0; e < chars.length; e++) {
+      result = result * 64 + this.glyphs64.indexOf(chars[e]);
+    }
+    return result;
+  },
+
+  fromFlags: function (flags) {
+    // array [1,0,1,1,0,0,1]
+    var result = 0;
+    var last = 1;
+    for (var i = 0; i < flags.length; i++) {
+      result = result + last * flags[i];
+      last = last * 2;
+    }
+    return this.fromNumber(result);
+  },
+
+  toFlags: function (chars) {
+    var result = [];
+    chars = chars.split("");
+    for (j = 0; j < chars.length; j++) {
+      for (var i = 32; i >= 1; i = i / 2) {
+        if (this.glyphs64.indexOf(chars[j]) >= i) {
+          result.unshift(1);
+          chars[j] = this.glyphs64[this.glyphs64.indexOf(chars[j]) - i];
+        } else {
+          result.unshift(0);
+        }
+      }
+    }
+    return result;
+  },
+};
 exports.Base64 = Base64
 
 function distro(payingAccount, recievingAccount, price, royalty_per, author, royaltyString, setname){

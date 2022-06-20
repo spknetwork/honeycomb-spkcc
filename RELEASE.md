@@ -1,11 +1,31 @@
-### 1.0.7
-   * Fixed release(txid) to wait for promises (order canceling)
-   * Adust elmerlin balance by 9566.250 for release error in block 63014889
-   * Adjust MSHeld Balance by 56 HIVE due to 1.0.4 errors
-   * Added a non-claim to DAO routine
-   * Added voting for DAO routine
-   * Added partial fill tracking on buy orders
-   * Fixed Account Update
+# Release Notes
+
+## 1.1a -Disabled 
+
+* Add SPK send
+* Add SPK Gov  Up ***
+* Add val_check contract
+* Add val_report contract
+* Add val_bundle contract
+* Add val_bytes contract
+* Add val_bytes_flag contract
+* Add val_reg contract
+* Add val_add contract
+
+### 1.0.11
+
+* Build SPK send
+* Build SPK accounting
+* Introduce SPK reward based on Larynx Power
+* Allow Larynx "Power Up and Power Grant"
+* Refix DEX Fees
+* Rework IPFS Promise
+
+### 1.0.10
+
+* Update IPFS lib to ipfs-http-client-lite
+* Fix Possible Negative Calculation
+
 ### 1.0.6
    * Update fee calculation for buy orders
    * Fix account update signing and resigning

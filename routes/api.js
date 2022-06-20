@@ -1725,9 +1725,11 @@ exports.user = (req, res, next) => {
         incol = getPathNum(['col', un]), //collateral
         gp = getPathNum(['gov', un]),
         pup = getPathObj(['up', un]),
-        pdown = getPathObj(['down', un])
+        pdown = getPathObj(['down', un]),
+        pspk = getPathNum(['spk', un]),
+        pspkb = getPathNum(['spkb', un])
     res.setHeader('Content-Type', 'application/json');
-    Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims])
+    Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims, pspk, pspkb])
         .then(function(v) {
             var arr = []
             for (var i in v[3]) {
@@ -1763,61 +1765,79 @@ exports.user = (req, res, next) => {
                 up: v[6],
                 down: v[7],
                 gov: v[5],
+                spk: v[11],
+                spk_block: v[12],
                 node: config.username,
                 behind: RAM.behind,
                 VERSION
             }, null, 3))
             }).catch(e=>{
-            res.send(JSON.stringify({
-                balance: v[0],
-                claim: v[9],
-                drop: {
+            res.send(
+              JSON.stringify(
+                {
+                  balance: v[0],
+                  claim: v[9],
+                  drop: {
                     availible: {
-                        "amount": 0,
-                        "precision": 3,
-                        "token": "LARYNX"
+                      amount: 0,
+                      precision: 3,
+                      token: "LARYNX",
                     },
                     last_claim: 0,
-                    total_claims: 0
-               },//v[10],
-                poweredUp: v[1],
-                granted: v[2],
-                granting: v[8],
-                heldCollateral: v[4],
-                contracts: arr,
-                up: v[6],
-                down: v[7],
-                gov: v[5],
-                node: config.username,
-                behind: RAM.behind,
-                VERSION
-            }, null, 3))
+                    total_claims: 0,
+                  }, //v[10],
+                  poweredUp: v[1],
+                  granted: v[2],
+                  granting: v[8],
+                  heldCollateral: v[4],
+                  contracts: arr,
+                  up: v[6],
+                  down: v[7],
+                  gov: v[5],
+                  spk: v[11],
+                  spk_block: v[12],
+                  node: config.username,
+                  behind: RAM.behind,
+                  VERSION,
+                },
+                null,
+                3
+              )
+            );
             })
             else {
-                res.send(JSON.stringify({
-                balance: v[0],
-                claim: v[9],
-                drop: {
-                    availible: {
-                        "amount": v[10].s,
-                        "precision": 3,
-                        "token": "LARYNX"
+                res.send(
+                  JSON.stringify(
+                    {
+                      balance: v[0],
+                      claim: v[9],
+                      drop: {
+                        availible: {
+                          amount: v[10].s,
+                          precision: 3,
+                          token: "LARYNX",
+                        },
+                        last_claim: v[10].l,
+                        total_claims: v[10].t,
+                      }, //v[10],
+                      poweredUp: v[1],
+                      granted: v[2],
+                      granting: v[8],
+                      heldCollateral: v[4],
+                      contracts: arr,
+                      up: v[6],
+                      down: v[7],
+                      gov: v[5],
+                      spk: v[11],
+                      spk_block: v[12],
+                      node: config.username,
+                      behind: RAM.behind,
+                      VERSION,
                     },
-                    last_claim: v[10].l,
-                    total_claims: v[10].t
-               },//v[10],
-                poweredUp: v[1],
-                granted: v[2],
-                granting: v[8],
-                heldCollateral: v[4],
-                contracts: arr,
-                up: v[6],
-                down: v[7],
-                gov: v[5],
-                node: config.username,
-                behind: RAM.behind,
-                VERSION
-            }, null, 3))
+                    null,
+                    3
+                  )
+                );
             }
         })
         .catch(function(err) {
