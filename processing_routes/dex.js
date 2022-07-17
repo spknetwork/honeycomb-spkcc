@@ -2039,7 +2039,7 @@ const release = (from, txid, bn, tx_id) => {
                     from: config.msaccount,
                     to: a.from,
                     amount: parseFloat(a.hive / 1000).toFixed(3) + " HIVE",
-                    memo: `Canceled DLUX buy ${a.txid}`,
+                    memo: `Canceled ${config.TOKEN} buy ${a.txid}`,
                   },
                 ];
                 ops.push({
@@ -2083,7 +2083,7 @@ const release = (from, txid, bn, tx_id) => {
                     from: config.msaccount,
                     to: a.from,
                     amount: parseFloat(a.hbd / 1000).toFixed(3) + " HBD",
-                    memo: `Canceled DLUX buy ${a.txid}`,
+                    memo: `Canceled ${config.TOKEN} buy ${a.txid}`,
                   },
                 ];
                 ops.push({

@@ -1,3 +1,4 @@
+const config = require('./config');
 const { getPathObj, getPathNum } = require("./getPathObj");
 const { store } = require("./index");
 const { chronAssign, penalty, add, nodeUpdate, deletePointer, addCol, addGov } = require('./lil_ops')
@@ -42,7 +43,7 @@ function enforce(agent, txid, pointer, block_num) {
                                                         ops.push({ type: 'del', path: ['escrow', c.agent, `${c.from}/${c.escrow_id}:denyA`] });
                                                         ops.push({ type: 'del', path: ['escrow', '.' + c.to, `${c.from}/${c.escrow_id}:denyT`] });
                                                         ops.push({ type: 'put', path: ['contracts', pointed_contract.for, pointed_contract.contract], data: c });
-                                                        ops.push({ type: 'put', path: ['feed', `${block_num}:${txid}`], data: `@${c.agent} failed to make a timely transaction and has forfieted ${parseFloat(col / 1000).toFixed(3)} DLUX` });
+                                                        ops.push({ type: 'put', path: ['feed', `${block_num}:${txid}`], data: `@${c.agent} failed to make a timely transaction and has forfieted ${parseFloat(col / 1000).toFixed(3)} ${config.TOKEN}` });
                                                     })
                                                     .catch(e => { reject(e); });
                                                 ops = [];
@@ -54,7 +55,7 @@ function enforce(agent, txid, pointer, block_num) {
                                             .then(col => {
                                                 const returnable = col + c.recovered;
                                                 console.log(returnable, col, c.recovered);
-                                                ops.push({ type: 'put', path: ['feed', `${block_num}:${txid}`], data: `@${c.to} failed to make a timely transaction and has forfieted ${parseFloat(col / 1000).toFixed(3)} DLUX` });
+                                                ops.push({ type: 'put', path: ['feed', `${block_num}:${txid}`], data: `@${c.to} failed to make a timely transaction and has forfieted ${parseFloat(col / 1000).toFixed(3)} ${config.TOKEN}` });
                                                 ops.push({ type: 'del', path: ['contracts', pointed_contract.for, pointed_contract.contract] }); //some more logic here to clean memory... or check if this was denies for colateral reasons
                                                 ops.push({ type: 'del', path: ['escrow', c.to, `${c.from}/${c.escrow_id}:denyT`] });
                                                 lil_ops = [
