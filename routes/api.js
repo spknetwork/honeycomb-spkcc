@@ -1719,8 +1719,8 @@ exports.user = (req, res, next) => {
         cbal = getPathNum(['cbalances', un]),
         claims = getPathObj(['snap', un]),
         pb = getPathNum(['pow', un]),
-        lp = getPathNum(['granted', un]),
-        lg = getPathNum(['granting', un]),
+        lp = getPathObj(['granted', un]),
+        lg = getPathObj(['granting', un]),
         contracts = getPathObj(['contracts', un]),
         incol = getPathNum(['col', un]), //collateral
         gp = getPathNum(['gov', un]),
