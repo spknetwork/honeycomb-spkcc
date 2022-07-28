@@ -24,7 +24,8 @@ const mode = ENV.mode || 'normal'
 
 // testing configs for replays
 const override = ENV.override || 0 //69116600 //will use standard restarts after this blocknumber
-const engineCrank = ENV.startingHash || '' //but this state will be inserted before
+const engineCrank =
+  ENV.startingHash || "QmWh6F8DKyDjRxkvgrh89Ssjh9zoNtm8UYS3CztppiWFHj"; //but this state will be inserted before
 
 // third party configs
 const rta = ENV.rta || '' //rtrades account : IPFS pinning interface
@@ -51,7 +52,7 @@ const clients = ENV.clients || [
 //!!!!!!! -- THESE ARE COMMUNITY CONSTANTS -- !!!!!!!!!//
 //TOKEN CONFIGS -- ALL COMMUNITY RUNNERS NEED THESE SAME VALUES
 const starting_block = 62313601; //from what block does your token start
-const prefix = 'spkcc_' //Community token name for Custom Json IDs
+const prefix = 'TESTspkcc_' //Community token name for Custom Json IDs
 const TOKEN = 'LARYNX' //Token name
 const precision = 3 //precision of token
 const tag = 'spk' //the fe.com/<tag>/@<leader>/<permlink>

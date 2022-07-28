@@ -127,7 +127,7 @@ exports.processor = processor
 
 //Start Program Options   
 dynStart()
-//startWith("QmQdeQWiD1ZjLn6N18izaJYi8sUfib2WZFfd91MHg1945F", true);
+//startWith("QmWG7cQgL7hfZXLynVWVt6CKpbRDhkARK2YdGszS3r8XoR", true);
 Watchdog.monitor()
 
 // API defs
@@ -694,13 +694,17 @@ function dynStart(account) {
             consensus_init.reports.push(Hive.getRecentReport(oa[i][0], walletOperationsBitmask))
         }
         Promise.all(consensus_init.reports).then(r =>{
+            console.log(r)
             for(i = 0; i < r.length; i++){
-                if(!i)consensus_init.first = r[i][0]
+                if (r[i]){ 
+                    if (config.engineCrank == consensus_init.first)
+                      consensus_init.first = r[i][0];
                 if(consensus_init.hash[r[i][0]]){
-                    consensus_init.hash[r[i][0]]++
+                    consensus_init.hash[r[i][0]]++;
                 } else {
-                    consensus_init.hash[r[i][0]] = 1
+                    consensus_init.hash[r[i][0]] = 1;
                 }
+            }
             }
             for (var i in consensus_init.hash) {
                 if (consensus_init.hash[i] > consensus_init.reports.length/2) {
@@ -739,9 +743,14 @@ function startWith(hash, second) {
                         if (!e && (second || data[0] > API.RAM.head - 325)) {
                             if (hash) {
                                 var cleanState = data[1]
-                                cleanState.stats.spk_rate_lgov = "0.001"
-                                cleanState.stats.spk_rate_ldel = "0.00015"
-                                cleanState.stats.spk_rate_lpow = "0.0001"
+                                // cleanState.stats.spk_rate_lgov = "0.001"
+                                // cleanState.stats.spk_rate_ldel = "0.00015"
+                                // cleanState.stats.spk_rate_lpow = "0.0001"
+                                // cleanState.runners = {
+                                //     regardspk: {
+                                //         g: 1
+                                //     }
+                                // }
                                 store.put([], cleanState, function(err) {
                                     if (err) {
                                         console.log('errr',err)
@@ -967,7 +976,8 @@ function ipfspromise(hash) {
       fetch(arr[i] + hash)
         .then((r) => r.text())
         .then((res) => {
-          resolve(res);
+          if(res.split('')[0] == '<') throw Error('HTML')
+          else resolve(res);
         })
         .catch((e) => {
           if (i < arr.length - 1) {

@@ -1727,9 +1727,10 @@ exports.user = (req, res, next) => {
         pup = getPathObj(['up', un]),
         pdown = getPathObj(['down', un]),
         pspk = getPathNum(['spk', un]),
-        pspkb = getPathNum(['spkb', un])
+        pspkb = getPathNum(['spkb', un]),
+        tick = getPathObj(['dex', 'hive', 'tick'])
     res.setHeader('Content-Type', 'application/json');
-    Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims, pspk, pspkb])
+    Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims, pspk, pspkb, tick])
         .then(function(v) {
             var arr = []
             for (var i in v[3]) {
@@ -1745,32 +1746,39 @@ exports.user = (req, res, next) => {
                 arr.push(c)
             }
             if(!v[10].s)fetch(`${config.snapcs}/api/snapshot?u=${un}`).then(r => r.json()).then(function(claim) {
-            res.send(JSON.stringify({
-                balance: v[0],
-                claim: v[9],
-                drop: {
+            res.send(
+              JSON.stringify(
+                {
+                  balance: v[0],
+                  claim: v[9],
+                  drop: {
                     availible: {
-                        "amount": parseInt(claim.Larynx * 1000 / 12),
-                        "precision": 3,
-                        "token": "LARYNX"
+                      amount: parseInt((claim.Larynx * 1000) / 12),
+                      precision: 3,
+                      token: "LARYNX",
                     },
                     last_claim: 0,
-                    total_claims: 0
-               },//v[10],
-                poweredUp: v[1],
-                granted: v[2],
-                granting: v[8],
-                heldCollateral: v[4],
-                contracts: arr,
-                up: v[6],
-                down: v[7],
-                gov: v[5],
-                spk: v[11],
-                spk_block: v[12],
-                node: config.username,
-                behind: RAM.behind,
-                VERSION
-            }, null, 3))
+                    total_claims: 0,
+                  }, //v[10],
+                  poweredUp: v[1],
+                  granted: v[2],
+                  granting: v[8],
+                  heldCollateral: v[4],
+                  contracts: arr,
+                  up: v[6],
+                  down: v[7],
+                  gov: v[5],
+                  spk: v[11],
+                  spk_block: v[12],
+                  tick: v[13],
+                  node: config.username,
+                  behind: RAM.behind,
+                  VERSION,
+                },
+                null,
+                3
+              )
+            );
             }).catch(e=>{
             res.send(
               JSON.stringify(
