@@ -100,7 +100,7 @@ exports.power_grant = (json, from, active, pc) => {
                 down_from = mem[7],
                 down_to = mem[8],
                 ops = [];
-            if (amount < from_power && amount >= 0 && active && mem[9]) { //mem[9] checks for gov balance in to account. 
+            if (amount <= from_power && amount >= 0 && active && mem[9]) { //mem[9] checks for gov balance in to account. 
                 if (amount > granted_to_from) {
                     let more = amount - granted_to_from;
                     if (up_from.max) {

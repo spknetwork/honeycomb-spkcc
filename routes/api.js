@@ -27,13 +27,20 @@ exports.root = (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
     store.get(['stats'], function(err, obj) {
         var stats = obj
-            res.send(JSON.stringify({
-                result: stats,
-                behind: RAM.behind,
-                node: config.username,
-                VERSION,
-                realtime: stats.realtime
-            }, null, 3));
+            res.send(
+              JSON.stringify(
+                {
+                  result: stats,
+                  head_block: RAM.head,
+                  behind: RAM.behind,
+                  node: config.username,
+                  VERSION,
+                  realtime: stats.realtime,
+                },
+                null,
+                3
+              )
+            );
     });
 }
 
@@ -205,15 +212,22 @@ exports.orderbook = (req, res, next) => {
                 count2++
                 if(count2 == get)break;
             }
-            res.send(JSON.stringify({
-                asks:orderbook.asks,
-                bids:orderbook.bids,
-                timestamp: orderbook.timestamp,
-                ticker_id: orderbook.ticker_id,
-                node: config.username,
-                behind: RAM.behind,
-                VERSION
-            }, null, 3))
+            res.send(
+              JSON.stringify(
+                {
+                  asks: orderbook.asks,
+                  bids: orderbook.bids,
+                  timestamp: orderbook.timestamp,
+                  ticker_id: orderbook.ticker_id,
+                  node: config.username,
+                  head_block: RAM.head,
+                  behind: RAM.behind,
+                  VERSION,
+                },
+                null,
+                3
+              )
+            );
         })
         .catch(function(err) {
             console.log(err)
@@ -275,12 +289,19 @@ exports.chart = (req, res, next) => {
                 count++
                 if(count == limit)break;
             }
-            res.send(JSON.stringify({
-                recent_trades: his,
-                node: config.username,
-                behind: RAM.behind,
-                VERSION
-            }, null, 3))
+            res.send(
+              JSON.stringify(
+                {
+                  recent_trades: his,
+                  node: config.username,
+                  head_block: RAM.head,
+                  behind: RAM.behind,
+                  VERSION,
+                },
+                null,
+                3
+              )
+            );
         })
         .catch(function(err) {
             console.log(err)
@@ -374,13 +395,20 @@ exports.historical_trades = (req, res, next) => {
                 sell = []
             }
             
-            res.send(JSON.stringify({
-                sell,
-                buy,
-                node: config.username,
-                behind: RAM.behind,
-                VERSION
-            }, null, 3))
+            res.send(
+              JSON.stringify(
+                {
+                  sell,
+                  buy,
+                  node: config.username,
+                  head_block: RAM.head,
+                  behind: RAM.behind,
+                  VERSION,
+                },
+                null,
+                3
+              )
+            );
         })
         .catch(function(err) {
             console.log(err)
@@ -549,14 +577,21 @@ exports.dex = (req, res, next) => {
             delete markets.hbd.sellOrders
             delete markets.hive.buyOrders
             delete markets.hbd.sellOrders
-            res.send(JSON.stringify({
-                markets,
-                stats: v[1],
-                queue: v[3],
-                node: config.username,
-                behind: RAM.behind,
-                VERSION
-            }, null, 3))
+            res.send(
+              JSON.stringify(
+                {
+                  markets,
+                  stats: v[1],
+                  queue: v[3],
+                  node: config.username,
+                  head_block: RAM.head,
+                  behind: RAM.behind,
+                  VERSION,
+                },
+                null,
+                3
+              )
+            );
         })
         .catch(function(err) {
             console.log(err)
@@ -627,12 +662,19 @@ exports.detail = (req, res, next) => {
                 text: `Hive-backed dollars (HBD) are a unique type of trustless stablecoin that is backed by the underlying value of the Hive blockchain itself instead of external collateral or a centralized entity. HBD are pegged to value of USD. Staking HBD pays a variable APR, currently ${parseFloat(RAM.hiveDyn.hbd_interest_rate / 100).toFixed(2)}%.`
             }
 
-            res.send(JSON.stringify({
-                coins: [TOKEN,HIVE,HBD],
-                node: config.username,
-                behind: RAM.behind,
-                VERSION
-            }, null, 3))
+            res.send(
+              JSON.stringify(
+                {
+                  coins: [TOKEN, HIVE, HBD],
+                  node: config.username,
+                  head_block: RAM.head,
+                  behind: RAM.behind,
+                  VERSION,
+                },
+                null,
+                3
+              )
+            );
         })
         .catch(function(err) {
             console.log(err)
@@ -645,13 +687,20 @@ exports.markets = (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
     Promise.all([markets, stats])
         .then(function(v) {
-            res.send(JSON.stringify({
-                markets: v[0],
-                stats: v[1],
-                node: config.username,
-                behind: RAM.behind,
-                VERSION
-            }, null, 3))
+            res.send(
+              JSON.stringify(
+                {
+                  markets: v[0],
+                  stats: v[1],
+                  node: config.username,
+                  head_block: RAM.head,
+                  behind: RAM.behind,
+                  VERSION,
+                },
+                null,
+                3
+              )
+            );
         })
         .catch(function(err) {
             console.log(err)
@@ -668,12 +717,19 @@ exports.mirrors = (req, res, next) => {
             for (node in v[1]){
                 apis.push({api_url:v[0][node].domain, node})
             }
-            res.send(JSON.stringify({
-                apis,
-                node: config.username,
-                behind: RAM.behind,
-                VERSION
-            }, null, 3))
+            res.send(
+              JSON.stringify(
+                {
+                  apis,
+                  node: config.username,
+                  head_block: RAM.head,
+                  behind: RAM.behind,
+                  VERSION,
+                },
+                null,
+                3
+              )
+            );
         })
         .catch(function(err) {
             console.log(err)
@@ -689,16 +745,21 @@ exports.runners = (req, res, next) => {
             node.account = a
             result.push(node)
         }
-        res.send(JSON.stringify({
-            result,
-            runners,
-            latest: [
-                {api: "https://spkinstant.hivehoneycomb.com"}
-            ],
-            node: config.username,
-            behind: RAM.behind,
-            VERSION
-        }, null, 3))
+        res.send(
+          JSON.stringify(
+            {
+              result,
+              runners,
+              latest: [{ api: "https://spkinstant.hivehoneycomb.com" }],
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
     });
 }
 
@@ -706,12 +767,19 @@ exports.queue = (req, res, next) => {
     res.setHeader('Content-Type', 'application/json')
     store.get(['queue'], function(err, obj) {
         var queue = obj
-        res.send(JSON.stringify({
-            queue,
-            node: config.username,
-            behind: RAM.behind,
-            VERSION
-        }, null, 3))
+        res.send(
+          JSON.stringify(
+            {
+              queue,
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
     });
 }
 
@@ -719,12 +787,19 @@ exports.feed = (req, res, next) => {
     res.setHeader('Content-Type', 'application/json')
     store.get(['feed'], function(err, obj) {
         var feed = obj
-        res.send(JSON.stringify({
-            feed,
-            node: config.username,
-            behind: RAM.behind,
-            VERSION
-        }, null, 3))
+        res.send(
+          JSON.stringify(
+            {
+              feed,
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
     });
 }
 
@@ -732,12 +807,19 @@ exports.posts = (req, res, next) => {
     res.setHeader('Content-Type', 'application/json')
     store.get(['posts'], function(err, obj) {
         var feed = obj
-        res.send(JSON.stringify({
-            feed,
-            node: config.username,
-            behind: RAM.behind,
-            VERSION
-        }, null, 3))
+        res.send(
+          JSON.stringify(
+            {
+              feed,
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
     });
 }
 
@@ -753,13 +835,20 @@ exports.PostAuthorPermlink = (req, res, next) => {
             .then(a => {
                 var arch = a[1],
                     now = a[0]
-                res.send(JSON.stringify({
-                    now,
-                    arch,
-                    node: config.username,
-                    behind: RAM.behind,
-                    VERSION
-                }, null, 3))
+                res.send(
+                  JSON.stringify(
+                    {
+                      now,
+                      arch,
+                      node: config.username,
+                      head_block: RAM.head,
+                      behind: RAM.behind,
+                      VERSION,
+                    },
+                    null,
+                    3
+                  )
+                );
             })
             .catch(e => { console.log(e) })
     } catch (e) { res.send('Something went wrong') }
@@ -769,31 +858,49 @@ exports.protocol = (req, res, next) => {
     res.setHeader('Content-Type', 'application/json')
     store.get(['queue'], function(err, obj) {
         var feed = obj
-        res.send(JSON.stringify({
-            consensus: obj,
-            prefix: config.prefix,
-            node: config.username,
-            multisig: config.msaccount,
-            jsontoken: config.jsonTokenName,
-            memoKey: config.msPubMemo,
-            features: config.featuresModel,
-            behind: RAM.behind,
-            info: '/markets will return node information and published APIs for the consensus nodes, you may check these other APIs to ensure that the information in the API is in consensus.\nThe prefix is used to address this tokens architecture built on Hive.',
-            VERSION
-        }, null, 3))
+        res.send(
+          JSON.stringify(
+            {
+              consensus: obj,
+              prefix: config.prefix,
+              node: config.username,
+              multisig: config.msaccount,
+              jsontoken: config.jsonTokenName,
+              memoKey: config.msPubMemo,
+              features: config.featuresModel,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              info: "/markets will return node information and published APIs for the consensus nodes, you may check these other APIs to ensure that the information in the API is in consensus.\nThe prefix is used to address this tokens architecture built on Hive.",
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
     });
 }
 
 exports.status = (req, res, next) => {
     let txid = req.params.txid
     res.setHeader('Content-Type', 'application/json')
-    res.send(JSON.stringify({
-            txid,
-            status: status[txid] || `This TransactionID either has not yet been processed, or was missed by the system due to formatting errors. Wait 70 seconds and try again. This API only keeps these records for a maximum of ${(config.history * 3)} seconds`,
-            node: config.username,
-            behind: RAM.behind,
-            VERSION
-        }, null, 3))
+    res.send(
+      JSON.stringify(
+        {
+          txid,
+          status:
+            status[txid] ||
+            `This TransactionID either has not yet been processed, or was missed by the system due to formatting errors. Wait 70 seconds and try again. This API only keeps these records for a maximum of ${
+              config.history * 3
+            } seconds`,
+          node: config.username,
+          head_block: RAM.head,
+          behind: RAM.behind,
+          VERSION,
+        },
+        null,
+        3
+      )
+    );
 }
 
 exports.nfts = (req, res, next) => {
@@ -830,14 +937,21 @@ exports.nfts = (req, res, next) => {
             }
         }
         res.setHeader('Content-Type', 'application/json')
-        res.send(JSON.stringify({
-                    result,
-                    mint_tokens,
-                    user,
-                    node: config.username,
-                    behind: RAM.behind,
-                    VERSION
-                }, null, 3))
+        res.send(
+          JSON.stringify(
+            {
+              result,
+              mint_tokens,
+              user,
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
     }) 
     .catch (e => { res.send('Something went wrong') })
 }
@@ -889,12 +1003,19 @@ exports.sets = (req, res, next) => {
             })
         }
         res.setHeader('Content-Type', 'application/json')
-        res.send(JSON.stringify({
-                    result,
-                    node: config.username,
-                    behind: RAM.behind,
-                    VERSION
-                }, null, 3))
+        res.send(
+          JSON.stringify(
+            {
+              result,
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
     }) 
     .catch (e => { res.send('Something went wrong') })
 }
@@ -970,12 +1091,19 @@ exports.auctions = (req, res, next) => {
             }
         }
         res.setHeader('Content-Type', 'application/json')
-        res.send(JSON.stringify({
-                    result,
-                    node: config.username,
-                    behind: RAM.behind,
-                    VERSION
-                }, null, 3))
+        res.send(
+          JSON.stringify(
+            {
+              result,
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
     }) 
     .catch (e => { res.send('Something went wrong') })
 }
@@ -999,21 +1127,35 @@ exports.official = (req, res, next) => {
             }
         ]
     res.setHeader('Content-Type', 'application/json')
-    res.send(JSON.stringify({
-                    result,
-                    node: config.username,
-                    behind: RAM.behind,
-                    VERSION
-                }, null, 3))
+    res.send(
+      JSON.stringify(
+        {
+          result,
+          node: config.username,
+          head_block: RAM.head,
+          behind: RAM.behind,
+          VERSION,
+        },
+        null,
+        3
+      )
+    );
     }) 
     .catch (e => { res.setHeader('Content-Type', 'application/json')
-    res.send(JSON.stringify({
-                    result: 'No Profile Picture Set or Owned',
-                    error: e,
-                    node: config.username,
-                    behind: RAM.behind,
-                    VERSION
-                }, null, 3))
+    res.send(
+      JSON.stringify(
+        {
+          result: "No Profile Picture Set or Owned",
+          error: e,
+          node: config.username,
+          head_block: RAM.head,
+          behind: RAM.behind,
+          VERSION,
+        },
+        null,
+        3
+      )
+    );
   })
 }
 
@@ -1049,13 +1191,20 @@ exports.limbo = (req, res, next) => {
             }
         }
     res.setHeader('Content-Type', 'application/json')
-    res.send(JSON.stringify({
-                    result,
-                    kind,
-                    node: config.username,
-                    behind: RAM.behind,
-                    VERSION
-                }, null, 3))
+    res.send(
+      JSON.stringify(
+        {
+          result,
+          kind,
+          node: config.username,
+          head_block: RAM.head,
+          behind: RAM.behind,
+          VERSION,
+        },
+        null,
+        3
+      )
+    );
     }) 
     .catch (e => { res.send('Something went wrong') })
 }
@@ -1099,12 +1248,19 @@ exports.mint_auctions = (req, res, next) => {
             }
         }
         res.setHeader('Content-Type', 'application/json')
-        res.send(JSON.stringify({
-                    result,
-                    node: config.username,
-                    behind: RAM.behind,
-                    VERSION
-                }, null, 3))
+        res.send(
+          JSON.stringify(
+            {
+              result,
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
     }) 
     .catch (e => { res.send('Something went wrong') })
 }
@@ -1241,12 +1397,19 @@ exports.mint_supply = (req, res, next) => {
             result.push(sets[item])
         }
         res.setHeader('Content-Type', 'application/json')
-        res.send(JSON.stringify({
-                    result,
-                    node: config.username,
-                    behind: RAM.behind,
-                    VERSION
-                }, null, 3))
+        res.send(
+          JSON.stringify(
+            {
+              result,
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
     }) 
     .catch (e => { res.send(console.log(e) + 'Something went wrong') })
 }
@@ -1277,12 +1440,19 @@ exports.sales = (req, res, next) => {
             }
         }
         res.setHeader('Content-Type', 'application/json')
-        res.send(JSON.stringify({
-                    result,
-                    node: config.username,
-                    behind: RAM.behind,
-                    VERSION
-                }, null, 3))
+        res.send(
+          JSON.stringify(
+            {
+              result,
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
     }) 
     .catch (e => { res.send('Something went wrong') })
 }
@@ -1314,12 +1484,19 @@ exports.mint_sales = (req, res, next) => {
             }
         }
         res.setHeader('Content-Type', 'application/json')
-        res.send(JSON.stringify({
-                    result,
-                    node: config.username,
-                    behind: RAM.behind,
-                    VERSION
-                }, null, 3))
+        res.send(
+          JSON.stringify(
+            {
+              result,
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
     }) 
     .catch (e => { res.send('Something went wrong') })
 }
@@ -1382,13 +1559,20 @@ exports.set = (req, res, next) => {
                 })
             }
         }
-        res.send(JSON.stringify({
-                    result,
-                    set,
-                    node: config.username,
-                    behind: RAM.behind,
-                    VERSION
-                }, null, 3))
+        res.send(
+          JSON.stringify(
+            {
+              result,
+              set,
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
     }) 
     .catch (e => { res.send('Something went wrong') })
 }
@@ -1410,28 +1594,30 @@ exports.item = (req, res, next) => {
         store.get(['nfts', owner, `${setname}:${itemname}`], function(err, obj) {
             if (obj.s){
                 res.setHeader('Content-Type', 'application/json')
-                res.send(JSON.stringify({
-                    item: {
+                res.send(
+                  JSON.stringify(
+                    {
+                      item: {
                         uid: itemname,
                         set: setname,
-                        last_modified: Base64.toNumber(obj.s.split(',')[0]),
-                        info: obj.s || '',
+                        last_modified: Base64.toNumber(obj.s.split(",")[0]),
+                        info: obj.s || "",
                         type: mem[0].t,
                         owner,
-                        lien: obj.l || 'No Lien',
-                    },
-                    set: {
+                        lien: obj.l || "No Lien",
+                      },
+                      set: {
                         set: setname,
                         link: `${mem[0].a}/${mem[0].p}`,
                         fee: {
-                            amount:mem[0].f,
-                            precision: config.precision,
-                            token: config.TOKEN
+                          amount: mem[0].f,
+                          precision: config.precision,
+                          token: config.TOKEN,
                         },
                         bond: {
-                            amount:mem[0].b,
-                            precision: config.precision,
-                            token: config.TOKEN
+                          amount: mem[0].b,
+                          precision: config.precision,
+                          token: config.TOKEN,
                         },
                         permlink: mem[0].p,
                         author: mem[0].a,
@@ -1442,20 +1628,33 @@ exports.item = (req, res, next) => {
                         royalty: mem[0].r,
                         name: mem[0].n,
                         minted: mem[0].i,
-                        max: Base64.toNumber(mem[0].m) - Base64.toNumber(mem[0].o)
+                        max:
+                          Base64.toNumber(mem[0].m) - Base64.toNumber(mem[0].o),
+                      },
+                      node: config.username,
+                      head_block: RAM.head,
+                      behind: RAM.behind,
+                      VERSION,
                     },
-                    node: config.username,
-                    behind: RAM.behind,
-                    VERSION
-                }, null, 3))
+                    null,
+                    3
+                  )
+                );
             } else {
                 res.setHeader('Content-Type', 'application/json')
-                res.send(JSON.stringify({
-                    item: 'Not Found',
-                    node: config.username,
-                    behind: RAM.behind,
-                    VERSION
-                }, null, 3))
+                res.send(
+                  JSON.stringify(
+                    {
+                      item: "Not Found",
+                      node: config.username,
+                      head_block: RAM.head,
+                      behind: RAM.behind,
+                      VERSION,
+                    },
+                    null,
+                    3
+                  )
+                );
             }
         });
     }) 
@@ -1467,12 +1666,19 @@ exports.report = (req, res, next) => {
     res.setHeader('Content-Type', 'application/json')
     store.get(['markets', 'node', un, 'report'], function(err, obj) {
         var report = obj
-        res.send(JSON.stringify({
-            [un]: report,
-            node: config.username,
-            behind: RAM.behind,
-            VERSION
-        }, null, 3))
+        res.send(
+          JSON.stringify(
+            {
+              [un]: report,
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
     });
 }
 
@@ -1490,12 +1696,19 @@ exports.getPromotedPosts = (req, res, next) => {
     res.setHeader('Content-Type', 'application/json')
     getPromotedPosts(amt, off)
         .then(r =>{
-            res.send(JSON.stringify({
-                        result: r,
-                        node: config.username,
-                        behind: RAM.behind,
-                        VERSION
-                    }, null, 3))
+            res.send(
+              JSON.stringify(
+                {
+                  result: r,
+                  node: config.username,
+                  head_block: RAM.head,
+                  behind: RAM.behind,
+                  VERSION,
+                },
+                null,
+                3
+              )
+            );
         })
         .catch(e=>{
             console.log(e)
@@ -1517,12 +1730,19 @@ exports.getTrendingPosts = (req, res, next) => {
     res.setHeader('Content-Type', 'application/json')
     getTrendingPosts(amt, off)
         .then(r =>{
-            res.send(JSON.stringify({
-                result: r,
-                node: config.username,
-                behind: RAM.behind,
-                VERSION
-            }, null, 3))
+            res.send(
+              JSON.stringify(
+                {
+                  result: r,
+                  node: config.username,
+                  head_block: RAM.head,
+                  behind: RAM.behind,
+                  VERSION,
+                },
+                null,
+                3
+              )
+            );
         })
         .catch(e=>{
             console.log(e)
@@ -1544,12 +1764,19 @@ exports.getNewPosts = (req, res, next) => {
     res.setHeader('Content-Type', 'application/json')
     getNewPosts(amt, off)
         .then(r =>{
-            res.send(JSON.stringify({
-                result: r,
-                node: config.username,
-                behind: RAM.behind,
-                VERSION
-            }, null, 3))
+            res.send(
+              JSON.stringify(
+                {
+                  result: r,
+                  node: config.username,
+                  head_block: RAM.head,
+                  behind: RAM.behind,
+                  VERSION,
+                },
+                null,
+                3
+              )
+            );
         })
         .catch(e=>{
             console.log(e)
@@ -1572,12 +1799,19 @@ exports.getAuthorPosts = (req, res, next) => {
     res.setHeader('Content-Type', 'application/json')
     getAuthorPosts(author, amt, off)
         .then(r =>{
-            res.send(JSON.stringify({
-                result: r,
-                node: config.username,
-                behind: RAM.behind,
-                VERSION
-            }, null, 3))
+            res.send(
+              JSON.stringify(
+                {
+                  result: r,
+                  node: config.username,
+                  head_block: RAM.head,
+                  behind: RAM.behind,
+                  VERSION,
+                },
+                null,
+                3
+              )
+            );
         })
         .catch(e=>{
             console.log(e)
@@ -1591,12 +1825,19 @@ exports.getPost = (req, res, next) => {
     res.setHeader('Content-Type', 'application/json')
     getPost(author, permlink)
         .then(r =>{
-            res.send(JSON.stringify({
-                result: r,
-                node: config.username,
-                behind: RAM.behind,
-                VERSION
-            }, null, 3))
+            res.send(
+              JSON.stringify(
+                {
+                  result: r,
+                  node: config.username,
+                  head_block: RAM.head,
+                  behind: RAM.behind,
+                  VERSION,
+                },
+                null,
+                3
+              )
+            );
         })
         .catch(e=>{
             console.log(e)
@@ -1691,24 +1932,38 @@ exports.coincheck = (state) => {
 
 exports.coin = (req, res, next) => {
     if (config.mode == 'normal'){
-        res.send(JSON.stringify({
-                check: 'disabled',
-                info: 'disabled',
-                node: config.username,
-                behind: RAM.behind,
-                VERSION
-            }, null, 3))
+        res.send(
+          JSON.stringify(
+            {
+              check: "disabled",
+              info: "disabled",
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
     } else {
         res.setHeader('Content-Type', 'application/json')
         store.get([], function(err, obj) {
             let info = exports.coincheck(obj)
-            res.send(JSON.stringify({
-                check: info.check,
-                info: info.info,
-                node: config.username,
-                behind: RAM.behind,
-                VERSION
-            }, null, 3))
+            res.send(
+              JSON.stringify(
+                {
+                  check: info.check,
+                  info: info.info,
+                  node: config.username,
+                  head_block: RAM.head,
+                  behind: RAM.behind,
+                  VERSION,
+                },
+                null,
+                3
+              )
+            );
         });
     }
 }
@@ -1772,6 +2027,7 @@ exports.user = (req, res, next) => {
                   spk_block: v[12],
                   tick: v[13],
                   node: config.username,
+                  head_block: RAM.head,
                   behind: RAM.behind,
                   VERSION,
                 },
@@ -1805,6 +2061,7 @@ exports.user = (req, res, next) => {
                   spk: v[11],
                   spk_block: v[12],
                   node: config.username,
+                  head_block: RAM.head,
                   behind: RAM.behind,
                   VERSION,
                 },
@@ -1839,6 +2096,7 @@ exports.user = (req, res, next) => {
                       spk: v[11],
                       spk_block: v[12],
                       node: config.username,
+                      head_block: RAM.head,
                       behind: RAM.behind,
                       VERSION,
                     },
@@ -1874,34 +2132,55 @@ exports.blog = (req, res, next) => {
         for (p in a) {
             obj[a] = p[a]
         }
-        res.send(JSON.stringify({
-            blog: arr,
-            node: config.username,
-            behind: RAM.behind,
-            VERSION
-        }, null, 3))
+        res.send(
+          JSON.stringify(
+            {
+              blog: arr,
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
     })
 }
 
 exports.state = (req, res, next) => {
     if(config.mode == 'normal'){
-        res.send(JSON.stringify({
-                state: 'normal',
-                node: config.username,
-                behind: RAM.behind,
-                VERSION
-            }, null, 3))
+        res.send(
+          JSON.stringify(
+            {
+              state: "normal",
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
     } else {
         var state = {}
         res.setHeader('Content-Type', 'application/json')
         store.get([], function(err, obj) {
-            state = obj,
-            res.send(JSON.stringify({
-                state,
-                node: config.username,
-                behind: RAM.behind,
-                VERSION
-            }, null, 3))
+            (state = obj),
+              res.send(
+                JSON.stringify(
+                  {
+                    state,
+                    node: config.username,
+                    head_block: RAM.head,
+                    behind: RAM.behind,
+                    VERSION,
+                  },
+                  null,
+                  3
+                )
+              );
         });
     }
 }
@@ -1913,17 +2192,24 @@ exports.pending = (req, res, next) => {
         Pmsa = getPathObj(['msa'])
     Promise.all([Pmso, Pmsso, Pmss, Pmsa]).then(mem => {
         res.setHeader('Content-Type', 'application/json');
-        res.send(JSON.stringify({
-            mso: mem[0],
-            msso: mem[1],
-            mss: mem[2],
-            msa: mem[3],
-            nodeOps: GetNodeOps(),
-            plasma: plasma,
-            node: config.username,
-            behind: RAM.behind,
-            VERSION
-        }, null, 3))
+        res.send(
+          JSON.stringify(
+            {
+              mso: mem[0],
+              msso: mem[1],
+              mss: mem[2],
+              msa: mem[3],
+              nodeOps: GetNodeOps(),
+              plasma: plasma,
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
     })
 }
 
