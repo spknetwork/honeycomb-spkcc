@@ -121,7 +121,7 @@ var startingBlock = config.starting_block
 const streamMode = config.stream || 'irreversible';
 console.log("Streaming using mode", streamMode);
 var processor;
-exports.processor = processor
+exports.processor = processor 
 
 //HIVE API CODE
 
@@ -968,7 +968,6 @@ function unwrapOps(arr){
         }
 })
 }
-
 function ipfspromise(hash) {
   return new Promise((resolve, reject) => {
     const ipfslinks = [

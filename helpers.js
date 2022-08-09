@@ -627,7 +627,7 @@ exports.DEX = DEX
 
 const Watchdog = {
     current : 0,
-    timeout: 180000, // 120 seconds to init with up to 288 blocks
+    timeout: config.timeoutStart,
     monitor : function(){
         if(!this.current)console.log('Watchdog: Monitoring...')
         setTimeout(() => {
@@ -635,7 +635,7 @@ const Watchdog = {
                 console.log('Watchdog: TIMEOUT')
                 require('process').exit(3)
             } else if(!this.current){
-                this.timeout = 30000
+                this.timeout = config.timeoutContinuous
                 this.current = TXID.blocknumber
                 this.monitor()
             } else {

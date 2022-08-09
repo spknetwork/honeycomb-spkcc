@@ -20,6 +20,8 @@ const snapcs = ENV.SNAPBASE_URL || "http://65.108.66.120:8002"; // get a public 
 const history = ENV.history || 3600
 const stream = ENV.stream || 'irreversible'
 const mode = ENV.mode || 'normal'
+const timeoutStart = ENV.timeoutStart || 180000 
+const timeoutContinuous = ENV.timeoutContinuous || 30000
 
 
 // testing configs for replays
@@ -230,7 +232,9 @@ let config = {
     snapcs,
     stream,
     mode,
-    featuresModel
+    featuresModel,
+    timeoutStart,
+    timeoutContinuous,
 };
 
 module.exports = config;
