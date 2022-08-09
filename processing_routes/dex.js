@@ -266,9 +266,9 @@ exports.dex_sell = (json, from, active, pc) => {
                   ? parseFloat(order.rate).toFixed(6)
                   : dex.tick,
               cfee =
-                typeof stats.dex_fee == "number"
-                  ? parseInt(parseInt(remaining) * parseFloat(stats.dex_fee))
-                  : parseInt(parseInt(remaining) * 0.005),
+                parseFloat(stats.dex_fee) > 0
+                  ? parseInt(parseInt(remaining) * parseFloat(stats.dex_fee)) + 1
+                  : parseInt(parseInt(remaining) * 0.005) + 1,
               hours = 720;
             if (crate > 0) {
               contract = {
@@ -1542,13 +1542,12 @@ exports.transfer = (json, pc) => {
                   hive_id: json.transaction_id,
                 };
                 contract.amount = parseInt(remaining / crate);
-                (cfee =
-                  parseFloat(stats.dex_fee) > 0
+                contract.fee = parseFloat(stats.dex_fee) > 0
                     ? parseInt(
                         parseInt(contract.amount) * parseFloat(stats.dex_fee)
                       ) + 1
-                    : parseInt(contract.amount * 0.005) + 1),
-                  (contract[order.pair] = remaining);
+                    : parseInt(contract.amount * 0.005) + 1,
+                contract[order.pair] = remaining;
                 if (remaining) {
                   dex.buyBook = DEX.insert(txid, crate, dex.buyBook, "buy");
                   path = chronAssign(expBlock, {

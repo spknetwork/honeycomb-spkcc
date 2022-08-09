@@ -1,13 +1,23 @@
 # Release Notes
 
+## 1.1
+
+### 1.1.0
+
+* Build SPK send
+* Build SPK accounting
+* Introduce SPK reward based on Larynx Power
+* Allow Larynx "Power Up and Power Grant"
+* Code Initial APR for SPK distro
+* Refix DEX Fees
+* Rework IPFS Promise
+
 ## 1.0
 
-### 1.0.11
+### 1.0.10
 
 * Update IPFS lib to ipfs-http-client-lite
-* Fix DEX Allowed size to preclude negative numbers
-* Adding more verbose logging
-* watchdog timeouts are now user configurable
+* Fix Possible Negative Calculation
 
 ### 1.0.6
 
@@ -43,7 +53,7 @@
 
 * Emergency Fixes
 
-### 1.0.0b
+## 1.0.0b
 
 * Updated consensus mechanism for scaling
 * Updated restarts for scaling mechanism

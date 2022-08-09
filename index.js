@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.0.11' //Did you change the package version?
+const VERSION = 'v1.1.0r' //Did you change the package version?
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -15,11 +15,11 @@ var block = {
 exports.block = block
 const express = require('express');
 const stringify = require('json-stable-stringify');
-const IPFS = require('ipfs-http-client-lite'); //ipfs-http-client doesn't work
-const fetch = require('node-fetch');
-var ipfs = IPFS(`${config.ipfsprotocol}://${config.ipfshost}:${config.ipfsport}`)
+const  IPFS = require("ipfs-http-client-lite")
+var ipfs = IPFS(`${config.ipfsprotocol}://${config.ipfshost}:${config.ipfsport}`);
 console.log(`IPFS: ${config.ipfshost == 'ipfs' ? 'DockerIPFS' : config.ipfshost}:${config.ipfsport}`)
 exports.ipfs = ipfs;
+const fetch = require("node-fetch");
 const rtrades = require('./rtrades');
 var Pathwise = require('./pathwise');
 var level = require('level');
@@ -49,7 +49,7 @@ var plasma = {
     jwt;
 exports.plasma = plasma
 var NodeOps = [];
-//aare these used still?
+//are these used still?
 exports.GetNodeOps = function() { return NodeOps }
 exports.newOps = function(array) { NodeOps = array }
 exports.unshiftOp = function(op) { NodeOps.unshift(op) }
@@ -126,8 +126,8 @@ exports.processor = processor
 //HIVE API CODE
 
 //Start Program Options   
-dynStart()
-//startWith("QmXDSB8PsrHWeRaXiTHd6zud3QaY5uEgQtd9gA7R1PJY7L", true);
+//dynStart()
+startWith("QmTr9TNPXmKV5QArBSJxYDUkY9zgVvRUabwoZoEiBFQW6U", true);
 Watchdog.monitor()
 
 // API defs
@@ -213,17 +213,27 @@ function startApp() {
     })
     processor = hiveState(client, hive, startingBlock, 10, config.prefix, streamMode, cycleAPI);
     processor.on('send', HR.send);
+    processor.on("spk_send", HR.spk_send);
     processor.on('claim', HR.drop_claim);
     processor.on('shares_claim', HR.shares_claim);
     processor.on('node_add', HR.node_add);
     processor.on('node_delete', HR.node_delete);
     processor.on('report', HR.report);
-    processor.on('gov_down', HR.gov_down);
-    processor.on('gov_up', HR.gov_up);
+    processor.on('gov_down', HR.gov_down); //larynx collateral
+    processor.on('gov_up', HR.gov_up); //larynx collateral
+    processor.on("val_reg", HR.val_reg); //register a validator node
+    processor.on("val_add", HR.val_add); //add more branded shares to a validator node
+    processor.on("val_bytes", HR.val_bytes); //validate contract size in bytes
+    processor.on("val_del", HR.val_del); //contest contract sie
+    processor.on("val_bundle", HR.val_bundle); //Place IPFS bundle on storage market
+    processor.on("val_report", HR.val_report); //Validator report 
+    processor.on("val_check", HR.val_check); //Validator second check -> merge to val_report
     processor.onOperation('account_update', HR.account_update);
     processor.onOperation('comment', HR.comment);
     processor.on('queueForDaily', HR.q4d)
     processor.on('nomention', HR.nomention)
+    processor.on("power_up", HR.power_up)
+    processor.on("power_grant", HR.power_grant)
     if(config.features.pob){
         processor.on('power_up', HR.power_up); // power up tokens for vote power in layer 2 token proof of brain
         processor.on('power_down', HR.power_down);
@@ -325,6 +335,18 @@ function startApp() {
                             return new Promise((res,rej)=>{
                                 store.getWith(['chrono', chrops[j[i]]], {delKey, ints}, function(e, b, passed) {
                                 switch (b.op) {
+                                    case 'rm':
+                                        store.batch(
+                                          [
+                                            { type: "del", path: ["f", b.f] },
+                                            {
+                                              type: "del",
+                                              path: ["chrono", passed.delKey],
+                                            },
+                                          ],
+                                          [res, rej, "info"]
+                                        );
+                                        break;
                                     case 'mint':
                                         //{op:"mint", set:json.set, for: from}
                                         let setp = getPathObj(['sets', b.set]);
@@ -672,15 +694,17 @@ function dynStart(account) {
             consensus_init.reports.push(Hive.getRecentReport(oa[i][0], walletOperationsBitmask))
         }
         Promise.all(consensus_init.reports).then(r =>{
+            console.log(r)
             for(i = 0; i < r.length; i++){
-                if (!consensus_init.first && r[i]) {
-                  consensus_init.first = r[i][0];
+                if (r[i]){ 
+                    if (config.engineCrank == consensus_init.first)
+                      consensus_init.first = r[i][0];
+                if(consensus_init.hash[r[i][0]]){
+                    consensus_init.hash[r[i][0]]++;
+                } else {
+                    consensus_init.hash[r[i][0]] = 1;
                 }
-                if (r[i] && consensus_init.hash[r[i][0]]) {
-                    consensus_init.hash[r[i][0]]++
-                } else if (r[i]) {
-                    consensus_init.hash[r[i][0]] = 1
-                }
+            }
             }
             for (var i in consensus_init.hash) {
                 if (consensus_init.hash[i] > consensus_init.reports.length/2) {
@@ -701,7 +725,7 @@ function dynStart(account) {
 
 //pulls state from IPFS, loads it into memory, starts the block processor
 function startWith(hash, second) {
-    console.log(`${hash} inserted`)
+    console.log(`${VERSION} =>\n ${hash} inserted`)
     if (hash && hash != 'pending') {
         console.log(`Attempting to start from IPFS save state ${hash}`);
         ipfspromise(hash).then(blockInfo=>{
@@ -719,14 +743,23 @@ function startWith(hash, second) {
                         if (!e && (second || data[0] > API.RAM.head - 325)) {
                             if (hash) {
                                 var cleanState = data[1]
-                                // cleanState.runners = {
-                                //     spkgiles: {
-                                //         g:1
-                                //     },
-                                //     regardspk:{
-                                //         g:1
-                                //     }
-                                // }
+                                cleanState.stats.spk_rate_lgov = "0.001"
+                                cleanState.stats.spk_rate_ldel = "0.00015"
+                                cleanState.stats.spk_rate_lpow = "0.0001"
+                                cleanState.runners = {
+                                  regardspk: {
+                                    g: 1,
+                                  },
+                                  spkgiles: {
+                                    g: 1,
+                                  },
+                                  carloaxie: {
+                                    g: 1,
+                                  },
+                                  ["pizza.spk"]: {
+                                    g: 1,
+                                  },
+                                };
                                 store.put([], cleanState, function(err) {
                                     if (err) {
                                         console.log('errr',err)
@@ -935,28 +968,34 @@ function unwrapOps(arr){
         }
 })
 }
-
-function ipfspromise(hash){
-    return new Promise((resolve, reject) => {
-        ipfs.cat(hash, function(err, data) {
-            if (err) {
-                if(config.mode == 'verbose')console.log('IPFS cat error:', err)
-                fetch(`https://ipfs.infura.io/ipfs/${hash}`)
-                .then(r=>r.text())
-                .then(res => {resolve(res)})
-                .catch(e=>reject(e))
-            } else {
-                resolve(data)
-            }
+function ipfspromise(hash) {
+  return new Promise((resolve, reject) => {
+    const ipfslinks = [
+      "https://ipfs:8080/ipfs/",
+      "https://ipfs.io/ipfs/",
+      "https://ipfs.infura.io/ipfs/",
+    ];
+    if (config.ipfshost == "ipfs") {
+      catIPFS(hash, 0, ipfslinks);
+    } else {
+      catIPFS(hash, 1, ipfslinks);
+    }
+    function catIPFS(hash, i, arr) {
+      fetch(arr[i] + hash)
+        .then((r) => r.text())
+        .then((res) => {
+          if(res.split('')[0] == '<') throw Error('HTML')
+          else resolve(res);
         })
-        fetch(`https://ipfs.io/ipfs/${hash}`)
-        .then(r=>r.text())
-        .then(res => {resolve(res)})
-        .catch(e=>{fetch(`https://ipfs.infura.io/ipfs/${hash}`)
-        .then(r=>r.text())
-        .then(res => {resolve(res)})
-        .catch(e=>reject(e))})
-    })
+        .catch((e) => {
+          if (i < arr.length - 1) {
+            catIPFS(hash, i + 1, ipfslinks);
+          } else {
+            reject(e);
+          }
+        });
+    }
+  });
 }
 
 function issc(n,b,i,r,a){
