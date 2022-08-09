@@ -1,5 +1,5 @@
 const config = require("./config");
-const VERSION = "v1.1.0r2"; //Did you change the package version?
+const VERSION = "v1.1.0"; //Did you change the package version?
 exports.VERSION = VERSION;
 exports.exit = exit;
 exports.processor = processor;
@@ -166,8 +166,8 @@ exports.processor = processor;
 //HIVE API CODE
 
 //Start Program Options
-//dynStart()
-startWith("QmPuf8k34L9yApwHWnqJPmxPPNfqsS4KvQNoxtay7tuxAT", true);
+dynStart()
+//startWith("QmPuf8k34L9yApwHWnqJPmxPPNfqsS4KvQNoxtay7tuxAT", true);
 Watchdog.monitor();
 
 // API defs
