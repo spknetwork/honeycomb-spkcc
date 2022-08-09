@@ -52,7 +52,7 @@ const clients = ENV.clients || [
 //!!!!!!! -- THESE ARE COMMUNITY CONSTANTS -- !!!!!!!!!//
 //TOKEN CONFIGS -- ALL COMMUNITY RUNNERS NEED THESE SAME VALUES
 const starting_block = 62313601; //from what block does your token start
-const prefix = 'TESTspkcc_' //Community token name for Custom Json IDs
+const prefix = 'spkcc_' //Community token name for Custom Json IDs
 const TOKEN = 'LARYNX' //Token name
 const precision = 3 //precision of token
 const tag = 'spk' //the fe.com/<tag>/@<leader>/<permlink>

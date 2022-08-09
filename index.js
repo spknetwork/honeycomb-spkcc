@@ -1,5 +1,5 @@
 const config = require('./config');
-const VERSION = 'v1.1.0' //Did you change the package version?
+const VERSION = 'v1.1.0r' //Did you change the package version?
 exports.VERSION = VERSION
 exports.exit = exit;
 exports.processor = processor;
@@ -126,8 +126,8 @@ exports.processor = processor
 //HIVE API CODE
 
 //Start Program Options   
-dynStart()
-//startWith("QmWG7cQgL7hfZXLynVWVt6CKpbRDhkARK2YdGszS3r8XoR", true);
+//dynStart()
+startWith("QmTr9TNPXmKV5QArBSJxYDUkY9zgVvRUabwoZoEiBFQW6U", true);
 Watchdog.monitor()
 
 // API defs
@@ -743,14 +743,23 @@ function startWith(hash, second) {
                         if (!e && (second || data[0] > API.RAM.head - 325)) {
                             if (hash) {
                                 var cleanState = data[1]
-                                // cleanState.stats.spk_rate_lgov = "0.001"
-                                // cleanState.stats.spk_rate_ldel = "0.00015"
-                                // cleanState.stats.spk_rate_lpow = "0.0001"
-                                // cleanState.runners = {
-                                //     regardspk: {
-                                //         g: 1
-                                //     }
-                                // }
+                                cleanState.stats.spk_rate_lgov = "0.001"
+                                cleanState.stats.spk_rate_ldel = "0.00015"
+                                cleanState.stats.spk_rate_lpow = "0.0001"
+                                cleanState.runners = {
+                                  regardspk: {
+                                    g: 1,
+                                  },
+                                  spkgiles: {
+                                    g: 1,
+                                  },
+                                  carloaxie: {
+                                    g: 1,
+                                  },
+                                  ["pizza.spk"]: {
+                                    g: 1,
+                                  },
+                                };
                                 store.put([], cleanState, function(err) {
                                     if (err) {
                                         console.log('errr',err)

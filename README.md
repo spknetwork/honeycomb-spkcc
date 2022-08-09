@@ -89,11 +89,13 @@ Which include Docker and IPFS linking
 * Set configuration variables
 
 `nano .env` or your favorite editor
+
 ```
 account="hiveaccount"
 active=5JactivePrivateKey
 msowner=5KadditionalPrivateKey
-mspublic=STMpublickey```
+mspublic=STMpublickey
+```
 
 * Quit editor and save changes
 
@@ -164,6 +166,71 @@ Then alter the `state.js` with balances and other starting information
 DLUX offers a decentralized protocol for minting and trading NFT's. These tokens can be minted, auctioned, transferred, sold, bought, held in escrow, bid on, or deleted. 
 
 # Actions Available
+
+## SPK Actions 1.1
+
+### Power Larynx
+
+This action will move your LARYNX into a locked state. These tokens can now be delegated to nodes running services. To unlock them for sale or transfer will take 4 weeks, in 4 equal parts, 1 at the end of each week.
+
+#### Params
+
+```
+
+[
+    "custom_json",
+    {
+      "required_auths": [
+        YOUR_HIVE_ACCOUNT
+      ],
+      "required_posting_auths": [],
+      "id": "spkcc_power_up",
+      "json": "{\"amount\":1}" // in millitokens => 0.001 LARYNX is 1. 1 LARYNX is 1000
+    }
+  ]
+```
+
+### Delegate Larynx Power
+
+Delegating LARYNX earned both your account and the reciever an account an equal amount. 50% higher than if you power up alone. To remove delegation to an account simply set the amount to 0
+
+#### Params
+
+```
+
+[
+    "custom_json",
+    {
+      "required_auths": [
+        YOUR_HIVE_ACCOUNT
+      ],
+      "required_posting_auths": [],
+      "id": "spkcc_power_grant",
+      "json": "{\"to\":VALID_NODE_SERVICE_ACCOUNT,\"amount\":1}" // in millitokens => 0.001 LARYNX is 1. 1 LARYNX is 1000
+    } // Transaction will fail if to is not a currently registered service provider
+  ]
+```
+
+### Send SPK
+
+Send earned SPK to a hive account. Ensure account is valid before send. Tokens can not be recovered.
+
+#### Params
+
+```
+
+[
+    "custom_json",
+    {
+      "required_auths": [
+        YOUR_HIVE_ACCOUNT
+      ],
+      "required_posting_auths": [],
+      "id": "spkcc_spk_send",
+      "json": "{\"to\": VALID_HIVE_ACCOUNT,\"amount\":1}" // amount in millitokens => 0.001 LARYNX is 1. 1 LARYNX is 1000
+    }
+  ]
+```
 
 ## NFT (non-fungible token) Actions
 
