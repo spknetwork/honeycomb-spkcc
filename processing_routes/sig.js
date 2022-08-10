@@ -31,7 +31,7 @@ exports.account_update = (json, pc) => {
                 for (var i = 0; i < json.posting.account_auths.length;i++){
                     paccount_auths[json.posting.account_auths[i][0]] = json.posting.account_auths[i][1]
                 }
-                ops.push({type:'put', path:['stats', 'ms', 'active_account_auths'], data: paccount_auths})
+                ops.push({type:'put', path:['stats', 'ms', 'posting_account_auths'], data: paccount_auths})
                 if(json.posting.weight_threshold) ops.push({type:'put', path:['stats', 'ms', 'posting_threshold'], data: json.posting.weight_threshold})
             }
             if(json.memo_key) ops.push({type:'put', path:['stats', 'ms', 'memo_key'], data: json.memo_key})
