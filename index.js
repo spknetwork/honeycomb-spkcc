@@ -964,7 +964,7 @@ function startWith(hash, second) {
                               );
                               //getPathNum(['balances', 'ra']).then(r=>console.log(r))
                             })
-                            .catch((e) => console.log("Failure of rundelta"));
+                            .catch((e) => console.log("Failure of rundelta", e));
                         } else {
                           console.log("No Chain");
                           TXID.saveNumber = startingBlock;
