@@ -1,5 +1,5 @@
 const config = require("./config");
-const VERSION = "v1.1.0"; //Did you change the package version?
+const VERSION = "v1.1.1"; //Did you change the package version?
 exports.VERSION = VERSION;
 exports.exit = exit;
 exports.processor = processor;
@@ -267,7 +267,7 @@ function startApp() {
   processor.on("claim", HR.drop_claim);
   processor.on("shares_claim", HR.shares_claim);
   processor.on("node_add", HR.node_add);
-  processor.on("node_delete", HR.node_delete);
+  //processor.on("node_delete", HR.node_delete);
   processor.on("report", HR.report);
   processor.on("gov_down", HR.gov_down); //larynx collateral
   processor.on("gov_up", HR.gov_up); //larynx collateral
