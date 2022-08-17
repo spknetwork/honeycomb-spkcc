@@ -1983,9 +1983,11 @@ exports.user = (req, res, next) => {
         pdown = getPathObj(['down', un]),
         pspk = getPathNum(['spk', un]),
         pspkb = getPathNum(['spkb', un]),
-        tick = getPathObj(['dex', 'hive', 'tick'])
+        tick = getPathObj(['dex', 'hive', 'tick']),
+        powdown = getPathObj(['powd', un]),
+        govdown = getPathObj(['govd', un])
     res.setHeader('Content-Type', 'application/json');
-    Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims, pspk, pspkb, tick])
+    Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims, pspk, pspkb, tick, powdown, govdown])
         .then(function(v) {
             var arr = []
             for (var i in v[3]) {
@@ -2022,6 +2024,8 @@ exports.user = (req, res, next) => {
                   contracts: arr,
                   up: v[6],
                   down: v[7],
+                  power_downs: v[14],
+                  gov_downs: v[15],
                   gov: v[5],
                   spk: v[11],
                   spk_block: v[12],
@@ -2057,6 +2061,8 @@ exports.user = (req, res, next) => {
                   contracts: arr,
                   up: v[6],
                   down: v[7],
+                  power_downs: v[14],
+                  gov_downs: v[15],
                   gov: v[5],
                   spk: v[11],
                   spk_block: v[12],
@@ -2093,6 +2099,8 @@ exports.user = (req, res, next) => {
                       contracts: arr,
                       up: v[6],
                       down: v[7],
+                      power_downs: v[14],
+                      gov_downs: v[15],
                       gov: v[5],
                       spk: v[11],
                       spk_block: v[12],

@@ -192,7 +192,7 @@ This action will move your LARYNX into a locked state. These tokens can now be d
 
 ### Delegate Larynx Power
 
-Delegating LARYNX earned both your account and the reciever an account an equal amount. 50% higher than if you power up alone. To remove delegation to an account simply set the amount to 0
+Delegating LARYNX earned both your account and the receiver an account an equal amount. 50% higher than if you power up alone. To remove delegation to an account simply set the amount to 0
 
 #### Params
 

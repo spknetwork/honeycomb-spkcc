@@ -1,5 +1,5 @@
 const config = require("./config");
-const VERSION = "v1.1.1"; //Did you change the package version?
+const VERSION = "v1.1.2"; //Did you change the package version?
 exports.VERSION = VERSION;
 exports.exit = exit;
 exports.processor = processor;
@@ -283,6 +283,7 @@ function startApp() {
   processor.on("queueForDaily", HR.q4d);
   processor.on("nomention", HR.nomention);
   processor.on("power_up", HR.power_up);
+  processor.on("power_down", HR.power_down);
   processor.on("power_grant", HR.power_grant);
   if (config.features.pob) {
     processor.on("power_up", HR.power_up); // power up tokens for vote power in layer 2 token proof of brain
