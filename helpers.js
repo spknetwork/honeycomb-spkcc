@@ -509,14 +509,14 @@ const Base64 = {
 };
 exports.Base64 = Base64
 
-function distro(payingAccount, recievingAccount, price, royalty_per, author, royaltyString, setname){
+function distro(payingAccount, receivingAccount, price, royalty_per, author, royaltyString, setname){
     let per = royalty_per || 0,
         royalty = parseInt((per / 10000) * price),
-        adjust = [ payingAccount, recievingAccount],
+        adjust = [ payingAccount, receivingAccount],
         amounts = [-price, price - royalty],
     promises = []
     if(payingAccount == 'AH'){
-        adjust = [ recievingAccount]
+        adjust = [ receivingAccount]
         amounts = [price - royalty]
     }
     if (royalty){

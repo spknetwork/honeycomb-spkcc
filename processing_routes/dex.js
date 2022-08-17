@@ -1566,11 +1566,11 @@ exports.transfer = (json, pc) => {
           if (remaining == order.amount) {
             msg = `@${json.from} set a buy order at ${contrate.rate}.`;
           } else if (json.from != "rn") {
-            msg = `@${json.from} | order recieved.`;
+            msg = `@${json.from} | order received.`;
             waiting = add("rn", fee);
           } else {
             console.log({ fee });
-            msg = `@${json.from} | order recieved.`;
+            msg = `@${json.from} | order received.`;
             bal += fee;
           }
           if (config.hookurl || config.status)

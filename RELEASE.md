@@ -2,6 +2,16 @@
 
 ## 1.1
 
+### 1.1.2
+
+* Added 'power_down'
+* Added API to show power and gov down schedules
+* Fixed typos in feed verbiage
+
+### 1.1.1
+
+* Removed 'node_delete'
+
 ### 1.1.0
 
 * Build SPK send
