@@ -1,5 +1,3 @@
-.vscode/
-
 deploy.env
 event.json
 .lambda
