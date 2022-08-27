@@ -1202,11 +1202,7 @@ function unwrapOps(arr) {
 
 function ipfspromise(hash) {
   return new Promise((resolve, reject) => {
-    const ipfslinks = [
-      "https://ipfs:8080/ipfs/",
-      "https://ipfs.io/ipfs/",
-      "https://ipfs.infura.io/ipfs/",
-    ];
+    const ipfslinks = config.ipfsLinks;
     if (config.ipfshost == "ipfs") {
       catIPFS(hash, 0, ipfslinks);
     } else {
