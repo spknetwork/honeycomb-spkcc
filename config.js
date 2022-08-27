@@ -35,6 +35,9 @@ const rtp = ENV.rtp || '' //rtrades password : IPFS pinning interface
 
 const ipfshost = ENV.ipfshost || 'ipfs.infura.io' //IPFS upload/download provider provider
 const ipfsport = ENV.ipfsport || '5001' //IPFS upload/download provider provider
+
+const ipfsLinks = ENV.ipfsLinks ? ENV.ipfsLinks.split(' ') : [ "http://localhost:8080/ipfs/", "https://ipfs.io/ipfs/","https://ipfs.infura.io/ipfs/",]
+
 const ipfsprotocol = ENV.ipfsprotocol || 'https' //IPFS upload/download protocol
 //node market config > 2500 is 25% inflation to node operators, this is currently not used
 const bidRate = ENV.BIDRATE || 500 // your vote for the dex fee 500 = 0.500% Max 1000
@@ -205,6 +208,7 @@ let config = {
     ipfshost,
     ipfsprotocol,
     ipfsport,
+    ipfsLinks,
     starting_block,
     prefix,
     leader,
