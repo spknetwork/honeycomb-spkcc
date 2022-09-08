@@ -36,7 +36,7 @@ const rtp = ENV.rtp || '' //rtrades password : IPFS pinning interface
 const ipfshost = ENV.ipfshost || 'ipfs.infura.io' //IPFS upload/download provider provider
 const ipfsport = ENV.ipfsport || '5001' //IPFS upload/download provider provider
 
-const ipfsLinks = ENV.ipfsLinks ? ENV.ipfsLinks.split(' ') : [ "https://ipfs:8080/ipfs/", "http://localhost:8080/ipfs/", "https://ipfs.io/ipfs/","https://ipfs.infura.io/ipfs/",]
+const ipfsLinks = ENV.ipfsLinks ? ENV.ipfsLinks.split(' ') : [ "https://ipfs:8080/ipfs/", "http://localhost:8080/ipfs/", "https://ipfs.3speak.tv/ipfs/", "https://ipfs.io/ipfs/","https://ipfs.infura.io/ipfs/",]
 
 const ipfsprotocol = ENV.ipfsprotocol || 'https' //IPFS upload/download protocol
 //node market config > 2500 is 25% inflation to node operators, this is currently not used
