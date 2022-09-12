@@ -43,7 +43,8 @@ const ipfsLinks = ENV.ipfsLinks
       "https://ipfs.3speak.tv/ipfs/",
       "https://ipfs.io/ipfs/",
       "https://ipfs.infura.io/ipfs/",
-      "https://hiveipfs.rishipanthee.com/ipfs/"
+      "https://hiveipfs.rishipanthee.com/ipfs/",
+      "https://ipfs1.alloyxuast.tk/ipfs/"
     ];
 
 const ipfsprotocol = ENV.ipfsprotocol || 'https' //IPFS upload/download protocol
