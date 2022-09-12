@@ -326,6 +326,7 @@ function startApp() {
   processor.on("power_up", HR.power_up);
   processor.on("power_down", HR.power_down);
   processor.on("power_grant", HR.power_grant);
+  processor.on("register_service", HR.register_service);
   if (config.features.pob) {
     processor.on("power_up", HR.power_up); // power up tokens for vote power in layer 2 token proof of brain
     processor.on("power_down", HR.power_down);

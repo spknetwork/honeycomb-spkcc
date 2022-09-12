@@ -18,7 +18,7 @@ const { sig_submit, osig_submit, account_update } = require('./sig')
 const { cjv } = require('./cjv')
 const { nomention } = require('./nomention')
 const { q4d } = require('./q4d')
-const { node_add, node_delete } = require('./nodes')
+const { node_add, node_delete, register_service } = require("./nodes");
 const { dex_sell, dex_clear, transfer, margins } = require('./dex')
 const { comment, comment_options } = require('./comment')
 const { report } = require('./report')
@@ -61,6 +61,7 @@ module.exports = {
   val_bytes_flag,
   val_add,
   val_reg,
+  register_service,
   nft_pfp,
   ft_bid,
   ft_auction,
