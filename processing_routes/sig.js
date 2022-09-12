@@ -1,9 +1,7 @@
 const config = require('./../config')
-const { store } = require("./../index");
-const { getPathObj, deleteObjs } = require("./../getPathObj");
-//const { postToDiscord } = require('./../discord')
-//const { chronAssign } = require('./../lil_ops')
-const { verify_broadcast } = require('./../tally')
+const { store, Owners } = require("./../index");
+const { getPathObj } = require("./../getPathObj");
+const { verify_broadcast, verify_sig } = require('./../tally');
 
 exports.account_update = (json, pc) => {
     if(json.account == config.msaccount){
@@ -38,10 +36,13 @@ exports.account_update = (json, pc) => {
             ops.push({type:'del', path:['msso']})
             store.batch(ops, pc)
         }
+    } else if (json.active && Owners.is(json.account)) {
+        Owners.activeUpdate(json.account, json.active.account_auths[0][0]);
+        pc[0](pc[2]);
     } else {
-        pc[0](pc[2])
+      pc[0](pc[2]);
     }
-}
+} 
 
 exports.sig_submit = (json, from, active, pc) => {
     var Pop = getPathObj(['mss', `${json.sig_block}`]),
@@ -78,30 +79,42 @@ exports.sig_submit = (json, from, active, pc) => {
 exports.osig_submit = (json, from, active, pc) => {
     var Pop = getPathObj(['msso', `${json.sig_block}`]),
         Psigs = getPathObj(['msso', `${json.sig_block}:sigs`]),
-        Pstats = getPathObj(['stats'])
-    Promise.all([Pop, Pstats, Psigs])
+        Pstats = getPathObj(['stats']),
+        Pnode = getPathObj(['markets', 'node', from])
+    Promise.all([Pop, Pstats, Psigs, Pnode])
         .then(got => {
             let msop = got[0],
                 stats = got[1],
-                sigs = got[2]
+                sigs = got[2],
+                node = got[3],
                 ops = []
                 try{
                     msop = JSON.parse(msop)
                 } catch (e){}
-            if (active && stats.ms.active_account_auths[from] && msop.expiration) {
-                sigs[from] = json.sig
-                if(Object.keys(sigs).length >= stats.ms.active_threshold){
-                    let sigarr = []
-                    for(var i in sigs){
-                        sigarr.push(sigs[i])
-                    }
-                    verify_broadcast(msop, sigarr, stats.ms.owner_threshold)
+            if (
+              stats.ms.owner_key_auths[node.mskey] &&
+              verify_sig(msop, json.sig, node.mskey) &&
+              active &&
+              stats.ms.active_account_auths[from] &&
+              msop.expiration
+            ) {
+              sigs[from] = json.sig;
+              if (Object.keys(sigs).length >= stats.ms.owner_threshold) {
+                let sigarr = [];
+                for (var i in sigs) {
+                  sigarr.push(sigs[i]);
                 }
-                ops.push({ type: 'put', path: ['msso', `${json.sig_block}:sigs`], data: sigs })
-                store.batch(ops, pc);
-                //try to sign
+                verify_broadcast(msop, sigarr, stats.ms.owner_threshold, false);
+              }
+              ops.push({
+                type: "put",
+                path: ["msso", `${json.sig_block}:sigs`],
+                data: sigs,
+              });
+              store.batch(ops, pc);
+              //try to sign
             } else {
-                pc[0](pc[2])
+              pc[0](pc[2]);
             }
         })
         .catch(e => { console.log(e); });

@@ -183,7 +183,10 @@ module.exports = function(client, hive, currentBlockNumber = 1, blockComputeSpee
                 processBlock(block, blockNum).then(() => {
                     currentBlockNumber = blockNum + 1
                 });
-            } else {
+            } else if (blockNum > currentBlockNumber) {
+                beginBlockComputing();
+                stream = undefined
+            }else {
                 streamWait()
                 function streamWait(){
                     setTimeout(function() {

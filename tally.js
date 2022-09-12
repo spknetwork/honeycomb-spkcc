@@ -1,7 +1,9 @@
 const config = require('./config');
 const { getPathObj, getPathNum, deleteObjs } = require("./getPathObj");
-const { store, exit, hiveClient, plasma } = require("./index");
+const { store, exit, hiveClient, plasma, Owners } = require("./index");
 const { updatePost } = require('./edb');
+const hiveTx = require("hive-tx");
+const { sha256 } = require("hive-tx/helpers/crypto");
 const { 
     //add, addCol, addGov, deletePointer, credit, chronAssign, hashThis, isEmpty, 
     addMT } = require('./lil_ops')
@@ -88,15 +90,16 @@ exports.tally = (num, plasma, isStreaming) => {
                             break;
                         }
                     }
-                    if (!consensus && stats.chaos) {
+                    var owners = 0;
+                    for (var owner in stats.ms.active_account_auths) {
+                      if (nodes[owner].report.hash == consensus) {
+                        owners++;
+                      }
+                    }
+                    if(owners < stats.ms.active_threshold)consensus = undefined; //ensure owners are part of consensus branch
+                    if (!consensus && stats.chaos) { //lower consensus threshold to owners in case of non-agreement
                         for (hash in tally.agreements.hashes) {
                         if (tally.agreements.tally[tally.agreements.hashes[hash]] > (altThreshhold / 2)) {
-                            var owners = 0
-                            for (var owner in stats.ms.active_account_auths){
-                                if(nodes[owner].report.hash == tally.agreements.hashes[hash]){
-                                    owners++
-                                }
-                            }
                             if(owners >= stats.ms.active_threshold){
                                 consensus = tally.agreements.hashes[hash]
                             break;
@@ -412,60 +415,88 @@ function payout(this_payout, weights, pending, num) {
     })
 }
 
-function verify(trx, sig, at){
+function isValidSig(trx, sig, key) {
+    const publicKey = hiveTx.PublicKey.from(
+      key
+    );
+    const message = sha256(trx);
+    return publicKey.verify(message, sig);
+}
+
+exports.verify_sig = isValidSig;
+
+function verify(trx, sig, at, active = true){
     console.log(sig,at)
     return new Promise((resolve, reject) => {
         
-        sendit(trx, sig, at, 0)
+        sendit(trx, sig, at)
 
-        function sendit(tx, sg, t, j){
-            const perm = [
-                [[0]],
-                [[0],[1]],//sigs 0 then 1
-                [[0,1],[0,2],[1,2]] //sigs, 2 /3 ... a three out of 4 and also a 3 / 5 >cry<
-            ]
-            if(perm[t][j]){
-                tx.signatures = []
-                for(var i = 0; i < t; i++){
-                    if(sg[perm[t][j][i]]){
-                        tx.signatures.push(sg[perm[t][j][i]])
+        function sendit(tx, sg, t, f){
+            if (sg.length >= t || !f) {
+              tx.signatures = [];
+              if(active){
+                var k = [],
+                  l = Owners.numKeys();
+                for (var i = 0; i < l; i++) {
+                  k.push(i);
+                }
+                for (var i = 0; i < sg.length; i++) {
+                  for (var j = 0; j < k.length; j++) {
+                    if (isValidSig(tx, sg[i], Owners.getAKey(k[j]))) {
+                      k.splice(j, 1);
+                      tx.signatures.push(sg[i]);
+                      break;
                     }
+                  }
+                  if (tx.signatures.length == t) break;
                 }
-                if(tx.signatures.length >= t && tx.operations.length){
-                    hiveClient.api.verifyAuthority(tx, function(err, result) {
-                        if(err){
-                            if(err.data.code == 4030100){
-                                console.log('EXPIRED')
-                                resolve('EXPIRED')
-                            } else if (err.data.code == 3010000) { //missing authority
-                                console.log('MISSING')
-                                sendit(tx, sg, t, j+1)
-                            } else if (err.data.code == 10) { //duplicate transaction
-                                console.log('SENT:Verifier')
-                                resolve('SENT')
-                            } else {
-                                console.log(err.data)
-                                sendit(tx, sg, t, j+1)
-                            }
+              } else {
+                tx.signatures = sg
+              }
+              if (tx.signatures.length == t && tx.operations.length) {
+                hiveClient.api.verifyAuthority(tx, function (err, result) {
+                  if (err) {
+                    if (err.data.code == 4030100) {
+                      console.log("EXPIRED");
+                      resolve("EXPIRED");
+                    } else if (err.data.code == 3010000) {
+                      //missing authority
+                      console.log("MISSING");
+                      sendit(tx, sg, t, 1);
+                    } else if (err.data.code == 10) {
+                      //duplicate transaction
+                      console.log("SENT:Verifier");
+                      resolve("SENT");
+                    } else {
+                      console.log(err.data);
+                      sendit(tx, sg, t, 1);
+                    }
+                  } else {
+                    hiveClient.api.broadcastTransactionSynchronous(
+                      tx,
+                      function (err, result) {
+                        if (err && err.data.code == 4030100) {
+                          console.log("EXPIRED");
+                          resolve("EXPIRED");
+                        } else if (err && err.data.code == 3010000) {
+                          //missing authority
+                          console.log("MISSING");
+                        } else if (err && err.data.code == 10) {
+                          //duplicate transaction
+                          console.log("SENT:Signer");
+                          resolve("SENT");
                         } else {
-                            hiveClient.api.broadcastTransactionSynchronous(tx, function(err, result) {
-                            if (err && err.data.code == 4030100){
-                                console.log('EXPIRED')
-                                resolve('EXPIRED')
-                            } else if (err && err.data.code == 3010000) { //missing authority
-                                console.log('MISSING')
-                            } else if (err && err.data.code == 10) { //duplicate transaction
-                                console.log('SENT:Signer')
-                                resolve('SENT')
-                            } else {
-                                console.log(err)
-                            }
-                            })
+                          console.log(err);
                         }
-                    });
-
-                }
-            } else {resolve('FAIL');console.log('FAIL')}
+                      }
+                    );
+                  }
+                });
+              }
+            } else {
+              resolve("FAIL");
+              console.log("FAIL");
+            }
         }
     })
 }

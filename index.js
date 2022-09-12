@@ -1,5 +1,5 @@
 const config = require("./config");
-const VERSION = "v1.1.2"; //Did you change the package version?
+const VERSION = "v1.2.0-rc"; //Did you change the package version?
 exports.VERSION = VERSION;
 exports.exit = exit;
 exports.processor = processor;
@@ -129,6 +129,44 @@ let TXID = {
   },
 };
 exports.TXID = TXID;
+
+let owners = {}
+let Owners = {
+  is: function (acc) {
+    if (owners[acc]) return 1;
+    else return 0;
+  },
+  activeUpdate: function (acc, key){
+    delete owners[owners[acc]]
+    owners[acc].key = key
+  },
+  getKey: function (acc){
+    return owners[acc].key;
+  },
+  getAKey: function (i=0){
+    return Object.keys(owners)[i]
+  },
+  numKeys: function (){
+    return Object.keys(owners).length
+  },
+  init: function(){
+    getPathObj(["stats", "ms", "active_account_auths"]).then(auths => {
+      var q = []
+      for (var key in auths){
+        q.push(key)
+      }
+      const { Hive } = require("./hive");
+      Hive.getAccounts(q).then((r) => {
+        owners = {};
+        for (var i = 0; i < r.length; i++) {
+          owners[r[i].account] = { key: r[i].active.key_auths[0][0] };
+        }
+      });
+    })
+  }
+};
+
+exports.Owners = Owners
 const API = require("./routes/api");
 const HR = require("./processing_routes/index");
 const { NFT, Chron, Watchdog } = require("./helpers");
@@ -246,6 +284,7 @@ if (config.rta && config.rtp) {
 
 //starts block processor after memory has been loaded
 function startApp() {
+  Owners.init()
   TXID.blocknumber = 0;
   if (config.ipfshost == "ipfs")
     ipfs.id(function (err, res) {
@@ -1209,24 +1248,30 @@ function ipfspromise(hash) {
       catIPFS(hash, 1, ipfslinks);
     }
     function catIPFS(hash, i, arr) {
-      fetch(arr[i] + hash)
-        .then((r) => r.text())
-        .then((res) => {
-          if (res.split("")[0] == "<") throw Error("HTML");
-          else resolve(res);
-        })
-        .catch((e) => {
-          if (i < arr.length - 1) {
-            catIPFS(hash, i + 1, ipfslinks);
-          } else {
-            reject(e);
-          }
-        });
+      if (arr[i])
+        fetch(arr[i] + hash)
+          .then((r) => r.text())
+          .then((res) => {
+            if (res.split("")[0] == "<" || res.split("")[0] == "D")
+              catIPFS(hash, i + 1, ipfslinks);
+            else {
+              console.log("Retrieved:", hash)
+              resolve(res);
+            }
+          })
+          .catch((e) => {
+            if (i < arr.length - 1) {
+              catIPFS(hash, i + 1, ipfslinks);
+            } else {
+              reject(e);
+            }
+          });
     }
   });
 }
 
 function issc(n, b, i, r, a) {
+  const chain = JSON.parse(b.toString())[1].chain; //to verify runDelta matches current chain
   ipfsSaveState(n, b, i, r, a)
     .then((pla) => {
       TXID.saveNumber = pla.hashBlock;
@@ -1235,9 +1280,11 @@ function issc(n, b, i, r, a) {
       plasma.hashLastIBlock = pla.hashLastIBlock;
       plasma.hashBlock = pla.hashBlock;
       if (
-        block.chain.length > 2 &&
-        block.chain[block.chain.length - 2].hive_block <
-          block.chain[block.chain.length - 1].hive_block - 100
+        (block.chain.length > 2 &&
+          block.chain[block.chain.length - 2].hive_block <
+            block.chain[block.chain.length - 1].hive_block - 100) ||
+        chain.length > block.chain.length && block.chain[block.chain.length - 1].hash !=
+          chain[block.chain.length - 1].hash
       ) {
         exit(block.chain[block.chain.length - 2].hash, "Chain Out Of Order");
       } else if (typeof i == "function") {

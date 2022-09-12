@@ -12,6 +12,16 @@ const Hive = {
             })
         })
     },
+    getAccounts: function (accounts){
+        return new Promise(function (resolve, reject){
+            hiveClient.api.setOptions({ url: config.startURL });
+            hiveClient.api.getAccounts(accounts, function (err, result){
+                hiveClient.api.setOptions({ url: config.clientURL });
+                if(err) reject(err)
+                else resolve(result)
+            })
+        })
+    },
     getRecentReport: function (account, walletOperationsBitmask){
         return new Promise(function (resolve, reject){
             hiveClient.api.setOptions({ url: config.startURL });

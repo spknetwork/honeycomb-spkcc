@@ -1,5 +1,18 @@
 # Release Notes
 
+## 1.2
+
+### 1.2.0
+
+* Ensure Consensus has a majority of owners (double majority)
+* Ensure reassembled State is equivilent to Consensus
+* Allow for more than 3 Multi-Signature holders
+* Verify Signature without outside of HiveAPI
+* GetBlock Retry
+* Fix API Downpower
+* Add API for Downpower
+* IPFS image and network dependencies change
+
 ## 1.1
 
 ### 1.1.2
