@@ -40,6 +40,7 @@ const ipfsLinks = ENV.ipfsLinks
   ? ENV.ipfsLinks.split(" ")
   : [
       "http://localhost:8080/ipfs/",
+      "https://ipfs.3speak.tv/ipfs/",
       "https://ipfs.io/ipfs/",
       "https://ipfs.infura.io/ipfs/",
       "https://hiveipfs.rishipanthee.com/ipfs/"

@@ -1968,6 +1968,53 @@ exports.coin = (req, res, next) => {
     }
 }
 
+exports.servicesByUser = (req, res, next) => {
+    let user = req.params.un;
+    let services = getPathObj(["services", user]);
+    Promise.all([services]).then(mem =>{
+        res.send(
+          JSON.stringify(
+            {
+              services: mem[0],
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
+    })
+}
+
+exports.servicesByType = (req, res, next) => {
+  let type = req.params.type;
+  let services = getPathObj(["service", type]);
+  Promise.all([services]).then((mem) => {
+      let s = Object.keys(mem[0]), t = []
+      for(var i = 0; i < s.length; i++){
+        t.push(getPathObj(["services", s[i], type]))
+      }
+      Promise.all(t).then(all => {
+        res.send(
+          JSON.stringify(
+            {
+              providers: mem[0],
+              services: all,
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
+      })
+  });
+};
+
 exports.user = (req, res, next) => {
     let un = req.params.un,
         bal = getPathNum(['balances', un]),

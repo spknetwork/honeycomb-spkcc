@@ -211,7 +211,8 @@ Watchdog.monitor();
 // API defs
 api.use(API.https_redirect);
 api.use(cors());
-api.get("/", API.root);
+api.get("/user_services/:un", API.servicesByUser);
+api.get("/services/:type", API.servicesByType);
 api.get("/stats", API.root);
 api.get("/coin", API.coin);
 api.get("/@:un", API.user);
@@ -224,6 +225,7 @@ api.get("/runners", API.runners); //list of accounts that determine consensus...
 api.get("/queue", API.queue);
 api.get("/api/protocol", API.protocol);
 api.get("/api/status/:txid", API.status);
+api.get("/services/")
 if (config.features.dex) {
   api.get("/dex", API.dex);
   api.get("/api/tickers", API.tickers);
