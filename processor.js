@@ -308,6 +308,7 @@ module.exports = function(client, hive, currentBlockNumber = 1, blockComputeSpee
                             var ip = JSON.parse(op[1].json),
                                 from = op[1].required_posting_auths[0],
                                 active = false
+                            if(typeof ip === "string" || typeof ip === "number" ||!Array.isArray(ip))ip = {}
                             ip.transaction_id = transactions[i].transaction_id
                             ip.block_num = transactions[i].block_num
                             ip.timestamp = block.timestamp
