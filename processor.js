@@ -1,6 +1,7 @@
+const { config } = require('./config');
 const fetch = require('node-fetch');
 const { TXID } = require('./index');
-module.exports = function(client, hive, currentBlockNumber = 1, blockComputeSpeed = 1000, prefix = '', mode = 'latest', cycleapi) {
+module.exports = function(client, hive, currentBlockNumber = 1, blockComputeSpeed = 1000, prefix = '', mode = 'latest') {
     var onCustomJsonOperation = {}; // Stores the function to be run for each operation id.
     var onOperation = {};
 
@@ -152,8 +153,8 @@ module.exports = function(client, hive, currentBlockNumber = 1, blockComputeSpee
                                 resolve('NEXT')
                             } else {
                                 console.log('failed at stopping')
-                                //setTimeout(stopCallback, 1000);
-                                cycleapi()
+                                cycleapi();
+                                beginBlockComputing();
                             }
                         })
                         .catch(e => { console.log('failed at catch:', e) })
@@ -162,7 +163,6 @@ module.exports = function(client, hive, currentBlockNumber = 1, blockComputeSpee
                 })
                 .catch((err) => {
                     console.log('get block catch:' + err)
-                    cycleapi()
                 })
         }
 
@@ -183,7 +183,10 @@ module.exports = function(client, hive, currentBlockNumber = 1, blockComputeSpee
                 processBlock(block, blockNum).then(() => {
                     currentBlockNumber = blockNum + 1
                 });
-            } else {
+            } else if (blockNum > currentBlockNumber) {
+                beginBlockComputing();
+                stream = undefined
+            }else {
                 streamWait()
                 function streamWait(){
                     setTimeout(function() {
@@ -200,15 +203,26 @@ module.exports = function(client, hive, currentBlockNumber = 1, blockComputeSpee
         })
         stream.on('end', function() {
             console.error("Block stream ended unexpectedly. Restarting block computing.")
-            beginBlockComputing();
+            cycleapi();beginBlockComputing();
         })
         stream.on('error', function(err) {
-            cycleapi()
+            cycleapi();
+            beginBlockComputing();
             console.log('This place:', err)
                 //throw err;
         })
     }
 
+    function cycleapi() {
+        const newClientURL = config.clients.search(
+          config.clientURL
+        ) > 0 ? config.clients.search(
+          config.clientURL
+        ) - 1 : config.clients.length - 1
+        config.startURL = newClientURL;
+        config.clientURL = newClientURL;
+        client.api.setOptions({ url: config.startURL })
+    }
 
     function transactional(ops, i, pc, num, block, vops) {
         if (ops.length) {
@@ -243,7 +257,7 @@ module.exports = function(client, hive, currentBlockNumber = 1, blockComputeSpee
                                         .catch(e => { console.log(e) })
                                 }
                             })
-                            .catch(e=>{console.log(e);cycleapi()})
+                            .catch(e=>{console.log(e)})
                         } else {
                             onNewBlock(num, v, v[4].witness_signature, {
                                                                         timestamp: v[4].timestamp,
@@ -308,8 +322,13 @@ module.exports = function(client, hive, currentBlockNumber = 1, blockComputeSpee
                             var ip = JSON.parse(op[1].json),
                                 from = op[1].required_posting_auths[0],
                                 active = false
-                            if(typeof ip === "string" || typeof ip === "number" ||!Array.isArray(ip))ip = {}
-                            ip.transaction_id = transactions[i].transaction_id
+                            if (
+                              typeof ip === "string" ||
+                              typeof ip === "number" ||
+                              Array.isArray(ip)
+                            )
+                              ip = {};
+                                ip.transaction_id = transactions[i].transaction_id
                             ip.block_num = transactions[i].block_num
                             ip.timestamp = block.timestamp
                             ip.prand = block.witness_signature
