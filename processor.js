@@ -23,7 +23,7 @@ module.exports = function (
         console.log("Defibrillation");getHeadOrIrreversibleBlockNumber(function (result) {
           if (currentBlockNumber < result - 30) {
             behind = result - currentBlockNumber;
-            beginBlockComputing();
+            beginBlockComputing(1);
           }
         });};},6000)
     },
@@ -192,9 +192,9 @@ function getBlock(bn) {
   });
 }
 
-  function beginBlockComputing() {
+  function beginBlockComputing(o = 0) {
     function computeBlock() {
-      var blockNum = currentBlockNumber; // Helper variable to prevent race condition
+      var blockNum = currentBlockNumber + o; // Helper variable to prevent race condition
       // in getBlock()
       //var vops = getVops(blockNum);
       getBlock(blockNum)
