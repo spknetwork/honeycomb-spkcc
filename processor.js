@@ -42,15 +42,15 @@ module.exports = function (
         });
       } else if (block_num > currentBlockNumber) {
         if (
-          blocks[currentBlockNumber] &&
+          blocks[currentBlockNumber + 1] &&
           !blocks.processing
-        ) processBlock(blocks[block_num], currentBlockNumber).then(() => {
-          delete blocks[currentBlockNumber];  
-          currentBlockNumber = currentBlockNumber;
+        ) processBlock(blocks[block_num], block_num).then(() => {
+          delete blocks[block_num];
+          currentBlockNumber = block_num;
           blocks.completed = blocks.processing;
           blocks.processing = 0;
-          });
-        else if (!blocks[currentBlockNumber]) getBlockNumber(currentBlockNumber);
+        });
+        else if (!blocks[block_num]) getBlockNumber(block_num);
       } else if (block_num <= currentBlockNumber) {
         var blockNums = Object.keys(blocks);
         for (var i = 0; i < blockNums.length; i++) {
