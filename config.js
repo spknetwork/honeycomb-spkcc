@@ -41,8 +41,10 @@ const ipfsLinks = ENV.ipfsLinks
   : [
       "https://ipfs:8080/ipfs/",
       "http://localhost:8080/ipfs/",
-      "https://ipfs.io/ipfs/",
+      "https://ipfs.3speak.tv/ipfs/",
       "https://infura-ipfs.io/ipfs/",
+      "https://ipfs.alloyxuast.co.uk/ipfs/",
+      "https://ipfs1.alloyxuast.tk/ipfs/"
     ];
 
 const ipfsprotocol = ENV.ipfsprotocol || 'https' //IPFS upload/download protocol
@@ -50,8 +52,8 @@ const ipfsprotocol = ENV.ipfsprotocol || 'https' //IPFS upload/download protocol
 const bidRate = ENV.BIDRATE || 500 // your vote for the dex fee 500 = 0.500% Max 1000
 
 //HIVE CONFIGS
-var startURL = ENV.STARTURL || "https://rpc.ecency.com/"
-var clientURL = ENV.APIURL || "https://api.deathwing.me/"
+var startURL = ENV.STARTURL || "https://api.hive.blog/";
+var clientURL = ENV.APIURL || "https://api.hive.blog/";
 const clients = ENV.clients ? ENV.clients.split(" ") : [
   "https://api.deathwing.me/",
   //"https://api.c0ff33a.uk/",
@@ -59,6 +61,7 @@ const clients = ENV.clients ? ENV.clients.split(" ") : [
   "https://hived.emre.sh/",
   //"https://rpc.ausbit.dev/",
   "https://api.hive.blog/",
+
 ];
 
 //!!!!!!! -- THESE ARE COMMUNITY CONSTANTS -- !!!!!!!!!//

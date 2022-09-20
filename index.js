@@ -1,5 +1,5 @@
 const config = require("./config");
-const VERSION = "v1.1.4d"; //Did you change the package version?
+const VERSION = "v1.1.4e"; //Did you change the package version?
 exports.VERSION = VERSION;
 exports.exit = exit;
 exports.processor = processor;

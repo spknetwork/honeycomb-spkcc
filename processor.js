@@ -21,16 +21,16 @@ module.exports = function (
     ensure: function (last) {
       setTimeout(()=>{if(!blocks.processing && blocks.completed == last){getBlockNumber(currentBlockNumber);
         console.log("Defibrillation");getHeadOrIrreversibleBlockNumber(function (result) {
-          if (currentBlockNumber < result - 30) {
+          if (currentBlockNumber < result - 10) {
             behind = result - currentBlockNumber;
-            beginBlockComputing(1);
+            beginBlockComputing();
           }
         });};},6000)
     },
     v: {},
     manage: function (block_num){
       if (
-        block_num == currentBlockNumber &&
+        block_num == currentBlockNumber + 1 &&
         !blocks.processing
       ) {
         blocks.processing = currentBlockNumber;
@@ -51,7 +51,7 @@ module.exports = function (
           blocks.processing = 0;
           });
         else if (!blocks[currentBlockNumber]) getBlockNumber(currentBlockNumber);
-      } else if (block_num < currentBlockNumber) {
+      } else if (block_num <= currentBlockNumber) {
         var blockNums = Object.keys(blocks);
         for (var i = 0; i < blockNums.length; i++) {
           if (parseInt(blockNums[i]) && parseInt(blockNums[i]) < currentBlockNumber) {
@@ -192,9 +192,8 @@ function getBlock(bn) {
   });
 }
 
-  function beginBlockComputing(o = 0) {
-    function computeBlock() {
-      var blockNum = currentBlockNumber + o; // Helper variable to prevent race condition
+  function beginBlockComputing() {
+      var blockNum = currentBlockNumber; // Helper variable to prevent race condition
       // in getBlock()
       //var vops = getVops(blockNum);
       getBlock(blockNum)
@@ -209,14 +208,14 @@ function getBlock(bn) {
             });
           }
           function pb(bl, remaining) {
-            if (parseInt(bl.block_id.slice(0, 8), 16) != blockNum)return
-            else 
+            if (parseInt(bl.block_id.slice(0, 8), 16) != blockNum) return;
+            else
               return new Promise((resolve, reject) => {
                 processBlock(bl, blockNum)
                   .then((r) => {
                     currentBlockNumber++;
                     if (!stopping && !remaining) {
-                      isAtRealTime(computeBlock);
+                      isAtRealTime(beginBlockComputing);
                     } else if (remaining) {
                       resolve("NEXT");
                     } else {
@@ -234,9 +233,6 @@ function getBlock(bn) {
         .catch((err) => {
           console.log("get block catch:" + err);
         });
-    }
-
-    computeBlock();
   }
 
   function beginBlockStreaming() {
