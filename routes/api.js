@@ -617,7 +617,7 @@ function fetchHive(){
                     RAM.head = res.result.head_block_number
                     RAM.behind = res.result.head_block_number - (TXID.getBlockNum() || 0)
                     //console.log({behind: RAM.behind, isStreaming: TXID.streaming})
-                    if (RAM.behind > 100 && TXID.streaming){exit(null, 'Stream lag')}
+                    if (RAM.behind > 100 && TXID.streaming){exit(8, 'Stream lag')}
                     setTimeout(function(){
                         fetchHive();
                     }, 60000);

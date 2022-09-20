@@ -33,10 +33,17 @@ const engineCrank =
 const rta = ENV.rta || '' //rtrades account : IPFS pinning interface
 const rtp = ENV.rtp || '' //rtrades password : IPFS pinning interface
 
-const ipfshost = ENV.ipfshost || 'ipfs.infura.io' //IPFS upload/download provider provider
+const ipfshost = ENV.ipfshost || "infura-ipfs.io"; //IPFS upload/download provider provider
 const ipfsport = ENV.ipfsport || '5001' //IPFS upload/download provider provider
 
-const ipfsLinks = ENV.ipfsLinks ? ENV.ipfsLinks.split(' ') : [ "http://ipfs:8080/ipfs/", "http://localhost:8080/ipfs/",]
+const ipfsLinks = ENV.ipfsLinks
+  ? ENV.ipfsLinks.split(" ")
+  : [
+      "https://ipfs:8080/ipfs/",
+      "http://localhost:8080/ipfs/",
+      "https://ipfs.io/ipfs/",
+      "https://infura-ipfs.io/ipfs/",
+    ];
 
 const ipfsprotocol = ENV.ipfsprotocol || 'https' //IPFS upload/download protocol
 //node market config > 2500 is 25% inflation to node operators, this is currently not used
@@ -45,14 +52,14 @@ const bidRate = ENV.BIDRATE || 500 // your vote for the dex fee 500 = 0.500% Max
 //HIVE CONFIGS
 var startURL = ENV.STARTURL || "https://rpc.ecency.com/"
 var clientURL = ENV.APIURL || "https://api.deathwing.me/"
-const clients = ENV.clients || [
-    "https://api.deathwing.me/",
-    //"https://api.c0ff33a.uk/",
-    "https://rpc.ecency.com/",
-    "https://hived.emre.sh/",
-    //"https://rpc.ausbit.dev/",
-    "https://api.hive.blog/"
-]
+const clients = ENV.clients ? ENV.clients.split(" ") : [
+  "https://api.deathwing.me/",
+  //"https://api.c0ff33a.uk/",
+  "https://rpc.ecency.com/",
+  "https://hived.emre.sh/",
+  //"https://rpc.ausbit.dev/",
+  "https://api.hive.blog/",
+];
 
 //!!!!!!! -- THESE ARE COMMUNITY CONSTANTS -- !!!!!!!!!//
 //TOKEN CONFIGS -- ALL COMMUNITY RUNNERS NEED THESE SAME VALUES
