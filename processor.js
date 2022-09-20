@@ -35,7 +35,7 @@ module.exports = function (
       ) {
         blocks.processing = currentBlockNumber;
         processBlock(blocks[block_num], block_num).then(() => {
-          currentBlockNumber = block_num + 1;
+          currentBlockNumber = block_num;
           blocks.completed = blocks.processing;
           blocks.processing = 0
           delete blocks[block_num];
@@ -46,7 +46,7 @@ module.exports = function (
           !blocks.processing
         ) processBlock(blocks[block_num], currentBlockNumber).then(() => {
           delete blocks[currentBlockNumber];  
-          currentBlockNumber = currentBlockNumber + 1;
+          currentBlockNumber = currentBlockNumber;
           blocks.completed = blocks.processing;
           blocks.processing = 0;
           });
