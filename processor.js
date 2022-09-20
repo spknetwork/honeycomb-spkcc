@@ -23,7 +23,7 @@ module.exports = function (
         console.log("Defibrillation");getHeadOrIrreversibleBlockNumber(function (result) {
           if (currentBlockNumber < result - 30) {
             behind = result - currentBlockNumber;
-            computeBlock();
+            beginBlockComputing();
           }
         });};},6000)
     },
