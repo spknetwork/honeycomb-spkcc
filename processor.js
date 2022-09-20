@@ -19,7 +19,13 @@ module.exports = function (
     time: 0,
     completed: 0,
     ensure: function (last) {
-      setTimeout(()=>{if(!blocks.processing && blocks.completed == last){getBlockNumber(currentBlockNumber);console.log("Defibrillation");};},6000)
+      setTimeout(()=>{if(!blocks.processing && blocks.completed == last){getBlockNumber(currentBlockNumber);
+        console.log("Defibrillation");getHeadOrIrreversibleBlockNumber(function (result) {
+          if (currentBlockNumber < result - 30) {
+            behind = result - currentBlockNumber;
+            computeBlock();
+          }
+        });};},6000)
     },
     v: {},
     manage: function (block_num){
