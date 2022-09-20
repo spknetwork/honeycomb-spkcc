@@ -53,7 +53,7 @@ module.exports = function (
           }
         }
       }
-      blocks.ensure()
+      blocks.ensure(block_num);
     }
   }
   var stopping = false;
@@ -104,7 +104,7 @@ function getBlockNumber(bln){
     .getBlock(bln)
     .then((result) => {
       blocks[parseInt(result.block_id.slice(0, 8), 16)] = result;
-      blocks.manage()
+      blocks.manage(bln);
     })
     
 }
@@ -240,7 +240,7 @@ function getBlock(bn) {
     stream.on("data", function (Block) {
       var blockNum = parseInt(Block.block_id.slice(0, 8), 16)
       blocks[blockNum] = Block
-      blocks.manage(blockNum, stream);
+      blocks.manage(blockNum);
     });
     stream.on("end", function () {
       console.error(
