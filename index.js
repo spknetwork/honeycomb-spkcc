@@ -1,10 +1,10 @@
 const config = require("./config");
-const VERSION = "v1.1.3"; //Did you change the package version?
+const VERSION = "v1.1.4"; //Did you change the package version?
 exports.VERSION = VERSION;
 exports.exit = exit;
 exports.processor = processor;
 const hive = require("@hiveio/dhive");
-var client = new hive.Client(config.clientURL);
+var client = new hive.Client(config.clients);
 exports.client = client;
 var block = {
   ops: [],
@@ -253,15 +253,7 @@ function startApp() {
       }
       if (res) plasma.id = res.id;
     });
-  processor = hiveState(
-    client,
-    hive,
-    startingBlock,
-    10,
-    config.prefix,
-    streamMode,
-    cycleAPI
-  );
+  processor = hiveState(client, startingBlock, 10, config.prefix);
   processor.on("send", HR.send);
   processor.on("spk_send", HR.spk_send);
   processor.on("claim", HR.drop_claim);
@@ -647,7 +639,7 @@ function startApp() {
                     "with",
                     result.head_block_number - num,
                     `left until real-time. DAO in ${
-                      30240 - ((num - 20000) % 30240)
+                      30240 - ((num - 20000) % 28800)
                     } blocks`
                   );
                 });
@@ -828,24 +820,6 @@ function waitfor(promises_array) {
 }
 exports.waitfor = waitfor;
 
-//hopefully handling the HIVE garbage APIs
-function cycleAPI(restart) {
-  var c = 0;
-  for (i of config.clients) {
-    if (config.clientURL == config.clients[i]) {
-      c = i;
-      break;
-    }
-  }
-  if (c == config.clients.length - 1) {
-    c = -1;
-  }
-  config.clientURL = config.clients[c + 1];
-  console.log("Using APIURL: ", config.clientURL);
-  client = new hive.Client(config.clientURL);
-  if (restart) exit(plasma.hashLastIBlock, "API Changed");
-}
-
 //pulls the latest activity of an account to find the last state put in by an account to dynamically start the node.
 //this will include other accounts that are in the node network and the consensus state will be found if this is the wrong chain
 function dynStart(account) {
@@ -901,6 +875,7 @@ function startWith(hash, second) {
     console.log(`Attempting to start from IPFS save state ${hash}`);
     ipfspromise(hash)
       .then((blockInfo) => {
+        if(blockInfo[0] == 'D')console.log(blockInfo)
         var blockinfo = JSON.parse(blockInfo);
         ipfspromise(blockinfo[1].root ? blockinfo[1].root : hash).then(
           (file) => {
