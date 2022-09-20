@@ -20,7 +20,7 @@ module.exports = function (
     completed: 0,
     ensure: function (last) {
       setTimeout(()=>{if(!blocks.processing && blocks.completed == last){getBlockNumber(currentBlockNumber);
-        console.log("Defibrillation");getHeadOrIrreversibleBlockNumber(function (result) {
+        getHeadOrIrreversibleBlockNumber(function (result) {
           if (currentBlockNumber < result - 10) {
             behind = result - currentBlockNumber;
             beginBlockComputing();
@@ -30,7 +30,7 @@ module.exports = function (
     v: {},
     manage: function (block_num){
       if (
-        block_num == currentBlockNumber + 1 &&
+        block_num == currentBlockNumber &&
         !blocks.processing
       ) {
         blocks.processing = currentBlockNumber;
