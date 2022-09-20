@@ -18,6 +18,9 @@ module.exports = function (
     processing: 0,
     time: 0,
     completed: 0,
+    ensure: function (last) {
+      setTimeout(()=>{if(!blocks.processing && blocks.completed == last){getBlockNumber(currentBlockNumber);console.log("Defibrillation");};},6000)
+    },
     v: {},
     manage: function (block_num){
       if (
@@ -27,6 +30,7 @@ module.exports = function (
         blocks.processing = currentBlockNumber;
         processBlock(blocks[block_num], block_num).then(() => {
           currentBlockNumber = block_num + 1;
+          blocks.completed = blocks.processing;
           blocks.processing = 0
           delete blocks[block_num];
         });
@@ -37,7 +41,8 @@ module.exports = function (
         ) processBlock(blocks[block_num], currentBlockNumber).then(() => {
           delete blocks[currentBlockNumber];  
           currentBlockNumber = currentBlockNumber + 1;
-            blocks.processing = 0;
+          blocks.completed = blocks.processing;
+          blocks.processing = 0;
           });
         else if (!blocks[currentBlockNumber]) getBlockNumber(currentBlockNumber);
       } else if (block_num < currentBlockNumber) {
@@ -48,6 +53,7 @@ module.exports = function (
           }
         }
       }
+      blocks.ensure()
     }
   }
   var stopping = false;
@@ -93,7 +99,7 @@ module.exports = function (
     });
   }
 
-function getBlockNumber(bn){
+function getBlockNumber(bln){
   client.database
     .getBlock(bln)
     .then((result) => {

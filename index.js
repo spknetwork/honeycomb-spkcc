@@ -1,5 +1,5 @@
 const config = require("./config");
-const VERSION = "v1.1.4"; //Did you change the package version?
+const VERSION = "v1.1.4a"; //Did you change the package version?
 exports.VERSION = VERSION;
 exports.exit = exit;
 exports.processor = processor;
@@ -1187,14 +1187,15 @@ function ipfspromise(hash) {
       fetch(arr[i] + hash)
         .then((r) => r.text())
         .then((res) => {
-          if (res.split("")[0] == "<") throw Error("HTML");
+          if (res.split("")[0] == "<"){console.log('HTML IPFS reply');catIPFS(hash, i + 1, ipfslinks)}
           else resolve(res);
         })
         .catch((e) => {
           if (i < arr.length - 1) {
             catIPFS(hash, i + 1, ipfslinks);
           } else {
-            reject(e);
+            console.log('End of IPFS tries')
+            //reject(e);
           }
         });
     }
