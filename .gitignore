@@ -216,3 +216,5 @@ package-lock.json
 .DS_Store
 
 db/
+.vscode/settings.json
+swarm.key

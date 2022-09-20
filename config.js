@@ -20,7 +20,7 @@ const snapcs = ENV.SNAPBASE_URL || "http://65.108.66.120:8002"; // get a public 
 const history = ENV.history || 3600
 const stream = ENV.stream || 'irreversible'
 const mode = ENV.mode || 'normal'
-const timeoutStart = ENV.timeoutStart || 180000 
+const timeoutStart = ENV.timeoutStart || 180000
 const timeoutContinuous = ENV.timeoutContinuous || 30000
 
 
@@ -69,7 +69,7 @@ const TOKEN = 'LARYNX' //Token name
 const precision = 3 //precision of token
 const tag = 'spk' //the fe.com/<tag>/@<leader>/<permlink>
 const jsonTokenName = 'larynx' //what customJSON in Escrows and sends is looking for
-const leader = 'regardspk' //Default account to pull state from, will post token 
+const leader = 'regardspk' //Default account to pull state from, will post token
 const ben = '' //Account where comment benifits trigger token action
 const delegation = '' //account people can delegate to for rewards
 const delegationWeight = 1000 //when to trigger community rewards with bens
