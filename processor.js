@@ -8,8 +8,8 @@ module.exports = function (
   var onCustomJsonOperation = {}; // Stores the function to be run for each operation id.
   var onOperation = {};
 
-  var onNewBlock = function () {};
-  var onStreamingStart = function () {};
+  var onNewBlock = function () { };
+  var onStreamingStart = function () { };
   var behind = 0
   var isStreaming;
   var stream;
@@ -17,18 +17,25 @@ module.exports = function (
     processing: 0,
     completed: nextBlock,
     ensure: function (last) {
-      setTimeout(()=>{if(!blocks.processing && blocks.completed == last){getBlockNumber(nextBlock);
-        getHeadOrIrreversibleBlockNumber(function (result) {
-          if (nextBlock < result - 3) {
-            behind = result - nextBlock;
-            beginBlockComputing();
-          }
-        });};},6000)
+      setTimeout(() => {
+        if (!blocks.processing && blocks.completed == last) {
+          getBlockNumber(nextBlock);
+          if (!(last % 3))
+            getHeadOrIrreversibleBlockNumber(function (result) {
+              if (nextBlock < result - 3) {
+                behind = result - nextBlock;
+                beginBlockComputing();
+              } else if (!isStreaming) {
+                beginBlockStreaming();
+              }
+            });;
+        };
+      }, 6000)
     },
     v: {},
-    manage: function (block_num){
-      if (blocks.processing){
-        setTimeout(()=>{blocks.manage(block_num)},100)
+    manage: function (block_num, force) {
+      if (blocks.processing) {
+        setTimeout(() => { blocks.manage(block_num) }, 100)
         var blockNums = Object.keys(blocks);
         for (var i = 0; i < blockNums.length; i++) {
           if (
@@ -38,25 +45,37 @@ module.exports = function (
             delete blocks[blockNums[i]];
           }
         }
-      } else if ( block_num == nextBlock) {
+      } else if (blocks[block_num] && block_num == nextBlock) {
         blocks.processing = nextBlock;
         processBlock(blocks[block_num]).then(() => {
-          nextBlock = block_num + 1 ;
+          nextBlock = block_num + 1;
           blocks.completed = blocks.processing;
           blocks.processing = 0
           delete blocks[block_num];
+          if (blocks[nextBlock]) blocks.manage(nextBlock);
         });
       } else if (block_num > nextBlock) {
-        if ( blocks[nextBlock]) {
-          processBlock(blocks[nextBlock]).then(
-            () => {
-              delete blocks[nextBlock];
-              nextBlock++
-              blocks.completed = blocks.processing;
-              blocks.processing = 0;
+        if (blocks[nextBlock]) {
+          processBlock(blocks[nextBlock]).then(() => {
+            delete blocks[nextBlock];
+            nextBlock++;
+            blocks.completed = blocks.processing;
+            blocks.processing = 0;
+            if (blocks[nextBlock]) blocks.manage(nextBlock);
+          });
+        } else if (!blocks[nextBlock]) {
+          getBlock(nextBlock);
+        }
+        if (!isStreaming || behind < 5) {
+          getHeadOrIrreversibleBlockNumber(function (result) {
+            if (nextBlock < result - 3) {
+              behind = result - nextBlock;
+              beginBlockComputing();
+            } else if (!isStreaming) {
+              beginBlockStreaming();
             }
-          );
-        }  else if (!blocks[nextBlock]) getBlockNumber(nextBlock);
+          });
+        }
       }
       blocks.ensure(block_num);
     }
@@ -70,28 +89,28 @@ module.exports = function (
     });
   }
 
-  // function getVops(bn) {
-  //   return new Promise((resolve, reject) => {
-  //     fetch(client.currentAddress, {
-  //       body: `{"jsonrpc":"2.0", "method":"condenser_api.get_ops_in_block", "params":[${bn},true], "id":1}`,
-  //       headers: {
-  //         "Content-Type": "application/x-www-form-urlencoded",
-  //       },
-  //       method: "POST",
-  //     })
-  //       .then((res) => res.json())
-  //       .then((json) => {
-  //         if (!json.result) {
-  //           resolve([]);
-  //         } else {
-  //           resolve(json.result);
-  //         }
-  //       })
-  //       .catch((err) => {
-  //         reject(err);
-  //       });
-  //   });
-  // }
+  function getVops(bn) {
+    return new Promise((resolve, reject) => {
+      fetch(client.currentAddress, {
+        body: `{"jsonrpc":"2.0", "method":"condenser_api.get_ops_in_block", "params":[${bn},true], "id":1}`,
+        headers: {
+          "Content-Type": "application/x-www-form-urlencoded",
+        },
+        method: "POST",
+      })
+        .then((res) => res.json())
+        .then((json) => {
+          if (!json.result) {
+            blocks.v[bn] = []
+          } else {
+            blocks.v[bn] = json.result
+          }
+        })
+        .catch((err) => {
+          console.log('Failed to get Vops for block: ', bn, err)
+        });
+    });
+  }
 
   function isAtRealTime(computeBlock) {
     getHeadOrIrreversibleBlockNumber(function (result) {
@@ -104,18 +123,17 @@ module.exports = function (
     });
   }
 
-function getBlockNumber(bln){
-  client.database
-    .getBlock(bln)
-    .then((result) => {
-      blocks[parseInt(result.block_id.slice(0, 8), 16)] = result;
-      blocks.manage(bln);
-    })
-    
-}
+  function getBlockNumber(bln) {
+    client.database
+      .getBlock(bln)
+      .then((result) => {
+        blocks[parseInt(result.block_id.slice(0, 8), 16)] = result;
+        blocks.manage(bln);
+      })
 
-function getBlock(bn) {
-  return new Promise((resolve, reject) => {
+  }
+
+  function getBlock(bn) {
     if (behind && !stopping) gbr(bn, behind > 100 ? 100 : behind, 0);
     else if (!stopping) gb(bn, 0);
     function gb(bln, at) {
@@ -123,7 +141,8 @@ function getBlock(bn) {
         client.database
           .getBlock(bln)
           .then((result) => {
-            resolve([result]);
+            blocks[parseInt(result.block_id.slice(0, 8), 16)] = result;
+            blocks.manage(bln);
           })
           .catch((err) => {
             if (at < 3) {
@@ -142,7 +161,7 @@ function getBlock(bn) {
       if (bln > TXID.saveNumber + 150)
         setTimeout(() => {
           gbr(bln, count, at);
-        }, 1000);
+        }, 2000);
       else
         fetch(client.currentAddress, {
           body: `{"jsonrpc":"2.0", "method":"block_api.get_block_range", "params":{"starting_block_num": ${bln}, "count": ${count}}, "id":1}`,
@@ -153,86 +172,51 @@ function getBlock(bn) {
         })
           .then((res) => res.json())
           .then((result) => {
-            var blocks = result.result.blocks;
-            for (var i = 0; i < blocks.length; i++) {
-              const bkn = parseInt(blocks[i].block_id.slice(0, 8), 16);
-              for (var j = 0; j < blocks[i].transactions.length; j++) {
-                blocks[i].transactions[j].block_num = bkn;
-                blocks[i].transactions[j].transaction_id =
-                  blocks[i].transaction_ids[j];
-                blocks[i].transactions[j].transaction_num = j;
+            var Blocks = result.result.blocks;
+            for (var i = 0; i < Blocks.length; i++) {
+              const bkn = parseInt(Blocks[i].block_id.slice(0, 8), 16);
+              for (var j = 0; j < Blocks[i].transactions.length; j++) {
+                Blocks[i].transactions[j].block_num = bkn;
+                Blocks[i].transactions[j].transaction_id =
+                  Blocks[i].transaction_ids[j];
+                Blocks[i].transactions[j].transaction_num = j;
                 var ops = [];
                 for (
                   var k = 0;
-                  k < blocks[i].transactions[j].operations.length;
+                  k < Blocks[i].transactions[j].operations.length;
                   k++
                 ) {
                   ops.push([
-                    blocks[i].transactions[j].operations[k].type.replace(
+                    Blocks[i].transactions[j].operations[k].type.replace(
                       "_operation",
                       ""
                     ),
-                    blocks[i].transactions[j].operations[k].value,
+                    Blocks[i].transactions[j].operations[k].value,
                   ]);
                 }
-                blocks[i].transactions[j].operations = ops;
+                Blocks[i].transactions[j].operations = ops;
+                blocks[bkn] = Blocks[i];
               }
             }
-            resolve(blocks);
+            blocks.manage(bln);
+            if(behind > 100)gbr(bln + 100, behind > 200 ? 100 : 200 - behind, at);
           })
           .catch((err) => {
             if (at < 3) {
               gb(bn, at);
             } else {
-              reject(err);
+              console.log('Get block range error', err)
             }
           });
     }
-  });
-}
+  }
 
   function beginBlockComputing() {
-      var blockNum = nextBlock; // Helper variable to prevent race condition
-      // in getBlock()
-      blocks.ensure(nextBlock)
-      //var vops = getVops(blockNum);
-      getBlock(blockNum)
-        .then((result) => {
-          pl(result);
-          function pl(range) {
-            pb(range.shift(), range.length).then((res) => {
-              if (res == "NEXT") {
-                blockNum++;
-                pl(range);
-              }
-            });
-          }
-          function pb(bl, remaining) {
-            if (parseInt(bl.block_id.slice(0, 8), 16) != blockNum) return;
-            else
-              return new Promise((resolve, reject) => {
-                processBlock(bl)
-                  .then((r) => {
-                    nextBlock++;
-                    if (!stopping && !remaining) {
-                      isAtRealTime(beginBlockComputing);
-                    } else if (remaining) {
-                      resolve("NEXT");
-                    } else {
-                      console.log("failed at stopping");
-                      stream = undefined;
-                      beginBlockComputing();
-                    }
-                  })
-                  .catch((e) => {
-                    console.log("failed at catch:", e);
-                  });
-              });
-          }
-        })
-        .catch((err) => {
-          console.log("get block catch:" + err);
-        });
+    var blockNum = nextBlock; // Helper variable to prevent race condition
+    // in getBlock()
+    blocks.ensure(nextBlock)
+    //var vops = getVops(blockNum);
+    getBlock(blockNum)
   }
 
   function beginBlockStreaming() {
@@ -299,17 +283,17 @@ function getBlock(bn) {
             //       console.log(e);
             //     });
             // } else {
-              onNewBlock(num, v, v[4].witness_signature, {
-                timestamp: v[4].timestamp,
-                block_id: v[4].block_id,
-                block_number: num,
+            onNewBlock(num, v, v[4].witness_signature, {
+              timestamp: v[4].timestamp,
+              block_id: v[4].block_id,
+              block_number: num,
+            })
+              .then((r) => {
+                pc[0](pc[2]);
               })
-                .then((r) => {
-                  pc[0](pc[2]);
-                })
-                .catch((e) => {
-                  console.log(e);
-                });
+              .catch((e) => {
+                console.log(e);
+              });
             // }
           }
         })
@@ -358,11 +342,11 @@ function getBlock(bn) {
     }
   }
 
-  function processBlock(block, Pvops) {
+  function processBlock(Block, Pvops) {
     return new Promise((resolve, reject) => {
-      var transactions = block.transactions;
+      var transactions = Block.transactions;
       let ops = [];
-      if (parseInt(block.block_id.slice(0, 8), 16) === nextBlock){
+      if (parseInt(Block.block_id.slice(0, 8), 16) === nextBlock) {
         for (var i = 0; i < transactions.length; i++) {
           for (var j = 0; j < transactions[i].operations.length; j++) {
             var op = transactions[i].operations[j];
@@ -380,8 +364,8 @@ function getBlock(bn) {
                   ip = {};
                 ip.transaction_id = transactions[i].transaction_id;
                 ip.block_num = transactions[i].block_num;
-                ip.timestamp = block.timestamp;
-                ip.prand = block.witness_signature;
+                ip.timestamp = Block.timestamp;
+                ip.prand = Block.witness_signature;
                 if (!from) {
                   from = op[1].required_auths[0];
                   active = true;
@@ -391,13 +375,13 @@ function getBlock(bn) {
             } else if (onOperation[op[0]] !== undefined) {
               op[1].transaction_id = transactions[i].transaction_id;
               op[1].block_num = transactions[i].block_num;
-              op[1].timestamp = block.timestamp;
-              op[1].prand = block.witness_signature;
+              op[1].timestamp = Block.timestamp;
+              op[1].prand = Block.witness_signature;
               ops.push([op[0], op[1]]); //onOperation[op[0]](op[1]);
             }
           }
         }
-      transactional(ops, 0, [resolve, reject], nextBlock, block, Pvops);
+        transactional(ops, 0, [resolve, reject], nextBlock, Block, Pvops);
       }
     });
   }
