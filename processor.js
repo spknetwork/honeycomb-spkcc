@@ -1,9 +1,8 @@
 const fetch = require('node-fetch');
-const { TXID, block } = require('./index');
+const { TXID } = require('./index');
 module.exports = function (
   client,
-  currentBlockNumber = 1,
-  blockComputeSpeed = 1000,
+  nextBlock = 1,
   prefix = ""
 ) {
   var onCustomJsonOperation = {}; // Stores the function to be run for each operation id.
@@ -16,48 +15,48 @@ module.exports = function (
   var stream;
   var blocks = {
     processing: 0,
-    time: 0,
-    completed: 0,
+    completed: nextBlock,
     ensure: function (last) {
-      setTimeout(()=>{if(!blocks.processing && blocks.completed == last){getBlockNumber(currentBlockNumber);
+      setTimeout(()=>{if(!blocks.processing && blocks.completed == last){getBlockNumber(nextBlock);
         getHeadOrIrreversibleBlockNumber(function (result) {
-          if (currentBlockNumber < result - 10) {
-            behind = result - currentBlockNumber;
+          if (nextBlock < result - 3) {
+            behind = result - nextBlock;
             beginBlockComputing();
           }
         });};},6000)
     },
     v: {},
     manage: function (block_num){
-      if (
-        block_num == currentBlockNumber &&
-        !blocks.processing
-      ) {
-        blocks.processing = currentBlockNumber;
-        processBlock(blocks[block_num], block_num).then(() => {
-          currentBlockNumber = block_num;
+      if (blocks.processing){
+        setTimeout(()=>{blocks.manage(block_num)},100)
+        var blockNums = Object.keys(blocks);
+        for (var i = 0; i < blockNums.length; i++) {
+          if (
+            parseInt(blockNums[i]) &&
+            parseInt(blockNums[i]) < nextBlock - 1
+          ) {
+            delete blocks[blockNums[i]];
+          }
+        }
+      } else if ( block_num == nextBlock) {
+        blocks.processing = nextBlock;
+        processBlock(blocks[block_num]).then(() => {
+          nextBlock = block_num + 1 ;
           blocks.completed = blocks.processing;
           blocks.processing = 0
           delete blocks[block_num];
         });
-      } else if (block_num > currentBlockNumber) {
-        if (
-          blocks[currentBlockNumber + 1] &&
-          !blocks.processing
-        ) processBlock(blocks[block_num], block_num).then(() => {
-          delete blocks[block_num];
-          currentBlockNumber = block_num;
-          blocks.completed = blocks.processing;
-          blocks.processing = 0;
-        });
-        else if (!blocks[block_num]) getBlockNumber(block_num);
-      } else if (block_num <= currentBlockNumber) {
-        var blockNums = Object.keys(blocks);
-        for (var i = 0; i < blockNums.length; i++) {
-          if (parseInt(blockNums[i]) && parseInt(blockNums[i]) < currentBlockNumber) {
-            delete blocks[blockNums[i]];
-          }
-        }
+      } else if (block_num > nextBlock) {
+        if ( blocks[nextBlock]) {
+          processBlock(blocks[nextBlock]).then(
+            () => {
+              delete blocks[nextBlock];
+              nextBlock++
+              blocks.completed = blocks.processing;
+              blocks.processing = 0;
+            }
+          );
+        }  else if (!blocks[nextBlock]) getBlockNumber(nextBlock);
       }
       blocks.ensure(block_num);
     }
@@ -96,10 +95,10 @@ module.exports = function (
 
   function isAtRealTime(computeBlock) {
     getHeadOrIrreversibleBlockNumber(function (result) {
-      if (currentBlockNumber >= result) {
+      if (nextBlock >= result) {
         beginBlockStreaming();
       } else {
-        behind = result - currentBlockNumber;
+        behind = result - nextBlock;
         computeBlock();
       }
     });
@@ -193,8 +192,9 @@ function getBlock(bn) {
 }
 
   function beginBlockComputing() {
-      var blockNum = currentBlockNumber; // Helper variable to prevent race condition
+      var blockNum = nextBlock; // Helper variable to prevent race condition
       // in getBlock()
+      blocks.ensure(nextBlock)
       //var vops = getVops(blockNum);
       getBlock(blockNum)
         .then((result) => {
@@ -211,9 +211,9 @@ function getBlock(bn) {
             if (parseInt(bl.block_id.slice(0, 8), 16) != blockNum) return;
             else
               return new Promise((resolve, reject) => {
-                processBlock(bl, blockNum)
+                processBlock(bl)
                   .then((r) => {
-                    currentBlockNumber++;
+                    nextBlock++;
                     if (!stopping && !remaining) {
                       isAtRealTime(beginBlockComputing);
                     } else if (remaining) {
@@ -358,11 +358,11 @@ function getBlock(bn) {
     }
   }
 
-  function processBlock(block, num, Pvops) {
+  function processBlock(block, Pvops) {
     return new Promise((resolve, reject) => {
       var transactions = block.transactions;
       let ops = [];
-      if (parseInt(block.block_id.slice(0, 8), 16) === num){
+      if (parseInt(block.block_id.slice(0, 8), 16) === nextBlock){
         for (var i = 0; i < transactions.length; i++) {
           for (var j = 0; j < transactions[i].operations.length; j++) {
             var op = transactions[i].operations[j];
@@ -397,7 +397,7 @@ function getBlock(bn) {
             }
           }
         }
-      transactional(ops, 0, [resolve, reject], num, block, Pvops);
+      transactional(ops, 0, [resolve, reject], nextBlock, block, Pvops);
       }
     });
   }
@@ -432,7 +432,7 @@ function getBlock(bn) {
     },
 
     getCurrentBlockNumber: function () {
-      return currentBlockNumber;
+      return nextBlock;
     },
 
     isStreaming: function () {

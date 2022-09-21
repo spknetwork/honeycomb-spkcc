@@ -440,12 +440,16 @@ function verify(trx, sig, at){
                             } else if (err.data.code == 3010000) { //missing authority
                                 console.log('MISSING')
                                 sendit(tx, sg, t, j+1)
-                            } else if (err.data.code == 10) { //duplicate transaction
-                                console.log('SENT:Verifier')
-                                resolve('SENT')
+                            } else if (
+                              err.data.code == 10 ||
+                              err.data.code == -32603
+                            ) {
+                              //duplicate transaction
+                              console.log("SENT:Verifier");
+                              resolve("SENT");
                             } else {
-                                console.log(err.data)
-                                sendit(tx, sg, t, j+1)
+                              console.log(err.data);
+                              sendit(tx, sg, t, j + 1);
                             }
                         } else {
                             hiveClient.api.broadcastTransactionSynchronous(tx, function(err, result) {

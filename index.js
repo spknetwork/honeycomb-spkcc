@@ -1,5 +1,5 @@
 const config = require("./config");
-const VERSION = "v1.1.4e"; //Did you change the package version?
+const VERSION = "v1.1.4f"; //Did you change the package version?
 exports.VERSION = VERSION;
 exports.exit = exit;
 exports.processor = processor;
@@ -131,7 +131,7 @@ let TXID = {
 exports.TXID = TXID;
 const API = require("./routes/api");
 const HR = require("./processing_routes/index");
-const { NFT, Chron, Watchdog } = require("./helpers");
+const { NFT, Chron, Watchdog, Log } = require("./helpers");
 const { release } = require("./processing_routes/dex");
 const { enforce } = require("./enforce");
 const { tally } = require("./tally");
@@ -243,7 +243,6 @@ http.listen(config.port, function () {
 if (config.rta && config.rtp) {
   rtrades.handleLogin(config.rta, config.rtp);
 }
-
 //starts block processor after memory has been loaded
 function startApp() {
   TXID.blocknumber = 0;
@@ -253,7 +252,7 @@ function startApp() {
       }
       if (res) plasma.id = res.id;
     });
-  processor = hiveState(client, startingBlock, 10, config.prefix);
+  processor = hiveState(client, startingBlock, config.prefix);
   processor.on("send", HR.send);
   processor.on("spk_send", HR.spk_send);
   processor.on("claim", HR.drop_claim);
@@ -333,7 +332,7 @@ function startApp() {
   }
   //do things in cycles based on block time
   processor.onBlock(function (num, pc, prand, bh) {
-    console.log(num);
+    Log.block(num)
     if (num < TXID.blocknumber) {
       require("process").exit(2);
     } else {

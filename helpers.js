@@ -625,6 +625,21 @@ const DEX = {
 }
 exports.DEX = DEX
 
+var log = {
+  last: 0,
+  block: function (num) {
+    if (log.last + 1 == num || !log.last) {
+      log.last = num;
+      console.log(`${num}`);
+    } else {
+      log.last = num;
+      console.log(`${num} WARNING`);
+    }
+  },
+};
+
+exports.Log = log
+
 const Watchdog = {
     current : 0,
     timeout: config.timeoutStart,
