@@ -1,5 +1,6 @@
 const { onStreamingStart } = require('./onStreamingStart')
-const { spk_send, send, shares_claim, drop_claim } = require('./send')
+const { rollup, register_authority } = require("./rollups");
+const { spk_send, send, shares_claim, claim } = require('./send')
 const {
   val_check,
   val_report,
@@ -18,7 +19,7 @@ const { sig_submit, osig_submit, account_update } = require('./sig')
 const { cjv } = require('./cjv')
 const { nomention } = require('./nomention')
 const { q4d } = require('./q4d')
-const { node_add, node_delete } = require('./nodes')
+const { node_add, node_delete, register_service } = require("./nodes");
 const { dex_sell, dex_clear, transfer, margins } = require('./dex')
 const { comment, comment_options } = require('./comment')
 const { report } = require('./report')
@@ -115,5 +116,8 @@ module.exports = {
   osig_submit,
   transfer,
   vote,
-  drop_claim,
+  claim,
+  rollup,
+  register_authority,
+  register_service,
 };

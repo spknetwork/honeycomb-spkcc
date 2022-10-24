@@ -1,6 +1,32 @@
 # Release Notes
 
+## 1.2
+
+### 1.2.0
+
+* Can Add IPFS/Generic Node API
+* State Channel / Rollups for Proof of Access
+* Ensure Consensus has a majority of owners (double majority)
+* Ensure reassembled State is equivilent to Consensus
+* Allow for more than 3 Multi-Signature holders
+* Verify Signature outside of HiveAPI
+* GetBlock Retry, Faster Block Replay
+* Fix Downpower memory leak.
+* Add API for Downpower
+* Docker Network Specified
+* IPFS image and network dependencies change
+
 ## 1.1
+
+### 1.1.4
+
+* Rewrite of block processor
+* Additional logging functionality
+
+### 1.1.3
+
+* Added a check for non-object contract input
+* Changes for IPFS file retrieval
 
 ### 1.1.2
 

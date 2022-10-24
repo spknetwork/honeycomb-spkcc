@@ -5,6 +5,79 @@ const { isEmpty } = require('./../lil_ops')
 const { postToDiscord } = require('./../discord')
 const { decode, encode } = require('@hiveio/hive-js').memo
 
+exports.register_service = function (json, from, active, pc) {
+  //get LARYNX balance
+  //get current service
+  //build service
+  //make API
+  let Pbal = getPathNum(["balances", from]),
+    Pservices = getPathNum(["services", from]), //to balance promise
+    Pstats = getPathObj(["stats"]);
+  Promise.all([Pbal, Pservices, Pstats])
+    .then((mem) => {
+      let fbal = mem[0],
+        services = mem[1],
+        stats = mem[2],
+        ops = [];
+      send = parseInt(json.amount);
+      if (
+        json.type.search(/[^a-z0-9]+/) === -1 &&
+        json.api.length < 256 &&
+        send >= stats.IPFSRate &&
+        fbal >= send &&
+        active
+      ) {
+        ops.push({
+          type: "put",
+          path: ["services", from, json.type],
+          data: {
+            a: json.api, //api
+            e: json.enabled ? 1 : 0, //enabled
+            b: from, //by
+            t: json.type, //type
+            c: send + parseInt(services[json.type].brand), //coin => brand
+            s: parseInt(services[json.type].s), //score
+            w: parseInt(services[json.type].w), //weight
+            d: parseInt(services[json.type].d), //weight decay
+            f: services[json.type].f, //flags
+          },
+        });
+        ops.push({
+          //cross reference
+          type: "put",
+          path: ["service", json.type, from],
+          data: 1,
+        });
+        ops.push({
+          type: "put",
+          path: ["balances", from],
+          data: parseInt(fbal - send),
+        });
+        let msg = `@${from}| Registered a service with ${parseFloat(
+          send / 1000
+        ).toFixed(3)} LARYNX`;
+        if (config.hookurl || config.status)
+          postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
+        ops.push({
+          type: "put",
+          path: ["feed", `${json.block_num}:${json.transaction_id}`],
+          data: msg,
+        });
+      } else {
+        ops.push({
+          type: "put",
+          path: ["feed", `${json.block_num}:${json.transaction_id}`],
+          data: `@${from}| Failed to registered a service`,
+        });
+      }
+      if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+      store.batch(ops, pc);
+    })
+    .catch((e) => {
+      console.log(e);
+    });
+};
+
 exports.node_add = function(json, from, active, pc) {
     if (json.domain && typeof json.domain === 'string') {
         var escrow = true

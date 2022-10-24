@@ -32,7 +32,6 @@ services:
       - ipfs:/data/ipfs
     networks:
       - honeycomb
-
   honeycomb:
     # depends_on:
     #   - ipfs
@@ -79,6 +78,5 @@ volumes:
   ipfs:
   snap:
   # node-3:
-
 networks:
   honeycomb:

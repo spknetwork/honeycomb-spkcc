@@ -1,5 +1,5 @@
 const config = require("./config");
-const VERSION = "v1.1.4g"; //Did you change the package version?
+const VERSION = "v1.2.0";
 exports.VERSION = VERSION;
 exports.exit = exit;
 exports.processor = processor;
@@ -15,7 +15,8 @@ var block = {
 exports.block = block;
 const express = require("express");
 const stringify = require("json-stable-stringify");
-const IPFS = require("ipfs-http-client-lite");
+const IPFS = require("ipfs-http-client-lite"); //ipfs-http-client doesn't work
+const fetch = require("node-fetch");
 var ipfs = IPFS(
   `${config.ipfsprotocol}://${config.ipfshost}:${config.ipfsport}`
 );
@@ -25,7 +26,6 @@ console.log(
   }`
 );
 exports.ipfs = ipfs;
-const fetch = require("node-fetch");
 const rtrades = require("./rtrades");
 var Pathwise = require("./pathwise");
 var level = require("level");
@@ -54,12 +54,10 @@ var plasma = {
     page: [],
     hashLastIBlock: 0,
     hashSecIBlock: 0,
-    //pagencz: []
   },
   jwt;
 exports.plasma = plasma;
 var NodeOps = [];
-//are these used still?
 exports.GetNodeOps = function () {
   return NodeOps;
 };
@@ -129,6 +127,43 @@ let TXID = {
   },
 };
 exports.TXID = TXID;
+let owners = {};
+let Owners = {
+  is: function (acc) {
+    if (owners[acc]) return 1;
+    else return 0;
+  },
+  activeUpdate: function (acc, key) {
+    delete owners[owners[acc]];
+    owners[acc].key = key;
+  },
+  getKey: function (acc) {
+    return owners[acc]?.key;
+  },
+  getAKey: function (i = 0) {
+    return owners[Object.keys(owners)[i]]?.key;
+  },
+  numKeys: function () {
+    return Object.keys(owners).length;
+  },
+  init: function () {
+    getPathObj(["stats", "ms", "active_account_auths"]).then((auths) => {
+      var q = [];
+      for (var key in auths) {
+        q.push(key);
+      }
+      const { Hive } = require("./hive");
+      Hive.getAccounts(q).then((r) => {
+        owners = {};
+        for (var i = 0; i < r.length; i++) {
+          owners[r[i].name] = { key: r[i].active.key_auths[0][0] };
+        }
+      });
+    });
+  },
+};
+
+exports.Owners = Owners;
 const API = require("./routes/api");
 const HR = require("./processing_routes/index");
 const { NFT, Chron, Watchdog, Log } = require("./helpers");
@@ -166,7 +201,7 @@ exports.processor = processor;
 //HIVE API CODE
 
 //Start Program Options
-dynStart()
+dynStart();
 //startWith("Qmf3jthuvSDv5Eto5eAnZVBzUdhbErEdFxUdicWHct9sF9", true);
 Watchdog.monitor();
 
@@ -174,6 +209,8 @@ Watchdog.monitor();
 api.use(API.https_redirect);
 api.use(cors());
 api.get("/", API.root);
+api.get("/user_services/:un", API.servicesByUser);
+api.get("/services/:type", API.servicesByType);
 api.get("/stats", API.root);
 api.get("/coin", API.coin);
 api.get("/@:un", API.user);
@@ -245,6 +282,7 @@ if (config.rta && config.rtp) {
 }
 //starts block processor after memory has been loaded
 function startApp() {
+  Owners.init();
   TXID.blocknumber = 0;
   if (config.ipfshost == "ipfs")
     ipfs.id(function (err, res) {
@@ -253,12 +291,13 @@ function startApp() {
       if (res) plasma.id = res.id;
     });
   processor = hiveState(client, startingBlock, config.prefix);
+  processor.on("rollup", HR.rollup);
+  processor.on("register_authority", HR.register_authority);
   processor.on("send", HR.send);
   processor.on("spk_send", HR.spk_send);
-  processor.on("claim", HR.drop_claim);
+  processor.on("claim", HR.claim);
   processor.on("shares_claim", HR.shares_claim);
   processor.on("node_add", HR.node_add);
-  //processor.on("node_delete", HR.node_delete);
   processor.on("report", HR.report);
   processor.on("gov_down", HR.gov_down); //larynx collateral
   processor.on("gov_up", HR.gov_up); //larynx collateral
@@ -271,11 +310,12 @@ function startApp() {
   processor.on("val_check", HR.val_check); //Validator second check -> merge to val_report
   processor.onOperation("account_update", HR.account_update);
   processor.onOperation("comment", HR.comment);
-  processor.on("queueForDaily", HR.q4d);
+  //processor.on("queueForDaily", HR.q4d);
   processor.on("nomention", HR.nomention);
   processor.on("power_up", HR.power_up);
   processor.on("power_down", HR.power_down);
   processor.on("power_grant", HR.power_grant);
+  processor.on("register_service", HR.register_service);
   if (config.features.pob) {
     processor.on("power_up", HR.power_up); // power up tokens for vote power in layer 2 token proof of brain
     processor.on("power_down", HR.power_down);
@@ -332,7 +372,7 @@ function startApp() {
   }
   //do things in cycles based on block time
   processor.onBlock(function (num, pc, prand, bh) {
-    Log.block(num)
+    Log.block(num);
     if (num < TXID.blocknumber) {
       require("process").exit(2);
     } else {
@@ -874,7 +914,7 @@ function startWith(hash, second) {
     console.log(`Attempting to start from IPFS save state ${hash}`);
     ipfspromise(hash)
       .then((blockInfo) => {
-        if(blockInfo[0] == 'D')console.log(blockInfo)
+        if (blockInfo[0] == "D") console.log(blockInfo);
         var blockinfo = JSON.parse(blockInfo);
         ipfspromise(blockinfo[1].root ? blockinfo[1].root : hash).then(
           (file) => {
@@ -939,7 +979,9 @@ function startWith(hash, second) {
                               );
                               //getPathNum(['balances', 'ra']).then(r=>console.log(r))
                             })
-                            .catch((e) => console.log("Failure of rundelta", e));
+                            .catch((e) =>
+                              console.log("Failure of rundelta", e)
+                            );
                         } else {
                           console.log("No Chain");
                           TXID.saveNumber = startingBlock;
@@ -1174,6 +1216,7 @@ function unwrapOps(arr) {
   });
 }
 
+
 function ipfspromise(hash) {
   return new Promise((resolve, reject) => {
     const ipfslinks = config.ipfsLinks;
@@ -1186,14 +1229,16 @@ function ipfspromise(hash) {
       fetch(arr[i] + hash)
         .then((r) => r.text())
         .then((res) => {
-          if (res.split("")[0] == "<"){console.log('HTML IPFS reply');catIPFS(hash, i + 1, ipfslinks)}
-          else resolve(res);
+          if (res.split("")[0] == "<") {
+            console.log("HTML IPFS reply", res);
+            catIPFS(hash, i + 1, ipfslinks);
+          } else resolve(res);
         })
         .catch((e) => {
           if (i < arr.length - 1) {
             catIPFS(hash, i + 1, ipfslinks);
           } else {
-            console.log('End of IPFS tries')
+            console.log("End of IPFS tries");
             //reject(e);
           }
         });
@@ -1202,6 +1247,7 @@ function ipfspromise(hash) {
 }
 
 function issc(n, b, i, r, a) {
+  const chain = JSON.parse(b.toString())[1].chain;
   ipfsSaveState(n, b, i, r, a)
     .then((pla) => {
       TXID.saveNumber = pla.hashBlock;
@@ -1210,9 +1256,12 @@ function issc(n, b, i, r, a) {
       plasma.hashLastIBlock = pla.hashLastIBlock;
       plasma.hashBlock = pla.hashBlock;
       if (
-        block.chain.length > 2 &&
-        block.chain[block.chain.length - 2].hive_block <
-          block.chain[block.chain.length - 1].hive_block - 100
+        (block.chain.length > 2 &&
+          block.chain[block.chain.length - 2].hive_block <
+            block.chain[block.chain.length - 1].hive_block - 100) ||
+        (chain.length > block.chain.length &&
+          block.chain[block.chain.length - 1].hash !=
+            chain[block.chain.length - 1].hash)
       ) {
         exit(block.chain[block.chain.length - 2].hash, "Chain Out Of Order");
       } else if (typeof i == "function") {

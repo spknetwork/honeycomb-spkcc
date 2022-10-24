@@ -175,15 +175,15 @@ const NFT = {
                                 memo: `${b.item} sold at auction.`
                             }]
                         if(royalties){
-                            DEX.buyDluxFromDex(royalties, listing.h, num, `roy_${delkey.split(':')[1]}`, `n:${set.n}`, ts, 'royalty')
+                            DEX.buyTokenFromDex(royalties, listing.h, num, `roy_${delkey.split(':')[1]}`, `n:${set.n}`, ts, 'royalty')
                             .then(empty=>{
-                                DEX.buyDluxFromDex(fee, listing.h, num, `fee_${delkey.split(':')[1]}`, `rn`, ts, 'fee')
+                                DEX.buyTokenFromDex(fee, listing.h, num, `fee_${delkey.split(':')[1]}`, `rn`, ts, 'fee')
                                 .then(emp=>{
                                     finish()
                                 })
                             })
                         } else {
-                            DEX.buyDluxFromDex(fee, listing.h, num, `fee_${delkey.split(':')[1]}`, `rn`, ts)
+                            DEX.buyTokenFromDex(fee, listing.h, num, `fee_${delkey.split(':')[1]}`, `rn`, ts)
                             .then(emp=>{
                                 finish()
                             })
@@ -605,7 +605,7 @@ const DEX = {
             }
         }
     },
-    buyDluxFromDex : (amount, type, num, txid, to, timestamp, memo = '') =>{
+    buyTokenFromDex : (amount, type, num, txid, to, timestamp, memo = '') =>{
         return new Promise((resolve, reject) => {
             require('./processing_routes/dex').transfer({
                 from: to,
