@@ -5,6 +5,7 @@ const { sha256 } = require("hive-tx/helpers/crypto");
 const HR = require("./index")
 const base64url = require("base64url");
 const { getPathObj } = require("../getPathObj");
+const { broca_calc } = require("./../lil_ops")
 
 /*{
 rollups: ['j.w.ts','j.w.ts']
@@ -111,22 +112,66 @@ exports.register_authority = (json, from, active, pc) => {
 };
 
 exports.channel_open = (json, from, active, pc) => {
-  if (true){
-    
+  if (active && json.to && json.broker){
+    var Pbroca = getPathNum(["broca", from]);
+    var Pproffer = getPathObj(['proffer', from, json.to])
+    var Pstats = getPathObj(["stats"])
+    var PauthF = getPathObj(["authorities", from])
+    var PauthT = getPathObj(["authorities", json.to]);
+    var PauthB = getPathObj(["authorities", json.broker]);
+    Promise.all([Pbroca, Pproffer, Pstats, PauthF, PauthT, PauthB]).then(mem => {
+        var broca = mem[0],
+            proffer = mem[1],
+            stats = mem[2],
+            authF = mem[3],
+            authT = mem[4],
+            authB = mem[5],
+            ops = [],
+            err = ''
+        broca = broca_calc(broca, stats, json.block_num)
+        if (typeof authF != 'string')err = `@${from} hasn't registered a public key.`
+        if (typeof authT != "string")err = `@${json.to} hasn't registered a public key.`;
+        if (typeof authB != "string")err = `@${json.broker} hasn't registered a public key.`;
+        if (proffer.ex)err = `This channel exists: ${proffer.ex.split(':')[1]}`
+        if (json.broca > broca.b || json.broca < stats.channel_min)err = `@${from} doesn't have enough BROCA to build a channel`;
+        if (!err) {
+            proffer.t = json.to //to
+            proffer.f = from //from
+            proffer.b = json.broker //broker
+            proffer.r = parseInt(json.broca) //resource credit
+            proffer.s = 0 //status codes 0: exists; 1: signed file(s) md5; 2: signed ipfs hash and file md5; 3: closed?
+            broca.b -= parseInt(json.broca);
+            ops.push({
+              type: "put",
+              path: ["broca", from],
+              data: broca,
+            });
+        } else {
+        ops.push({
+            type: "put",
+            path: ["feed", `${json.block_num}:${json.transaction_id}`],
+            data: err,
+        });
+        if (config.hookurl || config.status)
+            postToDiscord(err, `${json.block_num}:${json.transaction_id}`);
+        if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+        store.batch(ops);
+        }
+    })
   } else {
     pc[0](pc[2]);
   }
 };
 
 exports.channel_update = (json, from, active, pc) => {
-  if (true) {
+  if (active) {
   } else {
     pc[0](pc[2]);
   }
 };
 
 exports.channel_close = (json, from, active, pc) => {
-  if (true) {
+  if (active) {
   } else {
     pc[0](pc[2]);
   }

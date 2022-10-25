@@ -592,7 +592,7 @@ function accountUpdate(stats, nodes, arr) {
     if (stats.ms.active_account_auths[arr[i]] != 1) differrent = true;
   }
   if (!differrent || arr.length < 3) return; //don't send duplicate updates, don't reduce key holders below 3
-  //if(arr.length > 3)arr = [arr[0], arr[1], arr[2]]
+  if(arr.length > 40)arr = arr.slice(0,40)
   var updateOp = {
     account: config.msaccount,
     active: {

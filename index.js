@@ -298,7 +298,7 @@ function startApp() {
   processor.on("claim", HR.claim);
   processor.on("shares_claim", HR.shares_claim);
   processor.on("node_add", HR.node_add);
-  processor.on("report", HR.report);
+  processor.on(`report${config.mirrorNet ? 'M' : ''}`, HR.report);
   processor.on("gov_down", HR.gov_down); //larynx collateral
   processor.on("gov_up", HR.gov_up); //larynx collateral
   processor.on("val_reg", HR.val_reg); //register a validator node
@@ -333,8 +333,8 @@ function startApp() {
   if (config.features.dex) {
     processor.on("dex_sell", HR.dex_sell);
     processor.on("dex_clear", HR.dex_clear);
-    processor.on("sig_submit", HR.sig_submit); //dlux is for putting executable programs into IPFS... this is for additional accounts to sign the code as non-malicious
-    processor.on("osig_submit", HR.osig_submit);
+    processor.on(`sig_submit${config.mirrorNet ? "M" : ""}`, HR.sig_submit); //dlux is for putting executable programs into IPFS... this is for additional accounts to sign the code as non-malicious
+    processor.on(`osig_submit${config.mirrorNet ? "M" : ""}`, HR.osig_submit);
   }
   if (config.features.dex || config.features.nft || config.features.ico) {
     processor.onOperation("transfer", HR.transfer);
