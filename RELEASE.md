@@ -15,6 +15,7 @@
 * Add API for Downpower
 * Docker Network Specified
 * IPFS image and network dependencies change
+* Added a live testing environment
 
 ## 1.1
 
