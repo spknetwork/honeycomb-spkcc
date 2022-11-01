@@ -1,5 +1,5 @@
 const config = require("./config");
-const VERSION = "v1.1.4g"; //Did you change the package version?
+const VERSION = "v1.1.4h"; //Did you change the package version?
 exports.VERSION = VERSION;
 exports.exit = exit;
 exports.processor = processor;
@@ -252,7 +252,7 @@ function startApp() {
       }
       if (res) plasma.id = res.id;
     });
-  processor = hiveState(client, startingBlock, config.prefix);
+  processor = hiveState(client, startingBlock, config.prefix, config.username);
   processor.on("send", HR.send);
   processor.on("spk_send", HR.spk_send);
   processor.on("claim", HR.drop_claim);
