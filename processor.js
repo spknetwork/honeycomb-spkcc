@@ -1,56 +1,80 @@
-const fetch = require('node-fetch');
-const { TXID } = require('./index');
+const fetch = require("node-fetch");
+const { TXID } = require("./index");
 module.exports = function (
   client,
   nextBlock = 1,
-  prefix = ""
+  prefix = 'dlux_',
+  account = 'null',
+  vOpsRequired = false
 ) {
   var onCustomJsonOperation = {}; // Stores the function to be run for each operation id.
   var onOperation = {};
 
-  var onNewBlock = function () { };
-  var onStreamingStart = function () { };
-  var behind = 0
+  var onNewBlock = function () {};
+  var onStreamingStart = function () {};
+  var behind = 0;
+  var outstanding_requests = 0
   var isStreaming;
+  var vOps = false;
   var stream;
   var blocks = {
     processing: 0,
     completed: nextBlock,
+    stop: function () {
+      blocks.clean(1);
+    },
     ensure: function (last) {
       setTimeout(() => {
         if (!blocks.processing && blocks.completed == last) {
           getBlockNumber(nextBlock);
           if (!(last % 3))
             getHeadOrIrreversibleBlockNumber(function (result) {
-              if (nextBlock < result - 3) {
+              if (nextBlock < result - 5) {
                 behind = result - nextBlock;
                 beginBlockComputing();
               } else if (!isStreaming) {
                 beginBlockStreaming();
               }
-            });;
-        };
-      }, 6000)
+            });
+        }
+      }, 6000);
+    },
+    clean: function (stop = false) {
+      var blockNums = Object.keys(blocks);
+      for (var i = 0; i < blockNums.length; i++) {
+        if (
+          (parseInt(blockNums[i]) && parseInt(blockNums[i]) < nextBlock - 1) ||
+          (stop && parseInt(blockNums[i]))
+        ) {
+          delete blocks[blockNums[i]];
+          if (vOps) delete blocks[blockNums.v[i]];
+        }
+      }
+      var blockNums = Object.keys(blocks.v);
+      for (var i = 0; i < blockNums.length; i++) {
+        if (
+          (parseInt(blockNums[i]) && parseInt(blockNums[i]) < nextBlock - 1) ||
+          (stop && parseInt(blockNums[i]))
+        ) {
+          delete blocks.v[blockNums[i]];
+        }
+      }
     },
     v: {},
-    manage: function (block_num, force) {
+    manage: function (block_num, vOp = false) {
       if (blocks.processing) {
-        setTimeout(() => { blocks.manage(block_num) }, 100)
-        var blockNums = Object.keys(blocks);
-        for (var i = 0; i < blockNums.length; i++) {
-          if (
-            parseInt(blockNums[i]) &&
-            parseInt(blockNums[i]) < nextBlock - 1
-          ) {
-            delete blocks[blockNums[i]];
-          }
-        }
-      } else if (blocks[block_num] && block_num == nextBlock) {
+        setTimeout(() => {
+          blocks.manage(block_num);
+        }, 100);
+        blocks.clean();
+      } else if (vOps && !blocks.v[block_num]) return;
+      else if (vOp && !blocks[block_num]) return;
+      else if (blocks[block_num] && block_num == nextBlock) {
         blocks.processing = nextBlock;
         processBlock(blocks[block_num]).then(() => {
           nextBlock = block_num + 1;
           blocks.completed = blocks.processing;
-          blocks.processing = 0
+          blocks.processing = 0;
           delete blocks[block_num];
           if (blocks[nextBlock]) blocks.manage(nextBlock);
         });
@@ -78,8 +102,8 @@ module.exports = function (
         }
       }
       blocks.ensure(block_num);
-    }
-  }
+    },
+  };
   var stopping = false;
 
   // Returns the block number of the last block on the chain or the last irreversible block depending on mode.
@@ -95,19 +119,22 @@ module.exports = function (
         body: `{"jsonrpc":"2.0", "method":"condenser_api.get_ops_in_block", "params":[${bn},true], "id":1}`,
         headers: {
           "Content-Type": "application/x-www-form-urlencoded",
+          "User-Agent": `${prefix}HoneyComb/${account}`,
         },
         method: "POST",
       })
         .then((res) => res.json())
         .then((json) => {
           if (!json.result) {
-            blocks.v[bn] = []
+            blocks.v[bn] = [];
+            blocks.manage(bn, true);
           } else {
-            blocks.v[bn] = json.result
+            blocks.v[bn] = json.result;
+            blocks.manage(bn, true);
           }
         })
         .catch((err) => {
-          console.log('Failed to get Vops for block: ', bn, err)
+          console.log("Failed to get Vops for block: ", bn, err);
         });
     });
   }
@@ -127,14 +154,19 @@ module.exports = function (
     client.database
       .getBlock(bln)
       .then((result) => {
-        blocks[parseInt(result.block_id.slice(0, 8), 16)] = result;
-        blocks.manage(bln);
+        if (result) {
+          blocks[parseInt(result.block_id.slice(0, 8), 16)] = result;
+          blocks.manage(bln);
+        }
       })
-
+      .catch((e) => {
+        console.log("getBlockNumber Error: ", e);
+      });
   }
 
   function getBlock(bn) {
     if (behind && !stopping) gbr(bn, behind > 100 ? 100 : behind, 0);
+    if (stopping) stream = undefined;
     else if (!stopping) gb(bn, 0);
     function gb(bln, at) {
       if (bln < TXID.saveNumber + 50) {
@@ -146,32 +178,37 @@ module.exports = function (
           })
           .catch((err) => {
             if (at < 3) {
-              gb(bn, at + 1);
+              setTimeout(() => {
+                gbr(bln, at + 1);
+              }, Math.pow(10, at + 1));
             } else {
-              reject(err);
+              console.log("Get block attempt:", at, client.currentAddress);
             }
           });
       } else {
         setTimeout(() => {
-          gb(bln, at);
-        }, 1000);
+          gb(bln, at + 1);
+        }, Math.pow(10, at + 1));
       }
     }
     function gbr(bln, count, at) {
+      outstanding_requests++
       if (bln > TXID.saveNumber + 150)
         setTimeout(() => {
-          gbr(bln, count, at);
-        }, 2000);
-      else
+          gbr(bln, count, at + 1);
+        }, Math.pow(10, at + 1));
+      else if (outstanding_requests < 3)
         fetch(client.currentAddress, {
           body: `{"jsonrpc":"2.0", "method":"block_api.get_block_range", "params":{"starting_block_num": ${bln}, "count": ${count}}, "id":1}`,
           headers: {
             "Content-Type": "application/x-www-form-urlencoded",
+            "User-Agent": `${prefix}HoneyComb/${account}`,
           },
           method: "POST",
         })
           .then((res) => res.json())
           .then((result) => {
+            outstanding_requests--
             var Blocks = result.result.blocks;
             for (var i = 0; i < Blocks.length; i++) {
               const bkn = parseInt(Blocks[i].block_id.slice(0, 8), 16);
@@ -199,13 +236,17 @@ module.exports = function (
               }
             }
             blocks.manage(bln);
-            if(behind > 100)gbr(bln + 100, behind > 200 ? 100 : 200 - behind, at);
+            if (behind > 100)
+              gbr(bln + 100, behind > 200 ? 100 : 200 - behind, at);
           })
           .catch((err) => {
+            outstanding_requests--
             if (at < 3) {
-              gb(bn, at);
+              setTimeout(() => {
+                gb(bn, at + 1);
+              }, Math.pow(10, at + 1));
             } else {
-              console.log('Get block range error', err)
+              console.log("Get block range error", err);
             }
           });
     }
@@ -214,9 +255,9 @@ module.exports = function (
   function beginBlockComputing() {
     var blockNum = nextBlock; // Helper variable to prevent race condition
     // in getBlock()
-    blocks.ensure(nextBlock)
+    blocks.ensure(nextBlock);
     //var vops = getVops(blockNum);
-    getBlock(blockNum)
+    getBlock(blockNum);
   }
 
   function beginBlockStreaming() {
@@ -224,8 +265,8 @@ module.exports = function (
     onStreamingStart();
     stream = client.blockchain.getBlockStream();
     stream.on("data", function (Block) {
-      var blockNum = parseInt(Block.block_id.slice(0, 8), 16)
-      blocks[blockNum] = Block
+      var blockNum = parseInt(Block.block_id.slice(0, 8), 16);
+      blocks[blockNum] = Block;
       blocks.manage(blockNum);
     });
     stream.on("end", function () {
@@ -303,7 +344,7 @@ module.exports = function (
         });
     } else if (parseInt(block.block_id.slice(0, 8), 16) != num) {
       pc[0]();
-      console.log("double")
+      console.log("double");
     } else {
       onNewBlock(num, pc, block.witness_signature, {
         timestamp: block.timestamp,
@@ -428,10 +469,13 @@ module.exports = function (
 
     stop: function (callback) {
       if (isStreaming) {
+        isStreaming = false;
         stopping = true;
-        stream.pause();
+        stream = undefined;
+        blocks.stop();
         setTimeout(callback, 1000);
       } else {
+        blocks.stop();
         stopping = true;
         stopCallback = callback;
       }
