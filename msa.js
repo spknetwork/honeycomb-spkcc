@@ -84,7 +84,7 @@ exports.consolidate = (num, plasma, bh, owner) => {
                 op = {
                     ref_block_num: bh.block_number & 0xffff,
                     ref_block_prefix: Buffer.from(bh.block_id, 'hex').readUInt32LE(4),
-                    expiration: new Date(now + 3660000).toISOString().slice(0, -5),
+                    expiration: new Date(now + 300000).toISOString().slice(0, -5),
                     operations: txs,
                     extensions: [],
                 }
@@ -119,7 +119,7 @@ exports.osign = (num, type, missed, bh) => {
                     op = {
                         ref_block_num: bh.block_number & 0xffff,
                         ref_block_prefix: Buffer.from(bh.block_id, 'hex').readUInt32LE(4),
-                        expiration: new Date(now + 3660000).toISOString().slice(0, -5),
+                        expiration: new Date(now + 300000).toISOString().slice(0, -5),
                         operations: obj.length ? [obj] : obj.operations,
                         extensions: [],
                     }
@@ -158,7 +158,7 @@ exports.sign = (num, plasma, missed, bh) => {
                     op = {
                         ref_block_num: bh.block_number & 0xffff,
                         ref_block_prefix: Buffer.from(bh.block_id, 'hex').readUInt32LE(4),
-                        expiration: new Date(now + 3660000).toISOString().slice(0, -5),
+                        expiration: new Date(now + 300000).toISOString().slice(0, -5),
                         operations: obj.operations,
                         extensions: [],
                     }
