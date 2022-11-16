@@ -26,7 +26,7 @@ const timeoutContinuous = ENV.timeoutContinuous || 30000
 
 
 // testing configs for replays
-const mirrorNet = ENV.mirror || false
+const mirrorNet = ENV.mirrorNet || false
 const override = ENV.override || 0 //69116600 //will use standard restarts after this blocknumber
 const engineCrank =
   ENV.startingHash || "QmWh6F8DKyDjRxkvgrh89Ssjh9zoNtm8UYS3CztppiWFHj"; //but this state will be inserted before

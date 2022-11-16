@@ -534,7 +534,24 @@ exports.spk_vote = (json, from, active, pc) => {
         const decayWeight = parseFloat(
           (effective_total - effective_power) / effective_total
         ).toFixed(8);
-        
+        //verify inputs, adjust constants
+        stats.item = (json.vote * voteWeight) + (decayWeight * stats.item)
+        ops.push({
+          type: "put",
+          path: ["stats"],
+          data: stats,
+        });
+        ops.push({
+          type: "put",
+          path: ["spkVote", from],
+          data: thisVote,
+        });
+        ops.push({
+          type: "put",
+          path: ["feed", `${json.block_num}:${json.transaction_id}`],
+          data: `@${from}| Has updated their votes.`,
+        });
+        store.batch(ops, pc);
       }
   });
   } else {
