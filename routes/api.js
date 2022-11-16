@@ -2152,7 +2152,9 @@ exports.user = (req, res, next) => {
     tick = getPathObj(["dex", "hive", "tick"]),
     powdown = getPathObj(["powd", un]),
     govdown = getPathObj(["govd", un]),
-    chron = getPathObj(["chrono"]);
+    chron = getPathObj(["chrono"]),
+    pspkpow = getPathNum(['spow', un]),
+    pspkdown = getPathObj(['spowd', un])
   res.setHeader("Content-Type", "application/json");
   Promise.all([
     bal,
@@ -2172,6 +2174,8 @@ exports.user = (req, res, next) => {
     powdown,
     govdown,
     chron,
+    pspkpow,
+    pspkdown
   ])
     .then(function (v) {
       var arr = [];
@@ -2191,6 +2195,12 @@ exports.user = (req, res, next) => {
       if (power_downs) {
         for (var pd in power_downs) {
           power_downs[pd] = v[16][pd];
+        }
+      }
+      var spk_power_downs = v[18];
+      if (spk_power_downs) {
+        for (var pd in spk_power_downs) {
+          spk_power_downs[pd] = v[16][pd];
         }
       }
       if (!v[10].s)
@@ -2223,6 +2233,8 @@ exports.user = (req, res, next) => {
                   gov: v[5],
                   spk: v[11],
                   spk_block: v[12],
+                  spk_pow: v[17],
+                  spk_power_downs,
                   tick: v[13],
                   node: config.username,
                   head_block: RAM.head,

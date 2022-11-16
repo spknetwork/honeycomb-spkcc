@@ -16,6 +16,16 @@
 * Docker Network Specified
 * IPFS image and network dependencies change
 * Added a live testing environment
+* Fixed Trade History Partial Fill Hive Amount
+* Added SPK Power Up/Down
+* Added SPK Voting
+  * SPK Voting Cycle/DownPower Time
+  * SPK Generation Rates
+  * DEX MAX/SLOPE
+  * Max number of Runners
+  * DAO Claim Percent
+* Added API for SPK Power
+* Added SPK DEX and API
 
 ## 1.1
 

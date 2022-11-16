@@ -319,102 +319,166 @@ const NFT = {
 exports.NFT = NFT
 
 const Chron = {
-    govDownOp : function (promies, from, delkey, num, id, b) {
-        return new Promise((resolve, reject) => {
-            Promise.all(promies)
-                .then(bals => {
-                    let lbal = bals[0],
-                        tgov = bals[1],
-                        gbal = bals[2],
-                        ops = []
-                    if (gbal - b.amount < 0) {
-                        b.amount = gbal
-                    }
-                    ops.push({ type: 'put', path: ['balances', from], data: lbal + b.amount })
-                    ops.push({ type: 'put', path: ['gov', from], data: gbal - b.amount })
-                    ops.push({ type: 'put', path: ['gov', 't'], data: tgov - b.amount })
-                    ops.push({ type: 'put', path: ['feed', `${num}:vop_${id}`], data: `@${b.by}| ${parseFloat(b.amount/1000).toFixed(3)} ${config.TOKEN} withdrawn from governance.` })
-                    ops.push({ type: 'del', path: ['chrono', delkey] })
-                    ops.push({ type: 'del', path: ['govd', b.by, delkey] })
-                    store.batch(ops, [resolve, reject])
-                })
-                .catch(e => { console.log(e) })
+  govDownOp: function (promies, from, delkey, num, id, b) {
+    return new Promise((resolve, reject) => {
+      Promise.all(promies)
+        .then((bals) => {
+          let lbal = bals[0],
+            tgov = bals[1],
+            gbal = bals[2],
+            ops = [];
+          if (gbal - b.amount < 0) {
+            b.amount = gbal;
+          }
+          ops.push({
+            type: "put",
+            path: ["balances", from],
+            data: lbal + b.amount,
+          });
+          ops.push({ type: "put", path: ["gov", from], data: gbal - b.amount });
+          ops.push({ type: "put", path: ["gov", "t"], data: tgov - b.amount });
+          ops.push({
+            type: "put",
+            path: ["feed", `${num}:vop_${id}`],
+            data: `@${b.by}| ${parseFloat(b.amount / 1000).toFixed(3)} ${
+              config.TOKEN
+            } withdrawn from governance.`,
+          });
+          ops.push({ type: "del", path: ["chrono", delkey] });
+          ops.push({ type: "del", path: ["govd", b.by, delkey] });
+          store.batch(ops, [resolve, reject]);
         })
-    },
-    powerDownOp : function (promies, from, delkey, num, id, b) {
-        return new Promise((resolve, reject) => {
-            Promise.all(promies)
-                .then(bals => {
-                    let lbal = bals[0],
-                        tpow = bals[1],
-                        pbal = bals[2],
-                        ops = []
-                    if (pbal - b.amount < 0) {
-                        b.amount = pbal
-                    }
-                    ops.push({ type: 'put', path: ['balances', from], data: lbal + b.amount })
-                    ops.push({ type: 'put', path: ['pow', from], data: pbal - b.amount })
-                    ops.push({ type: 'put', path: ['pow', 't'], data: tpow - b.amount })
-                    ops.push({ type: 'put', path: ['feed', `${num}:vop_${id}`], data: `@${b.by}| powered down ${parseFloat(b.amount/1000).toFixed(3)} ${config.TOKEN}` })
-                    ops.push({ type: 'del', path: ['chrono', delkey] })
-                    ops.push({ type: 'del', path: ['powd', b.by, delkey] })
-                    store.batch(ops, [resolve, reject])
-                })
-                .catch(e => { console.log(e) })
+        .catch((e) => {
+          console.log(e);
+        });
+    });
+  },
+  powerDownOp: function (promies, from, delkey, num, id, b) {
+    return new Promise((resolve, reject) => {
+      Promise.all(promies)
+        .then((bals) => {
+          let lbal = bals[0],
+            tpow = bals[1],
+            pbal = bals[2],
+            ops = [];
+          if (pbal - b.amount < 0) {
+            b.amount = pbal;
+          }
+          ops.push({
+            type: "put",
+            path: ["balances", from],
+            data: lbal + b.amount,
+          });
+          ops.push({ type: "put", path: ["pow", from], data: pbal - b.amount });
+          ops.push({ type: "put", path: ["pow", "t"], data: tpow - b.amount });
+          ops.push({
+            type: "put",
+            path: ["feed", `${num}:vop_${id}`],
+            data: `@${b.by}| powered down ${parseFloat(b.amount / 1000).toFixed(
+              3
+            )} ${config.TOKEN}`,
+          });
+          ops.push({ type: "del", path: ["chrono", delkey] });
+          ops.push({ type: "del", path: ["powd", b.by, delkey] });
+          store.batch(ops, [resolve, reject]);
         })
-    },
-    postRewardOP : function (l, num, id, delkey) {
-        return new Promise((resolve, reject) => {
-            store.get(['posts', `${l.author}/${l.permlink}`], function(e, b) {
-                let ops = []
-                let totals = {
-                    totalWeight: 0,
-                    linearWeight: 0
-                }
-                for (vote in b.votes) {
-                    totals.totalWeight += b.votes[vote].v
-                    linearWeight = parseInt(b.votes[vote].v * ((201600 - (b.votes[vote].b - b.block)) / 201600))
-                    totals.linearWeight += linearWeight
-                    b.votes[vote].w = linearWeight
-                }
-                let half = parseInt(totals.totalWeight / 2)
-                totals.curationTotal = half
-                totals.authorTotal = totals.totalWeight - half
-                b.t = totals
-                ops.push({
-                    type: 'put',
-                    path: ['pendingpayment', `${b.author}/${b.permlink}`],
-                    data: b
-                })
-                ops.push({ type: 'del', path: ['chrono', delkey] })
-                ops.push({ type: 'put', path: ['feed', `${num}:vop_${id}`], data: `@${b.author}| Post:${b.permlink} voting expired.` })
-                ops.push({ type: 'del', path: ['posts', `${b.author}/${b.permlink}`] })
-                store.batch(ops, [resolve, reject])
-            })
+        .catch((e) => {
+          console.log(e);
+        });
+    });
+  },
+  sPowerDownOp: function (promies, from, delkey, num, id, b) {
+    return new Promise((resolve, reject) => {
+      Promise.all(promies)
+        .then((bals) => {
+          let lbal = bals[0],
+            tpow = bals[1],
+            pbal = bals[2],
+            ops = [];
+          if (pbal - b.amount < 0) {
+            b.amount = pbal;
+          }
+          ops.push({
+            type: "put",
+            path: ["spk", from],
+            data: lbal + b.amount,
+          });
+          ops.push({ type: "put", path: ["spow", from], data: pbal - b.amount });
+          ops.push({ type: "put", path: ["spow", "t"], data: tpow - b.amount });
+          ops.push({
+            type: "put",
+            path: ["feed", `${num}:vop_${id}`],
+            data: `@${b.by}| powered down ${parseFloat(b.amount / 1000).toFixed(
+              3
+            )} SPK`,
+          });
+          ops.push({ type: "del", path: ["chrono", delkey] });
+          ops.push({ type: "del", path: ["spowd", b.by, delkey] });
+          store.batch(ops, [resolve, reject]);
         })
-    },
-    postVoteOP : function(l, delkey) {
-        return new Promise((resolve, reject) => {
-            store.get(['posts', `${l.author}/${l.permlink}`], function(e, b) {
-                let ops = []
-                let totalWeight = 0
-                for (vote in b.votes) {
-                    totalWeight += b.votes[vote].v
-                }
-                b.v = totalWeight
-                if (b.v > 0) {
-                    ops.push({
-                        type: 'put',
-                        path: ['pendingvote', `${l.author}/${l.permlink}`],
-                        data: b
-                    })
-                }
-                ops.push({ type: 'del', path: ['chrono', delkey] })
-                store.batch(ops, [resolve, reject])
-            })
-        })
-    }
-}
+        .catch((e) => {
+          console.log(e);
+        });
+    });
+  },
+  postRewardOP: function (l, num, id, delkey) {
+    return new Promise((resolve, reject) => {
+      store.get(["posts", `${l.author}/${l.permlink}`], function (e, b) {
+        let ops = [];
+        let totals = {
+          totalWeight: 0,
+          linearWeight: 0,
+        };
+        for (vote in b.votes) {
+          totals.totalWeight += b.votes[vote].v;
+          linearWeight = parseInt(
+            b.votes[vote].v * ((201600 - (b.votes[vote].b - b.block)) / 201600)
+          );
+          totals.linearWeight += linearWeight;
+          b.votes[vote].w = linearWeight;
+        }
+        let half = parseInt(totals.totalWeight / 2);
+        totals.curationTotal = half;
+        totals.authorTotal = totals.totalWeight - half;
+        b.t = totals;
+        ops.push({
+          type: "put",
+          path: ["pendingpayment", `${b.author}/${b.permlink}`],
+          data: b,
+        });
+        ops.push({ type: "del", path: ["chrono", delkey] });
+        ops.push({
+          type: "put",
+          path: ["feed", `${num}:vop_${id}`],
+          data: `@${b.author}| Post:${b.permlink} voting expired.`,
+        });
+        ops.push({ type: "del", path: ["posts", `${b.author}/${b.permlink}`] });
+        store.batch(ops, [resolve, reject]);
+      });
+    });
+  },
+  postVoteOP: function (l, delkey) {
+    return new Promise((resolve, reject) => {
+      store.get(["posts", `${l.author}/${l.permlink}`], function (e, b) {
+        let ops = [];
+        let totalWeight = 0;
+        for (vote in b.votes) {
+          totalWeight += b.votes[vote].v;
+        }
+        b.v = totalWeight;
+        if (b.v > 0) {
+          ops.push({
+            type: "put",
+            path: ["pendingvote", `${l.author}/${l.permlink}`],
+            data: b,
+          });
+        }
+        ops.push({ type: "del", path: ["chrono", delkey] });
+        store.batch(ops, [resolve, reject]);
+      });
+    });
+  },
+};
 exports.Chron = Chron
 
 const Base58 = {

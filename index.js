@@ -579,6 +579,19 @@ function startApp() {
                         b
                       ).then((x) => res(x));
                       break;
+                    case "spower_down": //needs work and testing
+                      let lbsp = getPathNum(["spk", b.by]),
+                        tspowp = getPathNum(["spow", "t"]),
+                        spowp = getPathNum(["spow", b.by]);
+                      Chron.sPowerDownOp(
+                        [lbsp, tspowp, spowp],
+                        b.by,
+                        passed.delKey,
+                        num,
+                        passed.delKey.split(":")[1],
+                        b
+                      ).then((x) => res(x));
+                      break;
                     case "post_reward":
                       Chron.postRewardOP(
                         b,
