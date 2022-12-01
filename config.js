@@ -41,7 +41,7 @@ const ipfsport = ENV.ipfsport || '5001' //IPFS upload/download provider provider
 const ipfsLinks = ENV.ipfsLinks
   ? ENV.ipfsLinks.split(" ")
   : [
-      "https://ipfs:8080/ipfs/",
+      "http://ipfs:8080/ipfs/",
       "http://localhost:8080/ipfs/",
       "https://ipfs.3speak.tv/ipfs/",
       "https://infura-ipfs.io/ipfs/",
@@ -90,8 +90,8 @@ const mainICO = '' //Account collecting ICO HIVE
 const footer = ''//`\n[Find us on Discord](https://discord.gg/Beeb38j)`
 const hive_service_fee = 100 //HIVE service fee for transactions in Hive/HBD in centipercents (1% = 100)
 const rollup_ops = [
-  channel_update,
-  channel_close
+  'channel_update',
+  'channel_close'
 ];
 const features = {
     pob: false, //proof of brain

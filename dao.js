@@ -103,8 +103,8 @@ function dao(num) {
                 t = 0;
             t = parseInt(bals.ra);
             for (var node in runners) { //node rate
-                b = parseInt(b) + parseInt(mnode[node].marketingRate) || 2500;
-                j = parseInt(j) + parseInt(mnode[node].bidRate) || 2500;
+                b = parseInt(b) + parseInt(mnode?.[node].marketingRate) || 2500;
+                j = parseInt(j) + parseInt(mnode?.[node].bidRate) || 2500;
                 i++;
                 console.log(b, j, i);
             }

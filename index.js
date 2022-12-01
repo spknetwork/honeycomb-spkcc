@@ -1,5 +1,5 @@
 const config = require("./config");
-const VERSION = "v1.2.0";
+const VERSION = "v1.2.0-test";
 exports.VERSION = VERSION;
 exports.exit = exit;
 exports.processor = processor;
@@ -201,8 +201,8 @@ exports.processor = processor;
 //HIVE API CODE
 
 //Start Program Options
-dynStart();
-//startWith("Qmf3jthuvSDv5Eto5eAnZVBzUdhbErEdFxUdicWHct9sF9", true);
+//dynStart();
+startWith("QmaufJ63Y31Tuy3vC1ipkX34Agp84G8XH2wQjvRaTcyopV", true);
 Watchdog.monitor();
 
 // API defs
@@ -945,14 +945,6 @@ function startWith(hash, second) {
                 if (!e && (second || data[0] > API.RAM.head - 325)) {
                   if (hash) {
                     var cleanState = data[1];
-                    // cleanState.stats.spk_rate_lgov = "0.001"
-                    // cleanState.stats.spk_rate_ldel = "0.00015"
-                    // cleanState.stats.spk_rate_lpow = "0.0001"
-                    // cleanState.runners = {
-                    //   regardspk: {
-                    //     g: 1,
-                    //   }
-                    // };
                     store.put([], cleanState, function (err) {
                       if (err) {
                         console.log("errr", err);
@@ -1228,7 +1220,6 @@ function unwrapOps(arr) {
     }
   });
 }
-
 
 function ipfspromise(hash) {
   return new Promise((resolve, reject) => {
