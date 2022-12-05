@@ -696,6 +696,17 @@ function startApp() {
                   );
                 });
             }
+            if(num % 10000 === 0){
+              const { Hive } = require("./hive");
+              Hive.getAccounts([config.msaccount]).then((r) => {
+                getPathObj(['stats']).then(stats =>{
+                  try {
+                    plasma.hbd_offset = stats.MSHeld.HBD - parseInt(parseFloat(r[0].hbd_balance) * 1000)
+                    plasma.hive_offset = stats.MSHeld.HIVE - parseInt(parseFloat(r[0].balance) * 1000)
+                  } catch (e) {}
+                })
+              });
+            }
             if (num % 100 === 50) {
               promises.push(
                 new Promise((res, rej) => {

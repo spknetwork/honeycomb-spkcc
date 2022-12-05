@@ -12,6 +12,10 @@ function report(plas, con) {
                 ipfs_id: plas.id,
                 version: VERSION
             }
+            if(plas.hashBlock % 10000 == 1){
+                report.hive_offset = plas.hive_offset,
+                report.hbd_offset = plas.hbd_offset
+            }
         try {if(r.block > report.block){
                 report.sig = r.sig,
                 report.sig_block = r.block
