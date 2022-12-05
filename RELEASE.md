@@ -4,18 +4,42 @@
 
 ### 1.2.0
 
-* Can Add IPFS Node API
+* Can Add IPFS/Generic Node API
+* State Channel / Rollups for Proof of Access
 * Ensure Consensus has a majority of owners (double majority)
 * Ensure reassembled State is equivilent to Consensus
 * Allow for more than 3 Multi-Signature holders
-* Verify Signature without outside of HiveAPI
-* GetBlock Retry
+* Verify Signature outside of HiveAPI
+* GetBlock Retry, Faster Block Replay
+
 * Fix Downpower memory leak.
 * Add API for Downpower
 * Docker Network Specified
 * IPFS image and network dependencies change
+* Added a live testing environment
+* Fixed Trade History Partial Fill Hive Amount
+* Added SPK Power Up/Down
+* Added SPK Voting
+  * SPK Voting Cycle/DownPower Time
+  * SPK Generation Rates
+  * DEX MAX/SLOPE
+  * Max number of Runners
+  * DAO Claim Percent
+* Added API for SPK Power
+* Added SPK DEX and API
+
 
 ## 1.1
+
+### 1.1.4
+
+* Rewrite of block processor
+* Additional logging functionality
+
+### 1.1.3
+
+* Added a check for non-object contract input
+* Changes for IPFS file retrieval
 
 ### 1.1.2
 

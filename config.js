@@ -16,15 +16,17 @@ const pintoken = ENV.pintoken || ''
 const pinurl = ENV.pinurl || '';
 const status = ENV.status || true
 const dbcs = ENV.DATABASE_URL || '';
+const dbmods = ENV.DATABASE_MODS || []; //list of moderators to hide posts in above db
 const snapcs = ENV.SNAPBASE_URL || "http://65.108.66.120:8002"; // get a public facing snapshot server
 const history = ENV.history || 3600
 const stream = ENV.stream || 'irreversible'
 const mode = ENV.mode || 'normal'
-const timeoutStart = ENV.timeoutStart || 180000 
+const timeoutStart = ENV.timeoutStart || 180000
 const timeoutContinuous = ENV.timeoutContinuous || 30000
 
 
 // testing configs for replays
+const mirrorNet = ENV.mirrorNet || false
 const override = ENV.override || 0 //69116600 //will use standard restarts after this blocknumber
 const engineCrank =
   ENV.startingHash || "QmWh6F8DKyDjRxkvgrh89Ssjh9zoNtm8UYS3CztppiWFHj"; //but this state will be inserted before
@@ -39,11 +41,11 @@ const ipfsport = ENV.ipfsport || '5001' //IPFS upload/download provider provider
 const ipfsLinks = ENV.ipfsLinks
   ? ENV.ipfsLinks.split(" ")
   : [
+      "http://ipfs:8080/ipfs/",
       "http://localhost:8080/ipfs/",
       "https://ipfs.3speak.tv/ipfs/",
-      "https://ipfs.io/ipfs/",
-      "https://ipfs.infura.io/ipfs/",
-      "https://hiveipfs.rishipanthee.com/ipfs/",
+      "https://infura-ipfs.io/ipfs/",
+      "https://ipfs.alloyxuast.co.uk/ipfs/",
       "https://ipfs1.alloyxuast.tk/ipfs/"
     ];
 
@@ -52,16 +54,17 @@ const ipfsprotocol = ENV.ipfsprotocol || 'https' //IPFS upload/download protocol
 const bidRate = ENV.BIDRATE || 500 // your vote for the dex fee 500 = 0.500% Max 1000
 
 //HIVE CONFIGS
-var startURL = ENV.STARTURL || "https://rpc.ecency.com/"
-var clientURL = ENV.APIURL || "https://api.deathwing.me/"
-const clients = ENV.clients || [
-    "https://api.deathwing.me/",
-    //"https://api.c0ff33a.uk/",
-    "https://rpc.ecency.com/",
-    "https://hived.emre.sh/",
-    //"https://rpc.ausbit.dev/",
-    "https://api.hive.blog/"
-]
+var startURL = ENV.STARTURL || "https://api.hive.blog/";
+var clientURL = ENV.APIURL || "https://api.hive.blog/";
+const clients = ENV.clients ? ENV.clients.split(" ") : [
+  "https://api.deathwing.me/",
+  //"https://api.c0ff33a.uk/",
+  "https://rpc.ecency.com/",
+  "https://hived.emre.sh/",
+  //"https://rpc.ausbit.dev/",
+  "https://api.hive.blog/",
+
+];
 
 //!!!!!!! -- THESE ARE COMMUNITY CONSTANTS -- !!!!!!!!!//
 //TOKEN CONFIGS -- ALL COMMUNITY RUNNERS NEED THESE SAME VALUES
@@ -71,7 +74,7 @@ const TOKEN = 'LARYNX' //Token name
 const precision = 3 //precision of token
 const tag = 'spk' //the fe.com/<tag>/@<leader>/<permlink>
 const jsonTokenName = 'larynx' //what customJSON in Escrows and sends is looking for
-const leader = 'regardspk' //Default account to pull state from, will post token 
+const leader = 'regardspk' //Default account to pull state from, will post token
 const ben = '' //Account where comment benifits trigger token action
 const delegation = '' //account people can delegate to for rewards
 const delegationWeight = 1000 //when to trigger community rewards with bens
@@ -86,6 +89,10 @@ const mainIPFS = 'ipfs.3speak.tv' //IPFS service
 const mainICO = '' //Account collecting ICO HIVE
 const footer = ''//`\n[Find us on Discord](https://discord.gg/Beeb38j)`
 const hive_service_fee = 100 //HIVE service fee for transactions in Hive/HBD in centipercents (1% = 100)
+const rollup_ops = [
+  'channel_update',
+  'channel_close'
+];
 const features = {
     pob: false, //proof of brain
     delegate: false, //delegation
@@ -190,64 +197,67 @@ const detail = {
 //Aditionally on your branch, look closely at dao, this is where tokenomics happen and custom status posts are made
 
 let config = {
-    username,
-    active,
-    msowner,
-    mspublic,
-    memoKey,
-    follow,
-    NODEDOMAIN,
-    hookurl,
-    status,
-    history,
-    dbcs,
-    mirror,
-    bidRate,
-    engineCrank,
-    port,
-    pintoken,
-    pinurl,
-    clientURL,
-    startURL,
-    clients,
-    acm,
-    rta,
-    rtp,
-    override,
-    ipfshost,
-    ipfsprotocol,
-    ipfsport,
-    ipfsLinks,
-    starting_block,
-    prefix,
-    leader,
-    msaccount,
-    msPubMemo,
-    msPriMemo,
-    msmeta,
-    ben,
-    adverts,
-    delegation,
-    delegationWeight,
-    TOKEN,
-    precision,
-    tag,
-    mainAPI,
-    jsonTokenName,
-    mainFE,
-    mainRender,
-    mainIPFS,
-    mainICO,
-    detail,
-    footer,
-    hive_service_fee,
-    features,
-    snapcs,
-    stream,
-    mode,
-    featuresModel,
-    timeoutStart,
-    timeoutContinuous,
+  username,
+  active,
+  dbmods,
+  msowner,
+  mspublic,
+  memoKey,
+  follow,
+  NODEDOMAIN,
+  hookurl,
+  status,
+  history,
+  dbcs,
+  mirror,
+  bidRate,
+  engineCrank,
+  port,
+  pintoken,
+  pinurl,
+  clientURL,
+  startURL,
+  clients,
+  acm,
+  rta,
+  rtp,
+  override,
+  ipfshost,
+  ipfsprotocol,
+  ipfsport,
+  ipfsLinks,
+  starting_block,
+  prefix,
+  leader,
+  msaccount,
+  msPubMemo,
+  msPriMemo,
+  msmeta,
+  ben,
+  adverts,
+  delegation,
+  delegationWeight,
+  TOKEN,
+  precision,
+  tag,
+  mainAPI,
+  jsonTokenName,
+  mainFE,
+  mainRender,
+  mainIPFS,
+  mainICO,
+  detail,
+  footer,
+  hive_service_fee,
+  features,
+  snapcs,
+  stream,
+  mode,
+  featuresModel,
+  timeoutStart,
+  timeoutContinuous,
+  rollup_ops,
+  mirrorNet,
 };
 
 module.exports = config;

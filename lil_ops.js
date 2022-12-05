@@ -49,6 +49,18 @@ const forceCancel = (rate, type, block_num) => {
 }
 exports.forceCancel = forceCancel
 
+const broca_calc = (obj, stats, bn) => {
+    const last_calc = require('./helpers').Base64.toNumber(obj.t)
+    const max = require("./helpers").Base64.toNumber(obj.m);
+    const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc))/max)
+    obj.b += accured
+    if(obj.b > max)obj.b = max
+    obj.t = require("./helpers").Base64.fromNumber(bn);
+    return obj
+}
+
+exports.broca_calc = broca_calc
+
 const reward_spk = (acc, bn) => {
     return new Promise((res, rej) => {
         const Pblock = getPathNum(["spkb", acc]);

@@ -112,7 +112,7 @@ exports.shares_claim = (json, from, active, pc) => {
         .catch(e => { console.log(e); });
 }
 
-exports.drop_claim = (json, from, active, pc) => {
+exports.claim = (json, from, active, pc) => {
     let tbp = getPathNum(['balances', from]),
         rd = getPathNum(['balances', 'rd']),
         totp = getPathNum(['stats', 'tokenSupply']),

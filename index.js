@@ -1,10 +1,10 @@
 const config = require("./config");
-const VERSION = "v1.2.0-rc"; //Did you change the package version?
+const VERSION = "v1.2.0-t1";
 exports.VERSION = VERSION;
 exports.exit = exit;
 exports.processor = processor;
 const hive = require("@hiveio/dhive");
-var client = new hive.Client(config.clientURL);
+var client = new hive.Client(config.clients);
 exports.client = client;
 var block = {
   ops: [],
@@ -15,7 +15,8 @@ var block = {
 exports.block = block;
 const express = require("express");
 const stringify = require("json-stable-stringify");
-const IPFS = require("ipfs-http-client-lite");
+const IPFS = require("ipfs-http-client-lite"); //ipfs-http-client doesn't work
+const fetch = require("node-fetch");
 var ipfs = IPFS(
   `${config.ipfsprotocol}://${config.ipfshost}:${config.ipfsport}`
 );
@@ -25,7 +26,6 @@ console.log(
   }`
 );
 exports.ipfs = ipfs;
-const fetch = require("node-fetch");
 const rtrades = require("./rtrades");
 var Pathwise = require("./pathwise");
 var level = require("level");
@@ -54,12 +54,10 @@ var plasma = {
     page: [],
     hashLastIBlock: 0,
     hashSecIBlock: 0,
-    //pagencz: []
   },
   jwt;
 exports.plasma = plasma;
 var NodeOps = [];
-//are these used still?
 exports.GetNodeOps = function () {
   return NodeOps;
 };
@@ -129,47 +127,47 @@ let TXID = {
   },
 };
 exports.TXID = TXID;
-
-let owners = {}
+let owners = {};
 let Owners = {
   is: function (acc) {
     if (owners[acc]) return 1;
     else return 0;
   },
-  activeUpdate: function (acc, key){
-    delete owners[owners[acc]]
-    owners[acc].key = key
+  activeUpdate: function (acc, key) {
+    delete owners[owners[acc]];
+    owners[acc].key = key;
   },
-  getKey: function (acc){
-    return owners[acc].key;
+  getKey: function (acc) {
+    return owners[acc]?.key;
   },
-  getAKey: function (i=0){
-    return Object.keys(owners)[i]
+  getAKey: function (i = 0) {
+    return owners[Object.keys(owners)[i]]?.key;
   },
-  numKeys: function (){
-    return Object.keys(owners).length
+  numKeys: function () {
+    return Object.keys(owners).length;
   },
-  init: function(){
-    getPathObj(["stats", "ms", "active_account_auths"]).then(auths => {
-      var q = []
-      for (var key in auths){
-        q.push(key)
+  init: function () {
+    getPathObj(["stats", "ms", "active_account_auths"]).then((auths) => {
+      var q = [];
+      for (var key in auths) {
+        q.push(key);
+
       }
       const { Hive } = require("./hive");
       Hive.getAccounts(q).then((r) => {
         owners = {};
         for (var i = 0; i < r.length; i++) {
-          owners[r[i].account] = { key: r[i].active.key_auths[0][0] };
+          owners[r[i].name] = { key: r[i].active.key_auths[0][0] };
         }
       });
-    })
-  }
+    });
+  },
 };
+exports.Owners = Owners;
 
-exports.Owners = Owners
 const API = require("./routes/api");
 const HR = require("./processing_routes/index");
-const { NFT, Chron, Watchdog } = require("./helpers");
+const { NFT, Chron, Watchdog, Log } = require("./helpers");
 const { release } = require("./processing_routes/dex");
 const { enforce } = require("./enforce");
 const { tally } = require("./tally");
@@ -204,13 +202,14 @@ exports.processor = processor;
 //HIVE API CODE
 
 //Start Program Options
-dynStart()
-//startWith("Qmf3jthuvSDv5Eto5eAnZVBzUdhbErEdFxUdicWHct9sF9", true);
+//dynStart();
+startWith("QmaufJ63Y31Tuy3vC1ipkX34Agp84G8XH2wQjvRaTcyopV", true);
 Watchdog.monitor();
 
 // API defs
 api.use(API.https_redirect);
 api.use(cors());
+api.get("/", API.root);
 api.get("/user_services/:un", API.servicesByUser);
 api.get("/services/:type", API.servicesByType);
 api.get("/stats", API.root);
@@ -283,10 +282,9 @@ http.listen(config.port, function () {
 if (config.rta && config.rtp) {
   rtrades.handleLogin(config.rta, config.rtp);
 }
-
 //starts block processor after memory has been loaded
 function startApp() {
-  Owners.init()
+  Owners.init();
   TXID.blocknumber = 0;
   if (config.ipfshost == "ipfs")
     ipfs.id(function (err, res) {
@@ -294,22 +292,15 @@ function startApp() {
       }
       if (res) plasma.id = res.id;
     });
-  processor = hiveState(
-    client,
-    hive,
-    startingBlock,
-    10,
-    config.prefix,
-    streamMode,
-    cycleAPI
-  );
+  processor = hiveState(client, startingBlock, config.prefix);
+  processor.on("rollup", HR.rollup);
+  processor.on("register_authority", HR.register_authority);
   processor.on("send", HR.send);
   processor.on("spk_send", HR.spk_send);
-  processor.on("claim", HR.drop_claim);
+  processor.on("claim", HR.claim);
   processor.on("shares_claim", HR.shares_claim);
   processor.on("node_add", HR.node_add);
-  //processor.on("node_delete", HR.node_delete);
-  processor.on("report", HR.report);
+  processor.on(`report${config.mirrorNet ? 'M' : ''}`, HR.report);
   processor.on("gov_down", HR.gov_down); //larynx collateral
   processor.on("gov_up", HR.gov_up); //larynx collateral
   processor.on("val_reg", HR.val_reg); //register a validator node
@@ -321,7 +312,7 @@ function startApp() {
   processor.on("val_check", HR.val_check); //Validator second check -> merge to val_report
   processor.onOperation("account_update", HR.account_update);
   processor.onOperation("comment", HR.comment);
-  processor.on("queueForDaily", HR.q4d);
+  //processor.on("queueForDaily", HR.q4d);
   processor.on("nomention", HR.nomention);
   processor.on("power_up", HR.power_up);
   processor.on("power_down", HR.power_down);
@@ -344,8 +335,8 @@ function startApp() {
   if (config.features.dex) {
     processor.on("dex_sell", HR.dex_sell);
     processor.on("dex_clear", HR.dex_clear);
-    processor.on("sig_submit", HR.sig_submit); //dlux is for putting executable programs into IPFS... this is for additional accounts to sign the code as non-malicious
-    processor.on("osig_submit", HR.osig_submit);
+    processor.on(`sig_submit${config.mirrorNet ? "M" : ""}`, HR.sig_submit); //dlux is for putting executable programs into IPFS... this is for additional accounts to sign the code as non-malicious
+    processor.on(`osig_submit${config.mirrorNet ? "M" : ""}`, HR.osig_submit);
   }
   if (config.features.dex || config.features.nft || config.features.ico) {
     processor.onOperation("transfer", HR.transfer);
@@ -383,7 +374,7 @@ function startApp() {
   }
   //do things in cycles based on block time
   processor.onBlock(function (num, pc, prand, bh) {
-    console.log(num);
+    Log.block(num);
     if (num < TXID.blocknumber) {
       require("process").exit(2);
     } else {
@@ -590,6 +581,19 @@ function startApp() {
                         b
                       ).then((x) => res(x));
                       break;
+                    case "spower_down": //needs work and testing
+                      let lbsp = getPathNum(["spk", b.by]),
+                        tspowp = getPathNum(["spow", "t"]),
+                        spowp = getPathNum(["spow", b.by]);
+                      Chron.sPowerDownOp(
+                        [lbsp, tspowp, spowp],
+                        b.by,
+                        passed.delKey,
+                        num,
+                        passed.delKey.split(":")[1],
+                        b
+                      ).then((x) => res(x));
+                      break;
                     case "post_reward":
                       Chron.postRewardOP(
                         b,
@@ -689,10 +693,21 @@ function startApp() {
                     "with",
                     result.head_block_number - num,
                     `left until real-time. DAO in ${
-                      30240 - ((num - 20000) % 30240)
+                      30240 - ((num - 20000) % 28800)
                     } blocks`
                   );
                 });
+            }
+            if(num % 10000 === 0){
+              const { Hive } = require("./hive");
+              Hive.getAccounts([config.msaccount]).then((r) => {
+                getPathObj(['stats']).then(stats =>{
+                  try {
+                    plasma.hbd_offset = stats.MSHeld.HBD - parseInt(parseFloat(r[0].hbd_balance) * 1000)
+                    plasma.hive_offset = stats.MSHeld.HIVE - parseInt(parseFloat(r[0].balance) * 1000)
+                  } catch (e) {}
+                })
+              });
             }
             if (num % 100 === 50) {
               promises.push(
@@ -870,24 +885,6 @@ function waitfor(promises_array) {
 }
 exports.waitfor = waitfor;
 
-//hopefully handling the HIVE garbage APIs
-function cycleAPI(restart) {
-  var c = 0;
-  for (i of config.clients) {
-    if (config.clientURL == config.clients[i]) {
-      c = i;
-      break;
-    }
-  }
-  if (c == config.clients.length - 1) {
-    c = -1;
-  }
-  config.clientURL = config.clients[c + 1];
-  console.log("Using APIURL: ", config.clientURL);
-  client = new hive.Client(config.clientURL);
-  if (restart) exit(plasma.hashLastIBlock, "API Changed");
-}
-
 //pulls the latest activity of an account to find the last state put in by an account to dynamically start the node.
 //this will include other accounts that are in the node network and the consensus state will be found if this is the wrong chain
 function dynStart(account) {
@@ -943,6 +940,7 @@ function startWith(hash, second) {
     console.log(`Attempting to start from IPFS save state ${hash}`);
     ipfspromise(hash)
       .then((blockInfo) => {
+        if (blockInfo[0] == "D") console.log(blockInfo);
         var blockinfo = JSON.parse(blockInfo);
         ipfspromise(blockinfo[1].root ? blockinfo[1].root : hash).then(
           (file) => {
@@ -960,14 +958,6 @@ function startWith(hash, second) {
                 if (!e && (second || data[0] > API.RAM.head - 325)) {
                   if (hash) {
                     var cleanState = data[1];
-                    // cleanState.stats.spk_rate_lgov = "0.001"
-                    // cleanState.stats.spk_rate_ldel = "0.00015"
-                    // cleanState.stats.spk_rate_lpow = "0.0001"
-                    // cleanState.runners = {
-                    //   regardspk: {
-                    //     g: 1,
-                    //   }
-                    // };
                     store.put([], cleanState, function (err) {
                       if (err) {
                         console.log("errr", err);
@@ -1007,7 +997,9 @@ function startWith(hash, second) {
                               );
                               //getPathNum(['balances', 'ra']).then(r=>console.log(r))
                             })
-                            .catch((e) => console.log("Failure of rundelta", e));
+                            .catch((e) =>
+                              console.log("Failure of rundelta", e)
+                            );
                         } else {
                           console.log("No Chain");
                           TXID.saveNumber = startingBlock;
@@ -1286,8 +1278,9 @@ function issc(n, b, i, r, a) {
         (block.chain.length > 2 &&
           block.chain[block.chain.length - 2].hive_block <
             block.chain[block.chain.length - 1].hive_block - 100) ||
-        chain.length > block.chain.length && block.chain[block.chain.length - 1].hash !=
-          chain[block.chain.length - 1].hash
+        (chain.length > block.chain.length &&
+          block.chain[block.chain.length - 1].hash !=
+            chain[block.chain.length - 1].hash)
       ) {
         exit(block.chain[block.chain.length - 2].hash, "Chain Out Of Order");
       } else if (typeof i == "function") {

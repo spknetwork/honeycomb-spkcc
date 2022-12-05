@@ -1,7 +1,8 @@
-const config = require('./config.js');
-const { hiveClient } = require('./index');
+const config = require("./config.js");
+const { hiveClient } = require("./index");
 
 const Hive = {
+
     getOwners: function (account){
         return new Promise(function (resolve, reject){
             hiveClient.api.setOptions({ url: config.startURL });
@@ -39,5 +40,4 @@ const Hive = {
         })
     }
 }
-
-exports.Hive = Hive
+exports.Hive = Hive;

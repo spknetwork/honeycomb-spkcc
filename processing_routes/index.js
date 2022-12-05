@@ -1,5 +1,6 @@
 const { onStreamingStart } = require('./onStreamingStart')
-const { spk_send, send, shares_claim, drop_claim } = require('./send')
+const { rollup, register_authority } = require("./rollups");
+const { spk_send, send, shares_claim, claim } = require('./send')
 const {
   val_check,
   val_report,
@@ -116,5 +117,8 @@ module.exports = {
   osig_submit,
   transfer,
   vote,
-  drop_claim,
+  claim,
+  rollup,
+  register_authority,
+  register_service,
 };

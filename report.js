@@ -12,6 +12,10 @@ function report(plas, con) {
                 ipfs_id: plas.id,
                 version: VERSION
             }
+            if(plas.hashBlock % 10000 == 1){
+                report.hive_offset = plas.hive_offset,
+                report.hbd_offset = plas.hbd_offset
+            }
         try {if(r.block > report.block){
                 report.sig = r.sig,
                 report.sig_block = r.block
@@ -22,12 +26,15 @@ function report(plas, con) {
             }
         } catch (e){}
 
-        var op = ["custom_json", {
+        var op = [
+          "custom_json",
+          {
             required_auths: [config.username],
             required_posting_auths: [],
-            id: `${config.prefix}report`,
-            json: JSON.stringify(report)
-        }];
+            id: `${config.prefix}report${config.mirrorNet ? "M" : ""}`,
+            json: JSON.stringify(report),
+          },
+        ];
         delete plasma.oracle
         resolve([
             [0, 0], op
@@ -44,12 +51,15 @@ function sig_submit(sign) {
                 sig: r.sig,
                 sig_block: r.block
             }
-        var op = ["custom_json", {
+        var op = [
+          "custom_json",
+          {
             required_auths: [config.username],
             required_posting_auths: [],
-            id: `${config.prefix}sig_submit`,
-            json: JSON.stringify(report)
-        }];
+            id: `${config.prefix}sig_submit${config.mirrorNet ? "M" : ""}`,
+            json: JSON.stringify(report),
+          },
+        ];
         resolve([
             [0, 0], op
         ])
@@ -65,12 +75,15 @@ function osig_submit(sign) {
                 sig: r.sig,
                 sig_block: r.block
             }
-        var op = ["custom_json", {
+        var op = [
+          "custom_json",
+          {
             required_auths: [config.username],
             required_posting_auths: [],
-            id: `${config.prefix}osig_submit`,
-            json: JSON.stringify(report)
-        }];
+            id: `${config.prefix}osig_submit${config.mirrorNet ? "M" : ""}`,
+            json: JSON.stringify(report),
+          },
+        ];
         resolve([
             [0, 0], op
         ])

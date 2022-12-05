@@ -103,8 +103,8 @@ function dao(num) {
                 t = 0;
             t = parseInt(bals.ra);
             for (var node in runners) { //node rate
-                b = parseInt(b) + parseInt(mnode[node].marketingRate) || 2500;
-                j = parseInt(j) + parseInt(mnode[node].bidRate) || 2500;
+                b = parseInt(b) + parseInt(mnode?.[node].marketingRate) || 2500;
+                j = parseInt(j) + parseInt(mnode?.[node].bidRate) || 2500;
                 i++;
                 console.log(b, j, i);
             }
@@ -379,9 +379,9 @@ function dao(num) {
                     }
                     for (var acc in dex.liq){
                         thisd = parseInt(liqt*(dex.liq[acc]/liqa))
-                        if(!bal[acc])bal[acc] = 0
-                        bal[acc] += thisd
-                        bal.rm -= thisd
+                        if (!bals[acc]) bals[acc] = 0;
+                        bals[acc] += thisd;
+                        bals.rm -= thisd;
                     }
                 }
                 delete dex.liq
@@ -578,27 +578,15 @@ function Liquidity(){
 }
 exports.Liquidity = Liquidity;
 
-function accountUpdate(stats, nodes, arr){
-    //get runners by gov balance
-    //find highest three that also have a public key
-    for (var i = 0; i < arr.length; i++) { //must have ms keys
-        if(!nodes[arr[i]].mskey){
-        arr.splice(i, 1)
-        i--
-        }
+function accountUpdate(stats, nodes, arr) {
+  //get runners by gov balance
+  //ensure have public key
+  for (var i = 0; i < arr.length; i++) {
+    if (!nodes[arr[i]].mskey) {
+      arr.splice(i, 1);
+      i--;
     }
-    var differrent = false
-    var same = true
-    var current = 0
-    Object.keys(stats.ms.active_account_auths).forEach(function(key) {
-        if(arr.indexOf(key) == -1) {
-            same = false
-            current++
-        }
-    })
-    for (var i = 0; i < arr.length; i++) {
-        if(stats.ms.active_account_auths[arr[i]] != 1)differrent = true
-    }
+
     if((same && current >= 3) || !differrent || arr.length < 2)return
     //if(arr.length > 3)arr = [arr[0], arr[1], arr[2]]
     var updateOp = {
@@ -608,22 +596,22 @@ function accountUpdate(stats, nodes, arr){
       "account_auths": [],
       "key_auths": []
     },
-    "owner": {
-      "weight_threshold": parseInt(arr.length/2 + 1),
-      "account_auths": [],
-      "key_auths": []
+    owner: {
+      weight_threshold: parseInt(arr.length / 2 + 1),
+      account_auths: [],
+      key_auths: [],
     },
-    "posting": {
-      "weight_threshold": 1,
-      "account_auths": [[config.leader, 1]],
-      "key_auths": []
+    posting: {
+      weight_threshold: 1,
+      account_auths: [[config.leader, 1]],
+      key_auths: [],
     },
-    "memo_key": config.msPubMemo,
-    "json_metadata": stringify(config.msmeta)
-  }
+    memo_key: config.msPubMemo,
+    json_metadata: stringify(config.msmeta),
+  };
   for (var i = 0; i < arr.length; i++) {
-    updateOp.active.account_auths.push([arr[i], 1])
-    updateOp.owner.key_auths.push([nodes[arr[i]].mskey, 1])
+    updateOp.active.account_auths.push([arr[i], 1]);
+    updateOp.owner.key_auths.push([nodes[arr[i]].mskey, 1]);
   }
-  return updateOp
+  return updateOp;
 }

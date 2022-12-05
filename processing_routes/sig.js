@@ -1,7 +1,7 @@
 const config = require('./../config')
 const { store, Owners } = require("./../index");
 const { getPathObj } = require("./../getPathObj");
-const { verify_broadcast, verify_sig } = require('./../tally');
+const { verify_broadcast, verify_tx_sig } = require("./../tally");
 
 exports.account_update = (json, pc) => {
     if(json.account == config.msaccount){
@@ -29,24 +29,64 @@ exports.account_update = (json, pc) => {
                 for (var i = 0; i < json.posting.account_auths.length;i++){
                     paccount_auths[json.posting.account_auths[i][0]] = json.posting.account_auths[i][1]
                 }
-                ops.push({type:'put', path:['stats', 'ms', 'posting_account_auths'], data: paccount_auths})
+                ops.push({type:'put', path:['stats', 'ms', 'active_account_auths'], data: paccount_auths})
                 if(json.posting.weight_threshold) ops.push({type:'put', path:['stats', 'ms', 'posting_threshold'], data: json.posting.weight_threshold})
             }
             if(json.memo_key) ops.push({type:'put', path:['stats', 'ms', 'memo_key'], data: json.memo_key})
             ops.push({type:'del', path:['msso']})
             store.batch(ops, pc)
-        }
+        } 
     } else if (json.active && Owners.is(json.account)) {
         Owners.activeUpdate(json.account, json.active.account_auths[0][0]);
-        pc[0](pc[2]);
+        pc[0](pc[2])
     } else {
-      pc[0](pc[2]);
+        pc[0](pc[2])
     }
-} 
+}
 
 exports.sig_submit = (json, from, active, pc) => {
     var Pop = getPathObj(['mss', `${json.sig_block}`]),
         Psigs = getPathObj(['mss', `${json.sig_block}:sigs`]),
+        Pstats = getPathObj(['stats'])
+    Promise.all([Pop, Pstats, Psigs])
+        .then(got => {
+            let msop = got[0],
+                stats = got[1],
+                sigs = got[2]
+                ops = []
+                try{
+                    msop = JSON.parse(msop)
+                } catch (e){}
+            if (active && stats.ms.active_account_auths[from] && msop.expiration) {
+                if(config.mode == 'verbose')console.log({sigs, from}, msop, json.sig, Owners.getKey(from))
+                if (verify_tx_sig(msop, json.sig, Owners.getKey(from))){
+                    if (config.mode == "verbose") console.log("VERIFIED");
+                    ops.push({
+                      type: "put",
+                      path: ["mss", `${json.sig_block}:sigs`],
+                      data: sigs,
+                    });
+                    sigs[from] = json.sig;
+                    if (Object.keys(sigs).length >= stats.ms.active_threshold) {
+                      let sigarr = [];
+                      for (var i in sigs) {
+                        sigarr.push(sigs[i]);
+                      }
+                      verify_broadcast(msop, sigarr, stats.ms.active_threshold);
+                    }
+                }
+                store.batch(ops, pc);
+                //try to sign
+            } else {
+                pc[0](pc[2])
+            }
+        })
+        .catch(e => { console.log(e); });
+}
+
+exports.osig_submit = (json, from, active, pc) => {
+    var Pop = getPathObj(['msso', `${json.sig_block}`]),
+        Psigs = getPathObj(['msso', `${json.sig_block}:sigs`]),
         Pstats = getPathObj(['stats'])
     Promise.all([Pop, Pstats, Psigs])
         .then(got => {
@@ -64,57 +104,13 @@ exports.sig_submit = (json, from, active, pc) => {
                     for(var i in sigs){
                         sigarr.push(sigs[i])
                     }
-                    verify_broadcast(msop, sigarr, stats.ms.active_threshold)
+                    verify_broadcast(msop, sigarr, stats.ms.owner_threshold)
                 }
-                ops.push({ type: 'put', path: ['mss', `${json.sig_block}:sigs`], data: sigs })
+                ops.push({ type: 'put', path: ['msso', `${json.sig_block}:sigs`], data: sigs })
                 store.batch(ops, pc);
                 //try to sign
             } else {
                 pc[0](pc[2])
-            }
-        })
-        .catch(e => { console.log(e); });
-}
-
-exports.osig_submit = (json, from, active, pc) => {
-    var Pop = getPathObj(['msso', `${json.sig_block}`]),
-        Psigs = getPathObj(['msso', `${json.sig_block}:sigs`]),
-        Pstats = getPathObj(['stats']),
-        Pnode = getPathObj(['markets', 'node', from])
-    Promise.all([Pop, Pstats, Psigs, Pnode])
-        .then(got => {
-            let msop = got[0],
-                stats = got[1],
-                sigs = got[2],
-                node = got[3],
-                ops = []
-                try{
-                    msop = JSON.parse(msop)
-                } catch (e){}
-            if (
-              stats.ms.owner_key_auths[node.mskey] &&
-              verify_sig(msop, json.sig, node.mskey) &&
-              active &&
-              stats.ms.active_account_auths[from] &&
-              msop.expiration
-            ) {
-              sigs[from] = json.sig;
-              if (Object.keys(sigs).length >= stats.ms.owner_threshold) {
-                let sigarr = [];
-                for (var i in sigs) {
-                  sigarr.push(sigs[i]);
-                }
-                verify_broadcast(msop, sigarr, stats.ms.owner_threshold, false);
-              }
-              ops.push({
-                type: "put",
-                path: ["msso", `${json.sig_block}:sigs`],
-                data: sigs,
-              });
-              store.batch(ops, pc);
-              //try to sign
-            } else {
-              pc[0](pc[2]);
             }
         })
         .catch(e => { console.log(e); });
