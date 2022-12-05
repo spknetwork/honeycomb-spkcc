@@ -2134,157 +2134,239 @@ exports.servicesByType = (req, res, next) => {
   });
 };
 
+exports.servicesByUser = (req, res, next) => {
+    let user = req.params.un;
+    let services = getPathObj(["services", user]);
+    Promise.all([services]).then(mem =>{
+        res.send(
+          JSON.stringify(
+            {
+              services: mem[0],
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
+    })
+}
+
+exports.servicesByType = (req, res, next) => {
+  let type = req.params.type;
+  let services = getPathObj(["service", type]);
+  Promise.all([services]).then((mem) => {
+      let s = Object.keys(mem[0]), t = []
+      for(var i = 0; i < s.length; i++){
+        t.push(getPathObj(["services", s[i], type]))
+      }
+      Promise.all(t).then(all => {
+        res.send(
+          JSON.stringify(
+            {
+              providers: mem[0],
+              services: all,
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
+      })
+  });
+};
+
 exports.user = (req, res, next) => {
-  let un = req.params.un,
-    bal = getPathNum(["balances", un]),
-    cbal = getPathNum(["cbalances", un]),
-    claims = getPathObj(["snap", un]),
-    pb = getPathNum(["pow", un]),
-    lp = getPathObj(["granted", un]),
-    lg = getPathObj(["granting", un]),
-    contracts = getPathObj(["contracts", un]),
-    incol = getPathNum(["col", un]), //collateral
-    gp = getPathNum(["gov", un]),
-    pup = getPathObj(["up", un]),
-    pdown = getPathObj(["down", un]),
-    pspk = getPathNum(["spk", un]),
-    pspkb = getPathNum(["spkb", un]),
-    tick = getPathObj(["dex", "hive", "tick"]),
-    powdown = getPathObj(["powd", un]),
-    govdown = getPathObj(["govd", un]),
-    chron = getPathObj(["chrono"]),
-    pspkpow = getPathNum(['spow', un]),
-    pspkdown = getPathObj(['spowd', un])
-  res.setHeader("Content-Type", "application/json");
-  Promise.all([
-    bal,
-    pb,
-    lp,
-    contracts,
-    incol,
-    gp,
-    pup,
-    pdown,
-    lg,
-    cbal,
-    claims,
-    pspk,
-    pspkb,
-    tick,
-    powdown,
-    govdown,
-    chron,
-    pspkpow,
-    pspkdown
-  ])
-    .then(function (v) {
-      var arr = [];
-      for (var i in v[3]) {
-        var c = v[3][i];
-        if (c.partial) {
-          c.partials = [];
-          for (var p in c.partial) {
-            var j = c.partial[p];
-            j.txid = p;
-            c.partials.push(j);
-          }
-        }
-        arr.push(c);
-      }
-      var power_downs = v[14];
-      if (power_downs) {
-        for (var pd in power_downs) {
-          power_downs[pd] = v[16][pd];
-        }
-      }
-      var spk_power_downs = v[18];
-      if (spk_power_downs) {
-        for (var pd in spk_power_downs) {
-          spk_power_downs[pd] = v[16][pd];
-        }
-      }
-      if (!v[10].s)
-        fetch(`${config.snapcs}/api/snapshot?u=${un}`)
-          .then((r) => r.json())
-          .then(function (claim) {
-            res.send(
-              JSON.stringify(
-                {
-                  balance: v[0],
-                  claim: v[9],
-                  drop: {
-                    availible: {
-                      amount: parseInt((claim.Larynx * 1000) / 12),
-                      precision: 3,
-                      token: "LARYNX",
+
+    let un = req.params.un,
+        bal = getPathNum(['balances', un]),
+        cbal = getPathNum(['cbalances', un]),
+        claims = getPathObj(['snap', un]),
+        pb = getPathNum(['pow', un]),
+        lp = getPathObj(['granted', un]),
+        lg = getPathObj(['granting', un]),
+        contracts = getPathObj(['contracts', un]),
+        incol = getPathNum(['col', un]), //collateral
+        gp = getPathNum(['gov', un]),
+        pup = getPathObj(['up', un]),
+        pdown = getPathObj(['down', un]),
+        pspk = getPathNum(['spk', un]),
+        pspkb = getPathNum(['spkb', un]),
+        tick = getPathObj(['dex', 'hive', 'tick']),
+        powdown = getPathObj(['powd', un]),
+        govdown = getPathObj(['govd', un]),
+        chron = getPathObj(['chrono'])
+    res.setHeader('Content-Type', 'application/json');
+    Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims, pspk, pspkb, tick, powdown, govdown, chron])
+        .then(function(v) {
+            var arr = []
+            for (var i in v[3]) {
+                var c = v[3][i]
+                if(c.partial){
+                    c.partials = []
+                    for(var p in c.partial){
+                        var j = c.partial[p]
+                        j.txid = p
+                        c.partials.push(j)
+                    }
+                }
+                arr.push(c)
+            }
+            var power_downs = v[14]
+            if (power_downs){
+                for(var pd in power_downs){
+                    power_downs[pd] = v[16][pd]
+                }
+            }
+              if (!v[10].s)
+                fetch(`${config.snapcs}/api/snapshot?u=${un}`)
+                  .then((r) => r.json())
+                  .then(function (claim) {
+                    res.send(
+                      JSON.stringify(
+                        {
+                          balance: v[0],
+                          claim: v[9],
+                          drop: {
+                            availible: {
+                              amount: parseInt((claim.Larynx * 1000) / 12),
+                              precision: 3,
+                              token: "LARYNX",
+                            },
+                            last_claim: 0,
+                            total_claims: 0,
+                          }, //v[10],
+                          poweredUp: v[1],
+                          granted: v[2],
+                          granting: v[8],
+                          heldCollateral: v[4],
+                          contracts: arr,
+                          up: v[6],
+                          down: v[7],
+                          power_downs,
+                          gov_downs: v[15],
+                          gov: v[5],
+                          spk: v[11],
+                          spk_block: v[12],
+                          tick: v[13],
+                          node: config.username,
+                          head_block: RAM.head,
+                          behind: RAM.behind,
+                          VERSION,
+                        },
+                        null,
+                        3
+                      )
+                    );
+                  })
+                  .catch((e) => {
+                    res.send(
+                      JSON.stringify(
+                        {
+                          balance: v[0],
+                          claim: v[9],
+                          drop: {
+                            availible: {
+                              amount: 0,
+                              precision: 3,
+                              token: "LARYNX",
+                            },
+                            last_claim: 0,
+                            total_claims: 0,
+                          }, //v[10],
+                          poweredUp: v[1],
+                          granted: v[2],
+                          granting: v[8],
+                          heldCollateral: v[4],
+                          contracts: arr,
+                          up: v[6],
+                          down: v[7],
+                          power_downs,
+                          gov_downs: v[15],
+                          gov: v[5],
+                          spk: v[11],
+                          spk_block: v[12],
+                          tick: v[13],
+                          node: config.username,
+                          head_block: RAM.head,
+                          behind: RAM.behind,
+                          VERSION,
+                        },
+                        null,
+                        3
+                      )
+                    );
+                  });
+              else {
+                res.send(
+                  JSON.stringify(
+                    {
+                      balance: v[0],
+                      claim: v[9],
+                      drop: {
+                        availible: {
+                          amount: v[10].s,
+                          precision: 3,
+                          token: "LARYNX",
+                        },
+                        last_claim: v[10].l,
+                        total_claims: v[10].t,
+                      }, //v[10],
+                      poweredUp: v[1],
+                      granted: v[2],
+                      granting: v[8],
+                      heldCollateral: v[4],
+                      contracts: arr,
+                      up: v[6],
+                      down: v[7],
+                      power_downs,
+                      gov_downs: v[15],
+                      gov: v[5],
+                      spk: v[11],
+                      spk_block: v[12],
+                      tick: v[13],
+                      node: config.username,
+                      head_block: RAM.head,
+                      behind: RAM.behind,
+                      VERSION,
                     },
-                    last_claim: 0,
-                    total_claims: 0,
-                  }, //v[10],
-                  poweredUp: v[1],
-                  granted: v[2],
-                  granting: v[8],
-                  heldCollateral: v[4],
-                  contracts: arr,
-                  up: v[6],
-                  down: v[7],
-                  power_downs,
-                  gov_downs: v[15],
-                  gov: v[5],
-                  spk: v[11],
-                  spk_block: v[12],
-                  spk_pow: v[17],
-                  spk_power_downs,
-                  tick: v[13],
-                  node: config.username,
-                  head_block: RAM.head,
-                  behind: RAM.behind,
-                  VERSION,
-                },
-                null,
-                3
-              )
-            );
-          })
-          .catch((e) => {
-            res.send(
-              JSON.stringify(
-                {
-                  balance: v[0],
-                  claim: v[9],
-                  drop: {
-                    availible: {
-                      amount: 0,
-                      precision: 3,
-                      token: "LARYNX",
-                    },
-                    last_claim: 0,
-                    total_claims: 0,
-                  }, //v[10],
-                  poweredUp: v[1],
-                  granted: v[2],
-                  granting: v[8],
-                  heldCollateral: v[4],
-                  contracts: arr,
-                  up: v[6],
-                  down: v[7],
-                  power_downs,
-                  gov_downs: v[15],
-                  gov: v[5],
-                  spk: v[11],
-                  spk_block: v[12],
-                  tick: v[13],
-                  node: config.username,
-                  head_block: RAM.head,
-                  behind: RAM.behind,
-                  VERSION,
-                },
-                null,
-                3
-              )
-            );
-          });
-      else {
+                    null,
+                    3
+                  )
+                );
+              }
+        })
+        .catch(function(err) {
+            console.log(err)
+        })
+}
+
+exports.blog = (req, res, next) => {
+    let un = req.params.un
+    res.setHeader('Content-Type', 'application/json')
+    let unn = alphabeticShift(un)
+
+    function alphabeticShift(inputString) {
+        var newString = []
+        for (var i = 0; i < inputString.length; i++) {
+            if (i == inputString.length - 1) newString.push(String.fromCharCode(inputString.charCodeAt(i) + 1))
+            else newString.push(String.fromCharCode(inputString.charCodeAt(i)))
+        }
+        return newString.join("")
+    }
+    store.someChildren(['posts'], {
+        gte: un,
+        lte: unn
+    }, function(e, a) {
+        let obj = {}
+        for (p in a) {
+            obj[a] = p[a]
+        }
         res.send(
           JSON.stringify(
             {

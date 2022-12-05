@@ -1,5 +1,5 @@
 const config = require("./config");
-const VERSION = "v1.2.0-test";
+const VERSION = "v1.2.0-t1";
 exports.VERSION = VERSION;
 exports.exit = exit;
 exports.processor = processor;
@@ -151,6 +151,7 @@ let Owners = {
       var q = [];
       for (var key in auths) {
         q.push(key);
+
       }
       const { Hive } = require("./hive");
       Hive.getAccounts(q).then((r) => {
@@ -162,8 +163,8 @@ let Owners = {
     });
   },
 };
-
 exports.Owners = Owners;
+
 const API = require("./routes/api");
 const HR = require("./processing_routes/index");
 const { NFT, Chron, Watchdog, Log } = require("./helpers");
@@ -223,6 +224,7 @@ api.get("/runners", API.runners); //list of accounts that determine consensus...
 api.get("/queue", API.queue);
 api.get("/api/protocol", API.protocol);
 api.get("/api/status/:txid", API.status);
+api.get("/services/")
 if (config.features.dex) {
   api.get("/dex", API.dex);
   api.get("/api/tickers", API.tickers);
@@ -1241,28 +1243,30 @@ function ipfspromise(hash) {
       catIPFS(hash, 1, ipfslinks);
     }
     function catIPFS(hash, i, arr) {
-      fetch(arr[i] + hash)
-        .then((r) => r.text())
-        .then((res) => {
-          if (res.split("")[0] == "<") {
-            console.log("HTML IPFS reply", res);
-            catIPFS(hash, i + 1, ipfslinks);
-          } else resolve(res);
-        })
-        .catch((e) => {
-          if (i < arr.length - 1) {
-            catIPFS(hash, i + 1, ipfslinks);
-          } else {
-            console.log("End of IPFS tries");
-            //reject(e);
-          }
-        });
+      if (arr[i])
+        fetch(arr[i] + hash)
+          .then((r) => r.text())
+          .then((res) => {
+            if (res.split("")[0] == "<" || res.split("")[0] == "D")
+              catIPFS(hash, i + 1, ipfslinks);
+            else {
+              console.log("Retrieved:", hash)
+              resolve(res);
+            }
+          })
+          .catch((e) => {
+            if (i < arr.length - 1) {
+              catIPFS(hash, i + 1, ipfslinks);
+            } else {
+              reject(e);
+            }
+          });
     }
   });
 }
 
 function issc(n, b, i, r, a) {
-  const chain = JSON.parse(b.toString())[1].chain;
+  const chain = JSON.parse(b.toString())[1].chain; //to verify runDelta matches current chain
   ipfsSaveState(n, b, i, r, a)
     .then((pla) => {
       TXID.saveNumber = pla.hashBlock;

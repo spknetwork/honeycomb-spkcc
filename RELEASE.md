@@ -11,6 +11,7 @@
 * Allow for more than 3 Multi-Signature holders
 * Verify Signature outside of HiveAPI
 * GetBlock Retry, Faster Block Replay
+
 * Fix Downpower memory leak.
 * Add API for Downpower
 * Docker Network Specified
@@ -26,6 +27,7 @@
   * DAO Claim Percent
 * Added API for SPK Power
 * Added SPK DEX and API
+
 
 ## 1.1
 

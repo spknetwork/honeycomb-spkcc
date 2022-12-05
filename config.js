@@ -35,7 +35,7 @@ const engineCrank =
 const rta = ENV.rta || '' //rtrades account : IPFS pinning interface
 const rtp = ENV.rtp || '' //rtrades password : IPFS pinning interface
 
-const ipfshost = ENV.ipfshost || "infura-ipfs.io"; //IPFS upload/download provider provider
+const ipfshost = ENV.ipfshost || "hiveipfs.rishipanthee.com"; //IPFS upload/download provider provider
 const ipfsport = ENV.ipfsport || '5001' //IPFS upload/download provider provider
 
 const ipfsLinks = ENV.ipfsLinks

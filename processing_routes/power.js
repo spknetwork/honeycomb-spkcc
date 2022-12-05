@@ -271,85 +271,62 @@ exports.power_grant = (json, from, active, pc) => {
 };
 
 exports.power_down = (json, from, active, pc) => {
-  var powp = getPathNum(["pow", from]),
-    powd = getPathObj(["powd", from]);
-  Promise.all([powp, powd])
-    .then((o) => {
-      let p = typeof o[0] != "number" ? 0 : o[0],
-        downs = o[1] || {},
-        ops = [],
-        assigns = [],
-        amount = parseInt(json.amount);
-      if (typeof amount == "number" && amount >= 0 && p >= amount && active) {
-        var odd = parseInt(amount % 4),
-          weekly = parseInt(amount / 4);
-        for (var i = 0; i < 4; i++) {
-          if (i == 3) {
-            weekly += odd;
-          }
-          assigns.push(
-            chronAssign(parseInt(json.block_num + 200000 * (i + 1)), {
-              block: parseInt(json.block_num + 200000 * (i + 1)),
-              op: "power_down",
-              amount: weekly,
-              by: from,
-            })
-          );
-        }
-        Promise.all(assigns).then((a) => {
-          var newdowns = {};
-          for (d in a) {
-            newdowns[a[d]] = a[d];
-          }
-          ops.push({
-            type: "del",
-            path: ["powd", from],
-          });
-          ops.push({ type: "put", path: ["powd", from], data: newdowns });
-          for (i in downs) {
-            ops.push({ type: "del", path: ["chrono", i] });
-          }
-          const msg = `@${from}| Powered down ${parseFloat(
-            amount / 1000
-          ).toFixed(3)} ${config.TOKEN}`;
-          if (config.hookurl || config.status)
-            postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
-          ops.push({
-            type: "put",
-            path: ["feed", `${json.block_num}:${json.transaction_id}`],
-            data: msg,
-          });
-          store.batch(ops, pc);
-        });
-      } else if (typeof amount == "number" && amount == 0 && active) {
-        for (i in downs) {
-          ops.push({ type: "del", path: ["chrono", downs[i]] });
-        }
-        const msg = `@${from}| Canceled Power Down`;
-        if (config.hookurl || config.status)
-          postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
-        ops.push({
-          type: "put",
-          path: ["feed", `${json.block_num}:${json.transaction_id}`],
-          data: msg,
-        });
-        store.batch(ops, pc);
-      } else {
-        const msg = `@${from}| Invalid Power Down`;
-        if (config.hookurl || config.status)
-          postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
-        ops.push({
-          type: "put",
-          path: ["feed", `${json.block_num}:${json.transaction_id}`],
-          data: msg,
-        });
-        store.batch(ops, pc);
-      }
-    })
-    .catch((e) => {
-      console.log(e);
-    });
-};
+    var powp = getPathNum(['pow', from]),
+        powd = getPathObj(['powd', from]);
+    Promise.all([powp, powd])
+        .then(o => {
+            let p = typeof o[0] != 'number' ? 0 : o[0],
+                downs = o[1] || {},
+                ops = [],
+                assigns = [],
+                amount = parseInt(json.amount)
+            if (typeof amount == 'number' && amount >= 0 && p >= amount && active) {
+                var odd = parseInt(amount % 4),
+                    weekly = parseInt(amount / 4);
+                for (var i = 0; i < 4; i++) {
+                    if (i == 3) {
+                        weekly += odd;
+                    }
+                    assigns.push(chronAssign(parseInt(json.block_num + (200000 * (i + 1))), {
+                        block: parseInt(json.block_num + (200000 * (i + 1))),
+                        op: 'power_down',
+                        amount: weekly,
+                        by: from
+                    }));
+                }
+                Promise.all(assigns)
+                    .then(a => {
+                        var newdowns = {};
+                        for (d in a) {
+                            newdowns[a[d]] = a[d];
+                        }
+                        ops.push({
+                          type: "del",
+                          path: ["powd", from]
+                        });
+                        ops.push({ type: 'put', path: ['powd', from], data: newdowns });
+                        for (i in downs) {
+                            ops.push({ type: 'del', path: ['chrono', i] });
+                        }
+                        const msg = `@${from}| Powered down ${parseFloat(amount / 1000).toFixed(3)} ${config.TOKEN}`
+                        if (config.hookurl || config.status) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
+                        ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
+                        store.batch(ops, pc);
+                    });
+            } else if (typeof amount == 'number' && amount == 0 && active) {
+                for (i in downs) {
+                    ops.push({ type: 'del', path: ['chrono', downs[i]] });
+                }
+                const msg = `@${from}| Canceled Power Down`
+                if (config.hookurl || config.status) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
+                ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
+                store.batch(ops, pc);
+            } else {
+                const msg = `@${from}| Invalid Power Down`
+                if (config.hookurl || config.status) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
+                ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
+                store.batch(ops, pc);
+            }
 
 exports.spk_up = (json, from, active, pc) => {
   reward_spk(from, json.block_num).then((interest) => {

@@ -586,19 +586,15 @@ function accountUpdate(stats, nodes, arr) {
       arr.splice(i, 1);
       i--;
     }
-  }
-  var differrent = false;
-  for (var i = 0; i < arr.length; i++) {
-    if (stats.ms.active_account_auths[arr[i]] != 1) differrent = true;
-  }
-  if (!differrent || arr.length < 3) return; //don't send duplicate updates, don't reduce key holders below 3
-  if(arr.length > 40)arr = arr.slice(0,40)
-  var updateOp = {
-    account: config.msaccount,
-    active: {
-      weight_threshold: parseInt(arr.length / 2 + 1),
-      account_auths: [],
-      key_auths: [],
+
+    if((same && current >= 3) || !differrent || arr.length < 2)return
+    //if(arr.length > 3)arr = [arr[0], arr[1], arr[2]]
+    var updateOp = {
+    "account": config.msaccount,
+    "active": {
+      "weight_threshold": parseInt(arr.length/2 + 1),
+      "account_auths": [],
+      "key_auths": []
     },
     owner: {
       weight_threshold: parseInt(arr.length / 2 + 1),

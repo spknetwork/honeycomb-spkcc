@@ -3,6 +3,7 @@ const { store } = require('./../index')
 const { getPathObj, deleteObjs } = require('./../getPathObj')
 const { isEmpty } = require('./../lil_ops')
 const { postToDiscord } = require('./../discord')
+const { send } = require('@hiveio/hive-js/lib/broadcast')
 const { decode, encode } = require('@hiveio/hive-js').memo
 
 exports.register_service = function (json, from, active, pc) {
@@ -77,6 +78,7 @@ exports.register_service = function (json, from, active, pc) {
       console.log(e);
     });
 };
+
 
 exports.node_add = function(json, from, active, pc) {
     if (json.domain && typeof json.domain === 'string') {

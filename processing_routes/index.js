@@ -62,6 +62,7 @@ module.exports = {
   val_bytes_flag,
   val_add,
   val_reg,
+  register_service,
   nft_pfp,
   ft_bid,
   ft_auction,
