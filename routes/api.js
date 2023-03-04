@@ -2002,82 +2002,6 @@ exports.user = (req, res, next) => {
                 }
                 arr.push(c)
             }
-            if(!v[10].s)fetch(`${config.snapcs}/api/snapshot?u=${un}`).then(r => r.json()).then(function(claim) {
-            res.send(
-              JSON.stringify(
-                {
-                  balance: v[0],
-                  claim: v[9],
-                  drop: {
-                    availible: {
-                      amount: parseInt((claim.Larynx * 1000) / 12),
-                      precision: 3,
-                      token: "LARYNX",
-                    },
-                    last_claim: 0,
-                    total_claims: 0,
-                  }, //v[10],
-                  poweredUp: v[1],
-                  granted: v[2],
-                  granting: v[8],
-                  heldCollateral: v[4],
-                  contracts: arr,
-                  up: v[6],
-                  down: v[7],
-                  power_downs: v[14],
-                  gov_downs: v[15],
-                  gov: v[5],
-                  spk: v[11],
-                  spk_block: v[12],
-                  tick: v[13],
-                  node: config.username,
-                  head_block: RAM.head,
-                  behind: RAM.behind,
-                  VERSION,
-                },
-                null,
-                3
-              )
-            );
-            }).catch(e=>{
-            res.send(
-              JSON.stringify(
-                {
-                  balance: v[0],
-                  claim: v[9],
-                  drop: {
-                    availible: {
-                      amount: 0,
-                      precision: 3,
-                      token: "LARYNX",
-                    },
-                    last_claim: 0,
-                    total_claims: 0,
-                  }, //v[10],
-                  poweredUp: v[1],
-                  granted: v[2],
-                  granting: v[8],
-                  heldCollateral: v[4],
-                  contracts: arr,
-                  up: v[6],
-                  down: v[7],
-                  power_downs: v[14],
-                  gov_downs: v[15],
-                  gov: v[5],
-                  spk: v[11],
-                  spk_block: v[12],
-                  tick: v[13],
-                  node: config.username,
-                  head_block: RAM.head,
-                  behind: RAM.behind,
-                  VERSION,
-                },
-                null,
-                3
-              )
-            );
-            })
-            else {
                 res.send(
                   JSON.stringify(
                     {
@@ -2085,13 +2009,13 @@ exports.user = (req, res, next) => {
                       claim: v[9],
                       drop: {
                         availible: {
-                          amount: v[10].s,
+                          amount: 0,
                           precision: 3,
                           token: "LARYNX",
                         },
-                        last_claim: v[10].l,
-                        total_claims: v[10].t,
-                      }, //v[10],
+                        last_claim: v[10].l ? v[10].l : 0,
+                        total_claims: v[10].t ? v[10].t : 0,
+                      },
                       poweredUp: v[1],
                       granted: v[2],
                       granting: v[8],
