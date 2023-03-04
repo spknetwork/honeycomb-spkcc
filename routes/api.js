@@ -2038,7 +2038,6 @@ exports.user = (req, res, next) => {
                     3
                   )
                 );
-            }
         })
         .catch(function(err) {
             console.log(err)
