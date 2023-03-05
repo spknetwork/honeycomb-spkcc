@@ -12,6 +12,8 @@ services:
     image: ipfs/kubo:latest
     restart: unless-stopped
     # command: --routing=dhtclient
+    environment:
+      IPFS_PROFILE=server
     deploy:
       resources:
         limits:
