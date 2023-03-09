@@ -1,5 +1,5 @@
 const config = require("./config");
-const VERSION = "v1.1.6"; //Did you change the package version?
+const VERSION = "v1.1.7"; //Did you change the package version?
 exports.VERSION = VERSION;
 exports.exit = exit;
 exports.processor = processor;
@@ -255,7 +255,7 @@ function startApp() {
   processor = hiveState(client, startingBlock, config.prefix, config.username);
   processor.on("send", HR.send);
   processor.on("spk_send", HR.spk_send);
-  processor.on("claim", HR.drop_claim);
+  processor.on("claim", HR.drop_claim);  //remove 
   processor.on("shares_claim", HR.shares_claim);
   processor.on("node_add", HR.node_add);
   //processor.on("node_delete", HR.node_delete);
