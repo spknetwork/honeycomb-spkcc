@@ -1,6 +1,14 @@
 const { onStreamingStart } = require('./onStreamingStart')
-const { rollup, register_authority } = require("./rollups");
-const { spk_send, send, shares_claim, claim } = require('./send')
+const { 
+  rollup, 
+  register_authority,
+  channel_open,
+  channel_update,
+  store,
+  extend,
+  remove
+} = require("./rollups");
+const { spk_send, send, shares_claim } = require('./send')
 const {
   val_check,
   val_report,
@@ -9,9 +17,10 @@ const {
   val_bytes_flag,
   val_add,
   val_reg,
+  poa
 } = require("./validators");
 const { gov_up, gov_down } = require('./gov')
-const { power_up, power_down, power_grant } = require('./power')
+const { power_up, power_down, power_grant, spk_vote, val_vote, spk_up, spk_down } = require('./power')
 const { delegate_vesting_shares } = require('./delegate_vesting_shares')
 const { vote } = require('./vote')
 const { cert } = require('./cert')
@@ -19,7 +28,7 @@ const { sig_submit, osig_submit, account_update } = require('./sig')
 const { cjv } = require('./cjv')
 const { nomention } = require('./nomention')
 const { q4d } = require('./q4d')
-const { node_add, node_delete, register_service } = require("./nodes");
+const { node_add, register_service, register_service_type, validator_burn } = require("./nodes");
 const { dex_sell, dex_clear, transfer, margins } = require('./dex')
 const { comment, comment_options } = require('./comment')
 const { report } = require('./report')
@@ -62,7 +71,6 @@ module.exports = {
   val_bytes_flag,
   val_add,
   val_reg,
-  register_service,
   nft_pfp,
   ft_bid,
   ft_auction,
@@ -103,7 +111,6 @@ module.exports = {
   gov_down,
   gov_up,
   node_add,
-  node_delete,
   nomention,
   onStreamingStart,
   power_down,
@@ -117,8 +124,18 @@ module.exports = {
   osig_submit,
   transfer,
   vote,
-  claim,
-  rollup,
+  spk_vote,
+  val_vote,
+  spk_up, 
+  spk_down,
   register_authority,
+  channel_open,
+  channel_update,
+  store,
+  extend,
+  remove,
   register_service,
+  register_service_type,
+  validator_burn,
+  poa
 };

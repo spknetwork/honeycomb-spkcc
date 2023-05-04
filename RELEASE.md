@@ -1,17 +1,29 @@
 # Release Notes
 
+## TODO
+
+* Fix HIVE/HBD Offset
+* Add SPK DEX and API
+* LARYNX Deflation and Auction System
+* Finish validator cycle
+* remove "ds""dv""escrows""contracts""moved" from node
+* API for dynamics
+* documentation
+* feature feedback
+* testing
+
 ## 1.2
 
 ### 1.2.0
 
-* Can Add IPFS/Generic Node API
+* Can Add IPFS services
 * State Channel / Rollups for Proof of Access
 * Ensure Consensus has a majority of owners (double majority)
 * Ensure reassembled State is equivilent to Consensus
 * Allow for more than 3 Multi-Signature holders
 * Verify Signature outside of HiveAPI
+  * Can update PubKeys
 * GetBlock Retry, Faster Block Replay
-
 * Fix Downpower memory leak.
 * Add API for Downpower
 * Docker Network Specified
@@ -26,7 +38,9 @@
   * Max number of Runners
   * DAO Claim Percent
 * Added API for SPK Power
-* Added SPK DEX and API
+* Added BROCA and API
+* Added Validator voting
+* Added Validator mechanism
 
 
 ## 1.1

@@ -408,31 +408,24 @@ exports.transfer = (json, pc) => {
   json = naizer(json);
   if (
     config.features.ico &&
-    json.to == config.mainICO &&
+    json.to == config.msaccount &&
     json.amount.nai == "@@000000021" &&
-    json.from != config.msaccount
+    json.from != config.msaccount && 
+    json.memo == 'AUCTION'
   ) {
-    //the ICO disribution... should be in multi sig account
     const amount = parseInt(json.amount.amount);
     var purchase,
       Pstats = getPathObj(["stats"]),
-      Pbal = getPathNum(["balances", json.from]),
-      Pinv = getPathNum(["balances", "ri"]);
-    Promise.all([Pstats, Pbal, Pinv]).then(function (v) {
+      Pbal = getPathNum(["auction", json.from])
+    Promise.all([Pstats, Pbal]).then(function (v) {
       var stats = v[0],
-        b = v[1],
-        i = v[2],
+        bal = v[1] + amount
         ops = [];
-      if (!stats.outOnBlock) {
-        purchase = parseInt((amount / stats.icoPrice) * 1000);
-        if (purchase < i) {
-          i -= purchase;
-          b += purchase;
-          const msg = `@${json.from}| bought ${parseFloat(
-            purchase / 1000
-          ).toFixed(3)} ${config.TOKEN} with ${parseFloat(
+        if(!stats.inAuction)stats.inAuction = 0
+        stats.inAuction += amount
+          const msg = `@${json.from}| placed ${parseFloat(
             amount / 1000
-          ).toFixed(3)} HIVE`;
+          ).toFixed(3)} HIVE into daily auction.`;
           if (config.hookurl || config.status)
             postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
           ops = [
@@ -441,72 +434,18 @@ exports.transfer = (json, pc) => {
               path: ["feed", `${json.block_num}:${json.transaction_id}`],
               data: msg,
             },
-            { type: "put", path: ["balances", json.from], data: b },
-            { type: "put", path: ["balances", "ri"], data: i },
-          ];
-          if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-          store.batch(ops, pc);
-        } else {
-          b += i;
-          const left = purchase - i;
-          stats.outOnBlock = json.block_num;
-          const msg = `@${json.from}| bought ALL ${parseFloat(
-            parseInt(purchase - left)
-          ).toFixed(3)} ${config.TOKEN} with ${parseFloat(
-            parseInt(amount) / 1000
-          ).toFixed(3)} HIVE. And bid in the over-auction`;
-          if (config.hookurl || config.status)
-            postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
-          ops = [
-            {
-              type: "put",
-              path: ["ico", `${json.block_num}`, json.from],
-              data: parseInt((amount * left) / purchase),
-            },
-            { type: "put", path: ["balances", json.from], data: b },
-            { type: "put", path: ["balances", "ri"], data: 0 },
+            { type: "put", path: ["auction", json.from], data: bal },
             { type: "put", path: ["stats"], data: stats },
-            {
-              type: "put",
-              path: ["feed", `${json.block_num}:${json.transaction_id}`],
-              data: msg,
-            },
           ];
           if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
           store.batch(ops, pc);
-        }
-      } else {
-        const msg = `@${json.from}| bought ALL ${parseFloat(
-          parseInt(purchase - left)
-        ).toFixed(3)} ${config.TOKEN} with ${parseFloat(
-          parseInt(amount) / 1000
-        ).toFixed(3)} HIVE. And bid in the over-auction`;
-        if (config.hookurl || config.status)
-          postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
-        ops = [
-          {
-            type: "put",
-            path: ["ico", `${json.block_num}`, json.from],
-            data: parseInt(amount),
-          },
-          {
-            type: "put",
-            path: ["feed", `${json.block_num}:${json.transaction_id}`],
-            data: msg,
-          },
-        ];
-        if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-        store.batch(ops, pc);
-      }
     });
   } else if (
     (config.features.dex || config.features.nft) &&
     json.to == config.msaccount &&
     json.from != config.mainICO
   ) {
-    if (json.from == "disregardfiat" && json.memo == "IGNORE") {
-      pc[0](pc[2]);
-    } else if (
+    if (
       json.memo.split(" ").length > 1 &&
       json.memo.split(" ")[0] == "NFT"
     ) {
@@ -2163,7 +2102,7 @@ exports.margins = function (bn) {
         ),
         changed = [];
       promises = [];
-      if (stats.MSHeld.HIVE > allowedHive)
+      if (stats.MSHeld.HIVE > allowedHive && !config.mirrorNet)
         console.log(stats.MSHeld.HIVE, { allowedHive });
       if (stats.MSHeld.HIVE > allowedHive) {
         var p = dex.hive.buyBook.split(","),

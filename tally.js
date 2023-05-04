@@ -123,11 +123,11 @@ exports.tally = (num, plasma, isStreaming) => {
                     var hive_offset = 0
                     var hbd_offset = 0
                     for (var owner in stats.ms.active_account_auths) {
-                        if(nodes[owner].report.hive_offset == hive_offset || (!owners && nodes[owner].report.hive_offset))hive_offset = nodes[owner].report.hive_offset
+                        if(nodes[owner]?.report?.block % 10000 < 101 && nodes[owner]?.report?.hive_offset == hive_offset || (!owners && nodes[owner]?.report?.hive_offset))hive_offset = nodes[owner]?.report?.hive_offset
                         else hive_offset = 0
-                        if(nodes[owner].report.hbd_offset == hbd_offset || (!owners && nodes[owner].report.hbd_offset))hbd_offset = nodes[owner].report.hbd_offset
+                        if(nodes[owner]?.report?.block % 10000 < 101 && nodes[owner]?.report?.hbd_offset == hbd_offset || (!owners && nodes[owner]?.report?.hbd_offset))hbd_offset = nodes[owner]?.report?.hbd_offset
                         else hbd_offset = 0
-                        if (nodes[owner].report.hash == consensus) {
+                        if (nodes[owner]?.report?.hash == consensus) {
                             owners++;
                         }
                     }
@@ -146,7 +146,7 @@ exports.tally = (num, plasma, isStreaming) => {
                                 for (var owner in stats.ms
                                     .active_account_auths) {
                                     if (
-                                        nodes[owner].report.hash ==
+                                        nodes[owner]?.report?.hash ==
                                         tally.agreements.hashes[hash]
                                     ) {
                                         owners++;
@@ -193,7 +193,7 @@ exports.tally = (num, plasma, isStreaming) => {
                             highest_low_sum = 0,
                             optimal_number = 0;
                         counting_array.sort((a, b) => b - a);
-                        for (var j = 9; j < counting_array.length || j == 25; j++) {
+                        for (var j = 9; j < counting_array.length || j == parseInt(stats.max_coll_members); j++) {
                             low_sum = 0;
                             for (i = parseInt(j / 2) + 1; i < j; i++) {
                                 low_sum += counting_array[i];
@@ -205,7 +205,7 @@ exports.tally = (num, plasma, isStreaming) => {
                                 stats.gov_threshhold = last_bal;
                             }
                         }
-                        if (Object.keys(still_running).length < 25) {
+                        if (Object.keys(still_running).length < parseInt(stats.max_coll_members)) {
                             let winner = {
                                 node: "",
                                 g: 0,

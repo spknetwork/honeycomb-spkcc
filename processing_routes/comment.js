@@ -93,13 +93,85 @@ exports.comment = (json, pc) => {
 exports.comment_options = (json, pc) => {
     //console.log(json)
     try {
-        var filter = json.extensions[0][1].beneficiaries
+        var filter = json.extensions?.[0]?.[1]?.beneficiaries ? json.extensions[0][1].beneficiaries : json.extensions[0].value.beneficiaries
     } catch (e) {
         pc[0](pc[2])
         return
     }
-    var ops = []
+    var ops = [],
+        promises = []
+    
     for (var i = 0; i < filter.length; i++) {
+        promises.push(getPathObj['ben', json.author, filter[i].account ])
+    }
+    if(promises.length){
+        Promise.all(promises)
+        .then(q => {
+            var contractPointers = []
+            for (var i = 0; i < q.length; i++){
+                //console.log(q[i])
+                if(q[i]){
+                    contractPointers.push([i, q[i]])
+                }
+            }
+            promises = []
+            if(contractPointers.length){
+                for (var j = 0; j < contractPointers.length; j++){
+                    promises.push(getPathObj['contract', json.author, contractPointers[j][1] ])
+                }
+                Promise.all(promises)
+                .then(contracts => {
+                    promises = []
+                    for(var k = 0; k < contracts.length; k++){
+                        if(contract[k].s && 
+                            contract[k].s.split(',')[0] == filter[contractPointers[k][0]].account && 
+                            contract[k].s.split(',')[1] <= filter[contractPointers[k][0]].weight){
+                                contract[k].c++
+                                promises.push(exp_path(contract[k], json.author, contractPointers[k][1]))
+                                ops.push({
+                                    type: 'del',
+                                    path: ['ben', json.author, filter[contractPointers[k][0]].account ]
+                                })
+                                ops.push({
+                                    type: 'del',
+                                    path: ['proffer', json.author, contract[k].f, "1" ]
+                                })
+                            }
+                    }
+                    Promise.all(promises).then(cons =>{
+                        ops = [...ops, ...cons]
+                        store.batch(ops, pc)
+                    })
+                    function exp_path(Contract, author, pointer){
+                        return new Promise((res,rej)=>{
+                        chronAssign(Contract.exp, {
+                            block: Contract.exp,
+                            op: 'contract_close',
+                            fo: Contract.to,
+                            id: Contract.i
+                          }).then(exp_path =>{
+                            Contract.e = exp_path
+                            delete Contract.exp
+                                res({
+                                    type: 'put',
+                                    path: ['contract', author, pointer ],
+                                    data: Contract
+                                })
+                          })
+                        })
+                    }
+                })
+            } else {
+                pc[0](pc[2])
+            }
+        })
+    } else {
+        pc[0](pc[2])
+    }
+}
+
+/*
+for (var i = 0; i < filter.length; i++) {
         if (config.features.pob && filter[i].account == config.ben && filter[i].weight >= config.delegationWeight) {
             store.get(['pend', `${json.author}/${json.permlink}`], function(e, a) {
                 if (e) { console.log(e) }
@@ -155,54 +227,53 @@ exports.comment_options = (json, pc) => {
                     if(config.pintoken){
                         //ipfsVerify(`${json.author}:${json.permlink}`, pins)
                     }
-                    /*
-                    if (config.pintoken) {
-                        var pins = []
-                        for (i in a.meta.assets) {
-                            if (a.meta.assets[i].pin) pins.push({ hash: a.meta.assets[i].hash })
-                            if (a.meta.assets[i].pin && a.meta.assets[i].thumbHash && a.meta.assets[i].thumbHash != a.meta.assets[i].hash) pins.push({ hash: a.meta.assets[i].hash })
-                        }
-                        if (pins.length) {
-                            var options = {
-                                'method': 'POST',
-                                'url': config.pinurl,
-                                'headers': {
-                                    'Content-Type': 'application/json'
-                                },
-                                formData: {
-                                    'items': JSON.stringify(pins),
-                                    'secret': config.pintoken,
-                                    'by': json.author,
-                                    'block': json.block_num.toString()
-                                }
-                            };
-                            request(options, function(error, response) {
-                                if (error) throw new Error(error);
-                                console.log(response.body);
-                            });
-                        }
-                    }
-                    */
-                    /*
-                    if (config.username == config.leader) {
-                        var bytes = rtrades.checkNpin(a.meta.assets)
-                        bytes.then(function(value) {
-                            var op = ["custom_json", {
-                                required_auths: [config.username],
-                                required_posting_auths: [],
-                                id: `${config.prefix}cjv`,
-                                json: JSON.stringify({
-                                    a: json.author,
-                                    p: json.permlink,
-                                    b: value //amount of bytes posted
-                                })
-                            }]
-                            unshiftOp([
-                                [0, 0], op
-                            ])
-                        })
-                    }
-                    */
+                    
+                    // if (config.pintoken) {
+                    //     var pins = []
+                    //     for (i in a.meta.assets) {
+                    //         if (a.meta.assets[i].pin) pins.push({ hash: a.meta.assets[i].hash })
+                    //         if (a.meta.assets[i].pin && a.meta.assets[i].thumbHash && a.meta.assets[i].thumbHash != a.meta.assets[i].hash) pins.push({ hash: a.meta.assets[i].hash })
+                    //     }
+                    //     if (pins.length) {
+                    //         var options = {
+                    //             'method': 'POST',
+                    //             'url': config.pinurl,
+                    //             'headers': {
+                    //                 'Content-Type': 'application/json'
+                    //             },
+                    //             formData: {
+                    //                 'items': JSON.stringify(pins),
+                    //                 'secret': config.pintoken,
+                    //                 'by': json.author,
+                    //                 'block': json.block_num.toString()
+                    //             }
+                    //         };
+                    //         request(options, function(error, response) {
+                    //             if (error) throw new Error(error);
+                    //             console.log(response.body);
+                    //         });
+                    //     }
+                    // }
+                    
+                    // if (config.username == config.leader) {
+                    //     var bytes = rtrades.checkNpin(a.meta.assets)
+                    //     bytes.then(function(value) {
+                    //         var op = ["custom_json", {
+                    //             required_auths: [config.username],
+                    //             required_posting_auths: [],
+                    //             id: `${config.prefix}cjv`,
+                    //             json: JSON.stringify({
+                    //                 a: json.author,
+                    //                 p: json.permlink,
+                    //                 b: value //amount of bytes posted
+                    //             })
+                    //         }]
+                    //         unshiftOp([
+                    //             [0, 0], op
+                    //         ])
+                    //     })
+                    // }
+                    
                     ops.push({ type: 'del', path: ['pend', `${json.author}/${json.permlink}`] })
                     ops.push({ type: 'del', path: ['chrono', `${a.block_num + 28800}:pend:${json.author}/${json.permlink}`] })
                     const msg = `@${json.author}|${json.permlink} added to ${config.TOKEN} rewardable content`
@@ -224,4 +295,4 @@ exports.comment_options = (json, pc) => {
             pc[0](pc[2])
         }
     }
-}
+*/

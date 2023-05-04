@@ -7,47 +7,48 @@ services:
   #   build:
   #     context: .
   #     dockerfile: ./snap/Dockerfile
-  ipfs:
+  # ipfs:
     # docker run -d --name ipfs_host -v $ipfs_staging:/export -v $ipfs_data:/data/ipfs -p 4001:4001 -p 127.0.0.1:8080:8080 -p 127.0.0.1:5001:5001 ipfs/go-ipfs:latest
-    image: ipfs/kubo:latest
-    restart: unless-stopped
+    # image: ipfs/kubo:latest
+    # restart: unless-stopped
     # command: --routing=dhtclient
-    deploy:
-      resources:
-        limits:
-          memory: 500m
-    ports:
-      - 4001:4001
-      - 8080:8080
-      - 5001:5001
-    volumes:
+    # deploy:
+      # resources:
+        # limits:
+          # memory: 500m
+    # ports:
+      # - 4001:4001
+      # - 8080:8080
+      # - 5001:5001
+    # volumes:
       # - type: bind
       #   source: ./staging_dir
       #   target: /export
       # - type: bind
       #   source: ./data_dir
       #   target: /data/ipfs
-      - ./staging_dir:/export
+      # - ./staging_dir:/export
       # - ./data_dir:/data/ipfs
-      - ipfs:/data/ipfs
-    networks:
-      - honeycomb
+      # - ipfs:/data/ipfs
+    # networks:
+      # - honeycomb
   honeycomb:
     # depends_on:
     #   - ipfs
     build: .
     restart: unless-stopped
-    ports:
-      - "3001:3001"
+    network_mode: "host"
+#     ports:
+#       - "3002:3001"
     environment:
-      - ipfshost=ipfs
+      - ipfshost=127.0.0.1
       - ipfsprotocol=http
       - ipfsport=5001
       # - SNAPBASE_URL=http://snap:8001
     stdin_open: true
     tty: true
-    networks:
-      - honeycomb
+#     networks:
+  #     - host
   # node-2:
   #   image: ipfs/go-ipfs:latest
   #   build:
@@ -74,9 +75,9 @@ services:
   #     - ./private-network/init.sh:/usr/local/bin/start_ipfs
   #   ports:
   #     - 8080
-volumes:
-  ipfs:
-  snap:
+# volumes:
+  # ipfs:
+  # snap:
   # node-3:
-networks:
-  honeycomb:
+# networks:
+  # honeycomb:

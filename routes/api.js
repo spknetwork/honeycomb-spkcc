@@ -54,6 +54,79 @@ exports.root = (req, res, next) => {
   });
 };
 
+exports.cid_contract = (req, res, next) =>{
+  let id = req.params.id
+  id = id.split("").reverse().join("")
+  let cpp = getPathObj(["IPFS", id]),
+    statsp = getPathObj(["stats"]);
+    Promise.all([cpp, statsp])
+      .then((mem) => {
+        if(typeof mem[1] != 'string'){
+          res.send(
+            JSON.stringify(
+              {
+                result: 'Not found',
+                head_block: RAM.head,
+                behind: RAM.behind,
+                node: config.username,
+                VERSION,
+                realtime: stats.realtime,
+              },
+              null,
+              3
+            )
+          )
+        }
+        let stats = mem[1]
+        let contractp = getPathObj(["contract", mem[1].split(',')[0], mem[1].split(',')[1]])
+        Promise.all([contractp])
+          .then((contract) => {
+            res.send(
+              JSON.stringify(
+                {
+                  result: contract[0],
+                  head_block: RAM.head,
+                  behind: RAM.behind,
+                  node: config.username,
+                  VERSION,
+                  realtime: stats.realtime,
+                },
+                null,
+                3
+              )
+            )
+          })
+      })
+}
+
+exports.contract_id = (req, res, next) =>{
+  let id = req.params.id,
+    cpp = getPathObj(["cPointers", id]),
+    statsp = getPathObj(["stats"]);
+    Promise.all([cpp, statsp])
+      .then((mem) => {
+        let stats = mem[1]
+        let contractp = getPathObj(["contract", mem[0], id])
+        Promise.all([contractp])
+          .then((contract) => {
+            res.send(
+              JSON.stringify(
+                {
+                  result: contract[0],
+                  head_block: RAM.head,
+                  behind: RAM.behind,
+                  node: config.username,
+                  VERSION,
+                  realtime: stats.realtime,
+                },
+                null,
+                3
+              )
+            )
+          })
+      })
+}
+
 exports.pairs = (req, res, next) => {
   res.setHeader("Content-Type", "application/json");
   const pairs = [
@@ -739,15 +812,19 @@ exports.detail = (req, res, next) => {
 
 exports.markets = (req, res, next) => {
   let markets = getPathObj(["markets"]),
-    stats = getPathObj(["stats"]);
+    stats = getPathObj(["stats"]),
+    pVal = getPathObj(["val"]),
+    pIPFS = getPathObj(["service", 'IPFS']);
   res.setHeader("Content-Type", "application/json");
-  Promise.all([markets, stats])
+  Promise.all([markets, stats, pVal, pIPFS])
     .then(function (v) {
       res.send(
         JSON.stringify(
           {
             markets: v[0],
+            validators: v[2],
             stats: v[1],
+            ipfs_services: v[3],
             node: config.username,
             head_block: RAM.head,
             behind: RAM.behind,
@@ -928,6 +1005,7 @@ exports.protocol = (req, res, next) => {
           jsontoken: config.jsonTokenName,
           memoKey: config.msPubMemo,
           features: config.featuresModel,
+          votable: config.votable,
           head_block: RAM.head,
           behind: RAM.behind,
           info: "/markets will return node information and published APIs for the consensus nodes, you may check these other APIs to ensure that the information in the API is in consensus.\nThe prefix is used to address this tokens architecture built on Hive.",
@@ -1785,6 +1863,61 @@ exports.report = (req, res, next) => {
   });
 };
 
+exports.contracts = (req, res, next) => {
+  let un = req.params.un;
+  res.setHeader("Content-Type", "application/json");
+  store.get(["proffer", un], function (err, obj) {
+    var report = obj;
+    res.send(
+      JSON.stringify(
+        {
+          contracts: report,
+          node: config.username,
+          head_block: RAM.head,
+          behind: RAM.behind,
+          VERSION,
+        },
+        null,
+        3
+      )
+    );
+  });
+};
+
+exports.proffer = (req, res, next) => {
+  let to = req.params.to || ''
+  let from = req.params.from || ''
+  let id = req.params.id || ''
+  res.setHeader("Content-Type", "application/json");
+  if(from && to && id){
+    store.get(["proffer", to, from, id], function (err, mem) {
+      res.send(
+        JSON.stringify(
+          {
+            proffer: mem,
+            node: config.username,
+            head_block: RAM.head,
+            behind: RAM.behind,
+            VERSION,
+          },
+          null,
+          3
+        )
+      );
+    });
+  } else {
+    res.send(
+      JSON.stringify(
+        {
+          error: 'Missing search parameters'
+        },
+        null,
+        3
+      )
+    );
+  }
+};
+
 exports.getPromotedPosts = (req, res, next) => {
   let amt = parseInt(req.query.a),
     off = parseInt(req.query.o);
@@ -2182,7 +2315,6 @@ exports.servicesByType = (req, res, next) => {
 };
 
 exports.user = (req, res, next) => {
-
     let un = req.params.un,
         bal = getPathNum(['balances', un]),
         cbal = getPathNum(['cbalances', un]),
@@ -2200,9 +2332,15 @@ exports.user = (req, res, next) => {
         tick = getPathObj(['dex', 'hive', 'tick']),
         powdown = getPathObj(['powd', un]),
         govdown = getPathObj(['govd', un]),
-        chron = getPathObj(['chrono'])
+        chron = getPathObj(['chrono']),
+        ppubKey = getPathObj(['authorities', un]),
+        pspow = getPathNum(['spow', un]),
+        pbroca = getPathObj(["broca", un]),
+        pChannels = getPathObj(["proffer", un]),
+        pContract = getPathObj(["contract", un]),
+        pspkVote = getPathObj(["spkVote", un])
     res.setHeader('Content-Type', 'application/json');
-    Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims, pspk, pspkb, tick, powdown, govdown, chron])
+    Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims, pspk, pspkb, tick, powdown, govdown, chron, ppubKey, pspow, pbroca, pChannels, pspkVote, pContract])
         .then(function(v) {
             var arr = []
             for (var i in v[3]) {
@@ -2217,92 +2355,14 @@ exports.user = (req, res, next) => {
                 }
                 arr.push(c)
             }
+            const pubKey = typeof v[17] == 'string' ? v[17] : 'NA'
             var power_downs = v[14]
             if (power_downs){
                 for(var pd in power_downs){
                     power_downs[pd] = v[16][pd]
                 }
             }
-              if (!v[10].s)
-                fetch(`${config.snapcs}/api/snapshot?u=${un}`)
-                  .then((r) => r.json())
-                  .then(function (claim) {
-                    res.send(
-                      JSON.stringify(
-                        {
-                          balance: v[0],
-                          claim: v[9],
-                          drop: {
-                            availible: {
-                              amount: parseInt((claim.Larynx * 1000) / 12),
-                              precision: 3,
-                              token: "LARYNX",
-                            },
-                            last_claim: 0,
-                            total_claims: 0,
-                          }, //v[10],
-                          poweredUp: v[1],
-                          granted: v[2],
-                          granting: v[8],
-                          heldCollateral: v[4],
-                          contracts: arr,
-                          up: v[6],
-                          down: v[7],
-                          power_downs,
-                          gov_downs: v[15],
-                          gov: v[5],
-                          spk: v[11],
-                          spk_block: v[12],
-                          tick: v[13],
-                          node: config.username,
-                          head_block: RAM.head,
-                          behind: RAM.behind,
-                          VERSION,
-                        },
-                        null,
-                        3
-                      )
-                    );
-                  })
-                  .catch((e) => {
-                    res.send(
-                      JSON.stringify(
-                        {
-                          balance: v[0],
-                          claim: v[9],
-                          drop: {
-                            availible: {
-                              amount: 0,
-                              precision: 3,
-                              token: "LARYNX",
-                            },
-                            last_claim: 0,
-                            total_claims: 0,
-                          }, //v[10],
-                          poweredUp: v[1],
-                          granted: v[2],
-                          granting: v[8],
-                          heldCollateral: v[4],
-                          contracts: arr,
-                          up: v[6],
-                          down: v[7],
-                          power_downs,
-                          gov_downs: v[15],
-                          gov: v[5],
-                          spk: v[11],
-                          spk_block: v[12],
-                          tick: v[13],
-                          node: config.username,
-                          head_block: RAM.head,
-                          behind: RAM.behind,
-                          VERSION,
-                        },
-                        null,
-                        3
-                      )
-                    );
-                  });
-              else {
+            
                 res.send(
                   JSON.stringify(
                     {
@@ -2310,18 +2370,21 @@ exports.user = (req, res, next) => {
                       claim: v[9],
                       drop: {
                         availible: {
-                          amount: v[10].s,
+                          amount: 0,
                           precision: 3,
                           token: "LARYNX",
                         },
-                        last_claim: v[10].l,
-                        total_claims: v[10].t,
+                        last_claim: v[10].l || 0,
+                        total_claims: v[10].t || 0,
                       }, //v[10],
                       poweredUp: v[1],
                       granted: v[2],
                       granting: v[8],
                       heldCollateral: v[4],
                       contracts: arr,
+                      channels: v[20],
+                      file_contracts: v[22],
+                      pubKey,
                       up: v[6],
                       down: v[7],
                       power_downs,
@@ -2329,6 +2392,9 @@ exports.user = (req, res, next) => {
                       gov: v[5],
                       spk: v[11],
                       spk_block: v[12],
+                      spk_power: v[18],
+                      spk_vote: v[21],
+                      broca: typeof v[19] == 'string' ? v[19] : '0,0',
                       tick: v[13],
                       node: config.username,
                       head_block: RAM.head,
@@ -2339,7 +2405,6 @@ exports.user = (req, res, next) => {
                     3
                   )
                 );
-              }
         })
         .catch(function(err) {
             console.log(err)
@@ -2404,11 +2469,8 @@ exports.blog = (req, res, next) => {
           )
         );
       }
-    })
-    .catch(function (err) {
-      console.log(err);
-    });
-};
+    )
+  }
 
 exports.blog = (req, res, next) => {
   let un = req.params.un;

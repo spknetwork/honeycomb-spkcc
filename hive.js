@@ -29,7 +29,7 @@ const Hive = {
             hiveClient.api.getAccountHistory(account, -1, 100, ...walletOperationsBitmask, function(err, result) {
                 hiveClient.api.setOptions({ url: config.clientURL });
                 if(err) reject(err)
-                let ebus = result.filter(tx => tx[1].op[1].id === `${config.prefix}report`), recents = []
+                let ebus = result.filter(tx => tx[1].op[1].id === `${config.prefix}report${config.mirrorNet ? 'M' : ''}`), recents = []
                 for (i = ebus.length - 1; i >= 0; i--) {
                     if (JSON.parse(ebus[i][1].op[1].json).hash && parseInt(JSON.parse(ebus[i][1].op[1].json).block) > parseInt(config.override)) {
                         recents.push([JSON.parse(ebus[i][1].op[1].json).hash, JSON.parse(ebus[i][1].op[1].json).block])

@@ -54,10 +54,10 @@ const ipfsprotocol = ENV.ipfsprotocol || 'https' //IPFS upload/download protocol
 const bidRate = ENV.BIDRATE || 500 // your vote for the dex fee 500 = 0.500% Max 1000
 
 //HIVE CONFIGS
-var startURL = ENV.STARTURL || "https://api.hive.blog/";
-var clientURL = ENV.APIURL || "https://api.hive.blog/";
+var startURL = ENV.STARTURL || "https://hive-api.dlux.io/";
+var clientURL = ENV.APIURL || "https://hive-api.dlux.io/";
 const clients = ENV.clients ? ENV.clients.split(" ") : [
-  "https://api.deathwing.me/",
+  "https://hive-api.dlux.io/",
   //"https://api.c0ff33a.uk/",
   "https://rpc.ecency.com/",
   "https://hived.emre.sh/",
@@ -93,17 +93,39 @@ const rollup_ops = [
   'channel_update',
   'channel_close'
 ];
+const votable = [
+  "spk_cycle_length", //power down cycle, 4 x times this number in blocks for a full power down
+  "dex_fee", //percent withheld to pay collateral holders
+  "dex_max", //percent of collateral the largest open order can be
+  "dex_slope", //penalty of max for lower priced open orders (50% means a open order at half price would be subject to 25% lower max rate)
+  "spk_rate_lpow", 
+  "spk_rate_ldel",
+  "spk_rate_lgov",
+  "max_coll_members",  //number of accounts that can provide liquidity and share rewards
+  "broca_refill", // blocks until full
+  "IPFSRate", // min amount to open a channel
+  "channel_bytes", // bytes per broca
+  "channel_min", //min amount a channel can have (spam filter)
+  "flags_to_penalty", //over this number an account forfiet all gains that period
+  "penalty_blocks", // how long it takes to remove a flag
+  "validators", // number of validators
+  "spk_val",
+  "spk_dex",
+  "spk_liq",
+  "vals_target",
+  "nodeRate", // validator share of new larynx
+]
 const features = {
     pob: false, //proof of brain
     delegate: false, //delegation
     daily: true,
     liquidity: false, //liquidity
-    ico: false, //ico
+    ico: true, //ico
     dex: true, //dex
     nft: false, //nfts
     state: true, //api dumps
     claimdrop: true, //claim drops
-    inflation: false //inflation
+    inflation: true //inflation
 }
 const featuresModel = {
             claim_id: 'claim',
@@ -139,42 +161,6 @@ const featuresModel = {
                   type: 'text',
                   info: 'https://no-trailing-slash.com',
                   json: 'domain',
-                  val: ''
-                },
-                {
-                  S: 'DEX Fee Vote',
-                  type: 'number',
-                  info: '500 = .5%',
-                  max: 1000,
-                  min: 0,
-                  json: 'bidRate',
-                  val: ''
-                },
-                {
-                  S: 'DEX Max Vote',
-                  type: 'number',
-                  info: '10000 = 100%',
-                  max: 10000,
-                  min: 0,
-                  json: 'dm',
-                  val: ''
-                },
-                {
-                  S: 'DEX Slope Vote',
-                  type: 'number',
-                  info: '10000 = 100%',
-                  max: 10000,
-                  min: 0,
-                  json: 'ds',
-                  val: ''
-                },
-                {
-                  S: 'DAO Claim Vote',
-                  type: 'number',
-                  info: '1500 = 15%',
-                  max: 10000,
-                  min: 0,
-                  json: 'dv',
                   val: ''
                 }
               ],
@@ -258,6 +244,7 @@ let config = {
   timeoutContinuous,
   rollup_ops,
   mirrorNet,
+  votable
 };
 
 module.exports = config;

@@ -49,14 +49,12 @@ const forceCancel = (rate, type, block_num) => {
 }
 exports.forceCancel = forceCancel
 
-const broca_calc = (obj, stats, bn) => {
-    const last_calc = require('./helpers').Base64.toNumber(obj.t)
-    const max = require("./helpers").Base64.toNumber(obj.m);
-    const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc))/max)
-    obj.b += accured
-    if(obj.b > max)obj.b = max
-    obj.t = require("./helpers").Base64.fromNumber(bn);
-    return obj
+const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
+    const last_calc = require('./helpers').Base64.toNumber(last.split(',')[1])
+    const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc))/(pow * 1000))
+    var total = parseInt(last.split(',')[0]) + accured + add
+    if(total > (pow * 1000))total = (pow * 1000)
+    return `${total},${require("./helpers").Base64.fromNumber(bn)}`
 }
 
 exports.broca_calc = broca_calc

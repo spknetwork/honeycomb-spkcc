@@ -202,8 +202,9 @@ exports.processor = processor;
 //HIVE API CODE
 
 //Start Program Options
-//dynStart();
-startWith("QmaufJ63Y31Tuy3vC1ipkX34Agp84G8XH2wQjvRaTcyopV", true);
+const replay = "QmZrSTJ3vP6WtfHen3CcMoNAhMPYz3LaGwG5kyfLRZEHBr"
+//startWith(replay, true);
+dynStart();
 Watchdog.monitor();
 
 // API defs
@@ -224,7 +225,10 @@ api.get("/runners", API.runners); //list of accounts that determine consensus...
 api.get("/queue", API.queue);
 api.get("/api/protocol", API.protocol);
 api.get("/api/status/:txid", API.status);
-api.get("/services/")
+api.get("/api/contract/:to/:from/:id", API.proffer);
+api.get("/api/fileContract/:id", API.contract_id);
+api.get("/api/file/:id", API.cid_contract);
+//api.get("/services/") // currently just IPFS
 if (config.features.dex) {
   api.get("/dex", API.dex);
   api.get("/api/tickers", API.tickers);
@@ -296,28 +300,46 @@ function startApp() {
   processor.on("rollup", HR.rollup);
   processor.on("register_authority", HR.register_authority);
   processor.on("send", HR.send);
+  if(config.mirrorNet)processor.on("Tsend", HR.send);
   processor.on("spk_send", HR.spk_send);
-  processor.on("claim", HR.claim);
+  if(config.mirrorNet)processor.on("Tspk_send", HR.spk_send);
+  processor.on("spk_up", HR.spk_up);
+  processor.on("spk_down", HR.spk_down);
+  processor.on("spk_vote", HR.spk_vote);
+  processor.on("val_vote", HR.val_vote);
   processor.on("shares_claim", HR.shares_claim);
+  if(config.mirrorNet)processor.on("Tshares_claim", HR.shares_claim);
   processor.on("node_add", HR.node_add);
+  if(config.mirrorNet)processor.on("Tnode_add", HR.node_add);
   processor.on(`report${config.mirrorNet ? 'M' : ''}`, HR.report);
   processor.on("gov_down", HR.gov_down); //larynx collateral
+  if(config.mirrorNet)processor.on("Tgov_down", HR.gov_down);
   processor.on("gov_up", HR.gov_up); //larynx collateral
-  processor.on("val_reg", HR.val_reg); //register a validator node
-  processor.on("val_add", HR.val_add); //add more branded shares to a validator node
-  processor.on("val_bytes", HR.val_bytes); //validate contract size in bytes
-  processor.on("val_del", HR.val_del); //contest contract sie
-  processor.on("val_bundle", HR.val_bundle); //Place IPFS bundle on storage market
-  processor.on("val_report", HR.val_report); //Validator report
-  processor.on("val_check", HR.val_check); //Validator second check -> merge to val_report
-  processor.onOperation("account_update", HR.account_update);
+  if(config.mirrorNet)processor.on("Tgov_up", HR.gov_up);
+  processor.on("channel_open", HR.channel_open)
+  processor.on("channel_update", HR.channel_update)
+  processor.on("store", HR.store)
+  processor.on("extend", HR.extend)
+  processor.on("remove", HR.remove)
+  processor.on("validator_burn", HR.validator_burn); //register a validator node or add more burn
+  // processor.on("val_bytes", HR.val_bytes); //validate contract size in bytes
+  // processor.on("val_del", HR.val_del); //contest contract sie
+  // processor.on("val_bundle", HR.val_bundle); //Place IPFS bundle on storage market
+  // processor.on("val_report", HR.val_report); //Validator report
+  // processor.on("val_check", HR.val_check); //Validator second check -> merge to val_report
+  if(!config.mirrorNet)processor.onOperation("account_update", HR.account_update);
   processor.onOperation("comment", HR.comment);
+  processor.onOperation("comment_options", HR.comment_options);
   //processor.on("queueForDaily", HR.q4d);
   processor.on("nomention", HR.nomention);
   processor.on("power_up", HR.power_up);
+  if(config.mirrorNet)processor.on("Tpower_up", HR.power_up);
   processor.on("power_down", HR.power_down);
+  if(config.mirrorNet)processor.on("Tpower_down", HR.power_down);
   processor.on("power_grant", HR.power_grant);
+  if(config.mirrorNet)processor.on("Tpower_grant", HR.power_grant);
   processor.on("register_service", HR.register_service);
+  processor.on("register_service_type", HR.register_service_type);
   if (config.features.pob) {
     processor.on("power_up", HR.power_up); // power up tokens for vote power in layer 2 token proof of brain
     processor.on("power_down", HR.power_down);
@@ -328,7 +350,7 @@ function startApp() {
       "delegate_vesting_shares",
       HR.delegate_vesting_shares
     );
-    processor.onOperation("comment_options", HR.comment_options);
+    //processor.onOperation("comment_options", HR.comment_options);
     processor.on("cjv", HR.cjv);
     processor.on("cert", HR.cert); // json.cert is an open ended hope to interact with executable posts... unexplored
   }
@@ -338,7 +360,7 @@ function startApp() {
     processor.on(`sig_submit${config.mirrorNet ? "M" : ""}`, HR.sig_submit); //dlux is for putting executable programs into IPFS... this is for additional accounts to sign the code as non-malicious
     processor.on(`osig_submit${config.mirrorNet ? "M" : ""}`, HR.osig_submit);
   }
-  if (config.features.dex || config.features.nft || config.features.ico) {
+  if (!config.mirrorNet && (config.features.dex || config.features.nft || config.features.ico)) {
     processor.onOperation("transfer", HR.transfer);
   }
   if (config.features.nft) {
@@ -395,12 +417,14 @@ function startApp() {
       });
       let Pmsa = getPathObj(["msa"]);
       let Pmso = getPathObj(["mso"]);
-      Promise.all([Pchron, Pmss, Pmsa, Pmso, Pmsso]).then((mem) => {
+      let Pstats = getPathObj(["stats"]);
+      Promise.all([Pchron, Pmss, Pmsa, Pmso, Pmsso, Pstats]).then((mem) => {
         var a = mem[0],
           mss = mem[1], //resign mss
           msa = mem[2], //if length > 80... sign these
           mso = mem[3],
           msso = mem[4],
+          stats = mem[5],
           mso_keys = Object.keys(mso);
         let chrops = {},
           msa_keys = Object.keys(msa);
@@ -417,9 +441,9 @@ function startApp() {
             ChonOp(delKey, ints, prand, num).then((x) => {
               i++;
               if (i < j.length) loop(i, ints, j);
-              else every();
+              else every(stats);
             });
-          else every();
+          else every(stats);
           function ChonOp(delKey, ints, prand, num) {
             return new Promise((res, rej) => {
               store.getWith(
@@ -581,6 +605,30 @@ function startApp() {
                         b
                       ).then((x) => res(x));
                       break;
+                    case "channel_check": 
+                      let Pproffer = getPathObj(['proffer', b.to, b.from, b.c]),
+                        Ptemplate = getPathObj(["template", b.c]),
+                        Pstats = getPathObj(["stats"]),
+                        Pbroca = getPathObj(["broca", b.from]),
+                        Ppow = getPathObj(["spow", b.from]);
+                      Chron.channelCheckOp(
+                        [Pproffer, Ptemplate, Pstats, Pbroca, Ppow],
+                        passed.delKey,
+                        num,
+                        passed.delKey.split(":")[1],
+                        b
+                      ).then((x) => res(x));
+                      break;
+                    case "contract_close": 
+                      let Pcontract = getPathObj(['contracts', b.to, b.id])
+                      Chron.contractClose(
+                        [Pcontract],
+                        passed.delKey,
+                        num,
+                        passed.delKey.split(":")[1],
+                        b
+                      ).then((x) => res(x));
+                      break;
                     case "spower_down": //needs work and testing
                       let lbsp = getPathNum(["spk", b.by]),
                         tspowp = getPathNum(["spow", "t"]),
@@ -612,11 +660,11 @@ function startApp() {
             });
           }
         }
-        function every() {
+        function every(stats) {
           return new Promise((res, rej) => {
-            let promises = [HR.margins()];
+            let promises = [HR.margins(num), HR.poa(num, prand, stats)]; //, HR.poa(num, prand, stats)];
             if (num % 100 !== 50) {
-              if (mso_keys.length) {
+              if (mso_keys.length && !config.mirrorNet) {
                 promises.push(
                   new Promise((res, rej) => {
                     osig_submit(osign(num, "mso", mso_keys, bh))
@@ -632,7 +680,7 @@ function startApp() {
                       });
                   })
                 );
-              } else if (msso.length) {
+              } else if (msso.length && !config.mirrorNet) {
                 promises.push(
                   new Promise((res, rej) => {
                     osig_submit(osign(num, "msso", msso, bh))
@@ -648,7 +696,7 @@ function startApp() {
                       });
                   })
                 );
-              } else if (msa_keys.length > 80) {
+              } else if (msa_keys.length > 80 && !config.mirrorNet) {
                 promises.push(
                   new Promise((res, rej) => {
                     sig_submit(consolidate(num, plasma, bh))
@@ -663,7 +711,7 @@ function startApp() {
                 );
               }
               for (var missed = 0; missed < mss.length; missed++) {
-                if (mss[missed].split(":").length == 1) {
+                if (mss[missed].split(":").length == 1 && !config.mirrorNet) {
                   missed_num = mss[missed];
                   promises.push(
                     new Promise((res, rej) => {
@@ -899,10 +947,14 @@ function dynStart(account) {
       start: false,
       first: config.engineCrank,
     };
-    for (i in oa) {
-      consensus_init.reports.push(
-        Hive.getRecentReport(oa[i][0], walletOperationsBitmask)
-      );
+    if(config.mirrorNet){
+      consensus_init.reports.push(Hive.getRecentReport("spk-test", walletOperationsBitmask))
+    } else {
+      for (i in oa) {
+        consensus_init.reports.push(
+          Hive.getRecentReport(oa[i][0], walletOperationsBitmask)
+        );
+      }
     }
     Promise.all(consensus_init.reports).then((r) => {
       console.log(r);
@@ -958,6 +1010,74 @@ function startWith(hash, second) {
                 if (!e && (second || data[0] > API.RAM.head - 325)) {
                   if (hash) {
                     var cleanState = data[1];
+                    // adding new variables
+                    if(config.mirrorNet && hash == replay){ //test net and upgrade init
+                      cleanState.stats.channel_bytes = 1024
+                      cleanState.stats.channel_min = 100
+                      cleanState.stats.interestRate = 303311 // 100% for 2 years compounded every 5 minutes
+                      cleanState.stats.validators_registered = "00" //validator registeration
+                      cleanState.stats.validators = "20.500000" // number of validators
+                      cleanState.stats.val_threshold = 0
+                      cleanState.stats.flags_to_penalty = "2.50000" //flags until penalty
+                      cleanState.stats.penalty_blocks = "28800.000000" // number of blocks rewards are forfit to drop a penalty flag
+                      cleanState.stats.spk_val = "0.100000" //percent that goes toward validators
+                      cleanState.stats.spk_dex = "0.100000" //percent set asside for DEX liquidity
+                      cleanState.stats.spk_liq = "0.500000" //percent of above allocation subject to liquidity quality
+                      cleanState.template = {
+                        "0": {
+                          i: "0",
+                          s: 2,
+                          "2": {
+                            t: 28800 * 30,
+                            a: "VAL"
+                          }
+                          },
+                        "1": {
+                          i: "1",
+                          d: "account:percent*100",
+                          s: 2,
+                          "2": {
+                            t: 28800,
+                            a: 'BEN'
+                          },
+                          "3": {
+                            t: 28800 * 30,
+                            a: 'VAL'
+                          }
+                          }
+                      }
+                      delete cleanState.snap
+                      cleanState.stats.broca_refill = 144000
+                      cleanState.stats.spk_cycle_length = 200000 //downpower time
+                      cleanState.stats.max_coll_members = 25 //consensus members in DEX
+                      cleanState.stats.vals_per_day = 0
+                      cleanState.stats.vals_target = "10.00000" // 10%
+                      cleanState.stats.total_bytes = 0
+                      cleanState.stats.total_files = 0
+                      cleanState.stats.ms = {
+                        active_account_auths: {
+                           ["spk-test"]: 1,
+                        },
+                        active_threshold: 1,
+                        memo_key: "STM5GNM3jpjWh7Msts5Z37eM9UPfGwTMU7Ksats3RdKeRaP5SveR9",
+                        owner_key_auths: {
+                           STM6EUEaEywYoxpeVDX1fPDxrsyQLGTsgYf1LLDSHWwiKBdgRhGrx: 1,
+                        },
+                        owner_threshold: 1,
+                        posting_account_auths: {
+                           ["test-spk"]: 1
+                        },
+                        posting_threshold: 1
+                     }
+                     delete cleanState.queue
+                      cleanState.runners = {
+                        ["spk-test"]: {
+                          g: 17672776,
+                          api: "https://spktest.dlux.io",
+                          l: 100
+                        }
+                      }
+                    }
                     store.put([], cleanState, function (err) {
                       if (err) {
                         console.log("errr", err);

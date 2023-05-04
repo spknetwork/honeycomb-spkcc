@@ -185,7 +185,7 @@ module.exports = function (
         }
       })
       .catch((e) => {
-        console.log("getBlockNumber Error: ", e);
+        //console.log("getBlockNumber Error: ", e, bln);
       });
   }
 
@@ -211,7 +211,7 @@ module.exports = function (
         .catch((err) => {
           if (at < 3) {
             setTimeout(() => {
-              gbr(bln, at + 1);
+              gb(bln, at + 1);
             }, Math.pow(10, at + 1));
           } else {
             console.log("Get block attempt:", at, client.currentAddress);
@@ -318,7 +318,7 @@ module.exports = function (
       beginBlockComputing();
       stream = undefined;
       console.log("This place:", err);
-      //throw err;
+      beginBlockStreaming()
     });
   }
 
