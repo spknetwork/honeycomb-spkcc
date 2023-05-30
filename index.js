@@ -202,7 +202,7 @@ exports.processor = processor;
 //HIVE API CODE
 
 //Start Program Options
-const replay = "QmZrSTJ3vP6WtfHen3CcMoNAhMPYz3LaGwG5kyfLRZEHBr"
+const replay = "QmVpSaqgqgSoq8uGYVvMMq4TaJjduu3YUnorQA744dce57"
 //startWith(replay, true);
 dynStart();
 Watchdog.monitor();
@@ -220,6 +220,7 @@ api.get("/api/mirrors", API.mirrors);
 api.get("/api/coin_detail", API.detail);
 api.get("/report/:un", API.report); // probably not needed
 api.get("/markets", API.markets); //for finding node runner and tasks information
+api.get("/feed/:from", API.feed);
 api.get("/feed", API.feed); //all side-chain transaction in current day
 api.get("/runners", API.runners); //list of accounts that determine consensus... will also be the multi-sig accounts
 api.get("/queue", API.queue);
@@ -297,8 +298,6 @@ function startApp() {
       if (res) plasma.id = res.id;
     });
   processor = hiveState(client, startingBlock, config.prefix);
-  processor.on("rollup", HR.rollup);
-  processor.on("register_authority", HR.register_authority);
   processor.on("send", HR.send);
   if(config.mirrorNet)processor.on("Tsend", HR.send);
   processor.on("spk_send", HR.spk_send);
@@ -321,6 +320,8 @@ function startApp() {
   processor.on("store", HR.store)
   processor.on("extend", HR.extend)
   processor.on("remove", HR.remove)
+  processor.on("rollup", HR.rollup);
+  processor.on("register_authority", HR.register_authority);
   processor.on("validator_burn", HR.validator_burn); //register a validator node or add more burn
   // processor.on("val_bytes", HR.val_bytes); //validate contract size in bytes
   // processor.on("val_del", HR.val_del); //contest contract sie
@@ -620,9 +621,10 @@ function startApp() {
                       ).then((x) => res(x));
                       break;
                     case "contract_close": 
-                      let Pcontract = getPathObj(['contracts', b.to, b.id])
+                      let Pcontract = getPathObj(['contracts', b.to, b.id]),
+                      Pstatss = getPathObj(["stats"])
                       Chron.contractClose(
-                        [Pcontract],
+                        [Pcontract, Pstatss],
                         passed.delKey,
                         num,
                         passed.delKey.split(":")[1],
@@ -1319,6 +1321,7 @@ function rundelta(arr, ops, sb, pr) {
           }
           function reorderOps() {
             block.ops = ops;
+            block.ops.pop() //why the Write mismatch?
             resolve([]);
           }
         }

@@ -519,16 +519,19 @@ const Chron = {
     return new Promise((resolve, reject) => {
       Promise.all(promies)
         .then((mem) => {
-          let contract = mem[0]
+          let contract = mem[0],
+          stats = mem[1]
           ops = [],
           bytes = 0
-          var items = Object.keys(contract.df)//goods
-          for (var i = 0; i < items.length; i++) {
-            bytes += contract.df[items[i]]
-            ops.push({ type: "del", path: ['IPFS', items[i].split("").reverse().join("")] });
+          if(contract.df){
+            var items = Object.keys(contract.df)//goods
+            for (var i = 0; i < items.length; i++) {
+              bytes += contract.df[items[i]]
+              ops.push({ type: "del", path: ['IPFS', items[i].split("").reverse().join("")] });
+            }
+            stats.total_bytes -= bytes
+            stats.total_files -= items.length
           }
-          stats.total_bytes -= bytes
-          stats.total_files -= items.length
           ops.push({
             type: "put",
             path: ["stats"],

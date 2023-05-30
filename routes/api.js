@@ -10,7 +10,7 @@ const {
   plasma,
 } = require("./../index");
 const fetch = require("node-fetch");
-let { getPathObj, getPathNum } = require("./../getPathObj");
+let { getPathObj, getPathNum, getPathSome } = require("./../getPathObj");
 const decodeURIcomponent = require("decode-uri-component");
 const {
   getPromotedPosts,
@@ -106,6 +106,23 @@ exports.contract_id = (req, res, next) =>{
     Promise.all([cpp, statsp])
       .then((mem) => {
         let stats = mem[1]
+        if(typeof mem[0] != "string"){
+          res.send(
+            JSON.stringify(
+              {
+                result: 'Contract Not Found',
+                head_block: RAM.head,
+                behind: RAM.behind,
+                node: config.username,
+                VERSION,
+                realtime: stats.realtime,
+              },
+              null,
+              3
+            )
+          )
+          return
+        }
         let contractp = getPathObj(["contract", mem[0], id])
         Promise.all([contractp])
           .then((contract) => {
@@ -919,22 +936,42 @@ exports.queue = (req, res, next) => {
 
 exports.feed = (req, res, next) => {
   res.setHeader("Content-Type", "application/json");
-  store.get(["feed"], function (err, obj) {
-    var feed = obj;
-    res.send(
-      JSON.stringify(
-        {
-          feed,
-          node: config.username,
-          head_block: RAM.head,
-          behind: RAM.behind,
-          VERSION,
-        },
-        null,
-        3
-      )
-    );
-  });
+  if(req.params.from){
+    store.getRange(["feed"], {
+      gte: "" + req.params.from,
+      lte: "" + (parseInt(req.params.from) + 28800) 
+    }, function (err, feed) {
+      res.send(
+        JSON.stringify(
+          {
+            feed,
+            node: config.username,
+            head_block: RAM.head,
+            behind: RAM.behind,
+            VERSION,
+          },
+          null,
+          3
+        )
+      );
+    })
+  } else {
+    store.get(["feed"], function (err, feed) {
+      res.send(
+        JSON.stringify(
+          {
+            feed,
+            node: config.username,
+            head_block: RAM.head,
+            behind: RAM.behind,
+            VERSION,
+          },
+          null,
+          3
+        )
+      );
+    });
+  }
 };
 
 exports.posts = (req, res, next) => {
@@ -2338,9 +2375,11 @@ exports.user = (req, res, next) => {
         pbroca = getPathObj(["broca", un]),
         pChannels = getPathObj(["proffer", un]),
         pContract = getPathObj(["contract", un]),
-        pspkVote = getPathObj(["spkVote", un])
+        pspkVote = getPathObj(["spkVote", un]),
+        pNode = getPathObj(["markets", "node", un]),
+        pStorage = getPathObj(["service", "IPFS", un]);
     res.setHeader('Content-Type', 'application/json');
-    Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims, pspk, pspkb, tick, powdown, govdown, chron, ppubKey, pspow, pbroca, pChannels, pspkVote, pContract])
+    Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims, pspk, pspkb, tick, powdown, govdown, chron, ppubKey, pspow, pbroca, pChannels, pspkVote, pContract, pStorage, pNode])
         .then(function(v) {
             var arr = []
             for (var i in v[3]) {
@@ -2384,6 +2423,8 @@ exports.user = (req, res, next) => {
                       contracts: arr,
                       channels: v[20],
                       file_contracts: v[22],
+                      storage: v[23],
+                      spknode: v[24],
                       pubKey,
                       up: v[6],
                       down: v[7],

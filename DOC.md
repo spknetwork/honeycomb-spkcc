@@ -55,6 +55,89 @@ json:	{"amount": 1000}
 
 ### Service Registration
 
+### Channel Open
+
+How to build an upload contract. Two contract types exist currently.
+* 0 : simple. Pay upfront
+* 1 : beneficiary. Include finalization details so the uploader has to build a post with correct credits
+   * must include json.slots to build the beneficiary watcher. 
+
+#### Transaction: Custom_Json
+
+required_auths: []
+required_posting_auths:	["account"]
+id:	`spkcc_channel_open`
+json:	{"broca": 1000,
+	contract: 0 | 1,
+	slot: 'dlux-io,1000' // required for type 1
+	to: "file_owner",
+	broker: "upload_account"}
+
+#### Enforcement
+* json.broker must have a registered service
+* All three accounts must have a pubKey registered
+* Account must have Broca 
+* json.slots must match
+* A channel between from and to must not be open (uploads complete, beneficiary post made)
+
+```
+if (typeof template.i != "string") err += `Contract doesn't exist.`
+      if (typeof authF != 'string') err += `@${from} hasn't registered a public key. `
+      if (typeof authT != "string") err += `@${json.to} hasn't registered a public key. `;
+      if (typeof authB != "string") err += `@${json.broker} hasn't registered a public key. `;
+      if (!Object.keys(broker).length) err += `@${json.broker} IPFS service error. `
+      if (proffer.e) err += `This channel exists: ${proffer.e.split(':')[1]} `
+      if (json.broca > broca || json.broca < stats.channel_min) err += `@${from} doesn't have enough BROCA to build a channel. `;
+      if (json.slots && template.s != json?.slots.split(',').length) err += `Slots mismatch.`;//checker for slots against contract... enforcement of benificaries
+```
+
+### Channel Update
+
+For Finalizing uploads.
+Sent from the upload middleware. The nodes accept that the files posted in the transaction have been signed by the upload node in the brodcast. The payload must also include the signature of the file owner/uploader to verify everybody agrees on file providence. 
+
+### Extend
+
+Extend the time of a file storage contract. Since contracts are priced via current market rates, the broca sent will extend the contract to the nearest 3 second period covered. Optionally increase the "decentralization power" of the contract. The appended amounts can come from any account. If the file owner cancels the contract the broca will be sent back to the originating account not to exceed the accounts max broca level. 
+
+#### JSON
+
+required_auths: []
+required_posting_auths:	["account"]
+id:	`spkcc_extend`
+json:	{"broca": 1000,
+	id:
+	file_owner
+	power: 0 | 1}
+
+#### Enforcement
+
+Contract must exist. Account must have broca. Possible time limit... 
+
+### Store & Remove
+
+Attaches a storage account to a contract to check during validations. Unvalidated content will drop the overall rewards of an account and it's delegates, so proper attestation is required. There is no penalty for removing content from your storage nodes.
+
+#### JSON
+
+required_auths: []
+required_posting_auths:	["account"]
+id:	`spkcc_store` || 'spkcc_remove'
+json:	{[...ids]}
+
+### Contract Close
+
+#### JSON
+
+required_auths: []
+required_posting_auths:	["account"]
+id:	`spkcc_contract_close`
+json:	{id}
+
+#### Enforcement
+
+Only the file owner can close a contract.
+
 ## API
 
 ### /@:user
@@ -89,8 +172,9 @@ To ease the compute load on chain several parameters must be calculated on the c
 
 Function and API to feed it.
 
-(/@account.broca, /@account.spk_power, /stats, /stats.head_block)
+`(/@account.broca, /@account.spk_power, /stats, /hive.head_block)`
 
+```
 broca_calc = (last, pow, stats, bn) => {
     const last_calc = require('./helpers').Base64.toNumber(last.split(',')[1])
     const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc))/(pow * 1000))
@@ -98,6 +182,7 @@ broca_calc = (last, pow, stats, bn) => {
     if(total > (pow * 1000))total = (pow * 1000)
     return `${total},${Base64.fromNumber(bn)}`
 }
+```
 
 ### Base64
 

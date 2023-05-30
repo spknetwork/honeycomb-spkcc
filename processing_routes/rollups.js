@@ -514,35 +514,60 @@ exports.extend = (json, from, active, pc) => {
 }
 
 exports.store = (json, from, active, pc) => {
+  console.log(json)
   if (json.items.length) {
     var promises = []
     for (var i = 0; i < json.items.length; i++) {
-      promises.push(getPathObj(["cPointers", json[i]]))
+      console.log(json.items[i])
+      promises.push(getPathObj(["cPointers", json.items[i]]))
     }
+    promises.push(getPathObj(["services", from, 'IPFS']), getPathObj(["authorities", from]))
     Promise.all(promises).then(contractPointers => {
-      promises = []
-      for (var i = 0; i < contractPointers.length; i++) {
-        if (typeof contractPointers[i] == "string") {
-          promises.push(getPathObj(["contract", contractPointers[i], json[i]]))
-        }
-      }
-      Promise.all(promises).then(contracts => {
-        var ops = []
-        for (var i = 0; i < contracts.length; i++) {
-          const contract = contracts[i]
-          if (contract.nt) {
-            const nt = Base64.fromNumber(Base64.toNumber(contract.nt)++)
-            contract.n[nt] = from
-            contract.nt = nt
-            ops.push({
-              type: "put",
-              path: ["contract", contract.t, contract.i],
-              data: contract,
-            })
+      const services = contractPointers[json.items.length]
+      const PubKey = contractPointers[json.items.length + 1]
+      console.log(PubKey, Object.keys(services).length)
+      console.log(contractPointers)
+      if(typeof PubKey == 'string' && Object.keys(services).length){ //ensure user has valid registered node to prevent spam
+        promises = []
+        for (var i = 0; i < json.items.length; i++) {
+          if (typeof contractPointers[i] == "string") {
+            promises.push(getPathObj(["contract", contractPointers[i], json.items[i]]))
           }
         }
-        store.batch(ops, pc)
-      })
+        Promise.all(promises).then(contracts => {
+          console.log(contracts)
+          var ops = []
+          var msg = `@${from} Stored|`
+          for (var i = 0; i < contracts.length; i++) {
+            const contract = contracts[i]
+            if (contract.nt) {
+              const nt = Base64.fromNumber(Base64.toNumber(contract.nt) + 1)
+              contract.n[nt] = from
+              contract.nt = nt
+              ops.push({
+                type: "put",
+                path: ["contract", contract.t, contract.i],
+                data: contract,
+              })
+              msg += `${contract.i},`
+            }
+          }
+          if(msg.charAt(msg.length - 1) != '|'){
+            msg = msg.substring(0, msg.length - 1)
+            ops.push({
+              type: "put",
+              path: ["feed", `${json.block_num}:${json.transaction_id}`],
+              data: msg,
+            });
+            if (config.hookurl || config.status)
+              postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
+          }
+          if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+          store.batch(ops, pc)
+        })
+      } else {
+        pc[0](pc[2]);
+      }
     })
   } else {
     pc[0](pc[2]);
@@ -553,13 +578,13 @@ exports.remove = (json, from, active, pc) => { //inform stop storing items
   if (json.items.length) {
     var promises = []
     for (var i = 0; i < json.items.length; i++) {
-      promises.push(getPathObj(["cPointers", json[i]]))
+      promises.push(getPathObj(["cPointers", json.items[i]]))
     }
     Promise.all(promises).then(contractPointers => {
       promises = []
       for (var i = 0; i < contractPointers.length; i++) {
         if (typeof contractPointers[i] == "string") {
-          promises.push(getPathObj(["contract", contractPointers[i], json[i]]))
+          promises.push(getPathObj(["contract", contractPointers[i], json.items[i]]))
         }
       }
       Promise.all(promises).then(contracts => {
@@ -567,18 +592,47 @@ exports.remove = (json, from, active, pc) => { //inform stop storing items
         for (var i = 0; i < contracts.length; i++) {
           const contract = contracts[i]
           const keys = contract.n ? Object.keys(contract.n) : []
-          for (var j = o; j < keys.length; j++) {
-            if (contract.n[keys[j]] == from) {
-              delete contract.n[keys[j]]
+          var msg = `@${from} Removed|`
+          var dec = false
+          var j
+          for (j = 1; j < keys.length + 1; j++) {
+            if(dec){
+              contract.n[`${Base64.fromNumber(j-1)}`] = contract.n[`${Base64.fromNumber(j)}`]
+              delete contract.n[`${Base64.fromNumber(j)}`]
+            }
+            if (contract.n[`${Base64.fromNumber(j)}`] == from) {
+              delete contract.n[`${Base64.fromNumber(j)}`]
+              dec = true
+            }
+            if(j == keys.length && dec){
               ops.push({
-                type: "put",
-                path: ["contract", contract.t, contract.i],
-                data: contract,
+                type: 'del',
+                path: ["contract", contract.t, contract.i, 'n', `${Base64.fromNumber(j)}`]
               })
-              break
             }
           }
+          if(dec){
+            contract.nt = Base64.fromNumber(j-2)
+            console.log(contract)
+            ops.push({
+              type: "put",
+              path: ["contract", contract.t, contract.i],
+              data: contract,
+            })
+            msg += `${contract.i},`
+          }
         }
+        if(msg.charAt(msg.length - 1) != '|'){
+          msg = msg.substring(0, msg.length - 1)
+          ops.push({
+            type: "put",
+            path: ["feed", `${json.block_num}:${json.transaction_id}`],
+            data: msg,
+          });
+          if (config.hookurl || config.status)
+            postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
+        }
+        if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
         store.batch(ops, pc)
       })
     })
