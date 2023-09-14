@@ -30,6 +30,7 @@ const { nomention } = require('./nomention')
 const { q4d } = require('./q4d')
 const { node_add, register_service, register_service_type, validator_burn } = require("./nodes");
 const { dex_sell, dex_clear, transfer, margins } = require('./dex')
+const { spk_dex_sell, spk_dex_clear } = require('./dex_spk')
 const { comment, comment_options } = require('./comment')
 const { report } = require('./report')
 const { 
@@ -107,6 +108,8 @@ module.exports = {
   delegate_vesting_shares,
   dex_clear,
   dex_sell,
+  spk_dex_clear,
+  spk_dex_sell,
   margins,
   gov_down,
   gov_up,

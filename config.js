@@ -124,7 +124,7 @@ const features = {
     dex: true, //dex
     nft: false, //nfts
     state: true, //api dumps
-    claimdrop: true, //claim drops
+    claimdrop: false, //claim drops
     inflation: true //inflation
 }
 const featuresModel = {

@@ -8,7 +8,7 @@ const stringify = require('json-stable-stringify');
 //the daily post, the inflation point for tokennomics
 function dao(num) {
     return new Promise((resolve, reject) => {
-        let post = `## SPK Claim Chain REPORT\n`,
+        let post = `## SPK Network Daily Report\n`,
             news = '',
             daops = [],
             Pnews = new Promise(function(resolve, reject) {
@@ -137,7 +137,7 @@ function dao(num) {
             }
             stats.marketingRate = parseInt(b / i);
             stats.nodeRate = parseInt(j / i);
-            post = `![${config.TOKEN} Advert](https://files.peakd.com/file/peakd-hive/spknetwork/23t7kxv6nPpoJwgyaDY3Xrekipa9vSyCNj6qm9oQuPDby7sk81ukLAAE8VJ55Kbp116bW.png)\n#### Daily Accounting\n`;
+            post = `![${config.TOKEN} Banner](${config.adverts[bals.ra % (config.adverts.length - 1)]})\n#### Daily Accounting\n`;
             post = post + `Total Supply: ${parseFloat(parseInt(stats.tokenSupply) / 1000).toFixed(3)} ${config.TOKEN}\n* ${parseFloat(parseInt(stats.tokenSupply - powBal - (bals.ra + bals.rc + bals.rd + bals.ri + bals.rn + bals.rm)) / 1000).toFixed(3)} ${config.TOKEN} liquid\n`;
             post = post + `* ${parseFloat(parseInt(powBal) / 1000).toFixed(3)} ${config.TOKEN} Locked to Govern\n`;
             post = post + `* ${parseFloat(parseInt(bals.ra + bals.rc + bals.rd + bals.ri + bals.rn + bals.rm) / 1000).toFixed(3)} ${config.TOKEN} in distribution accounts\n`;
@@ -159,7 +159,7 @@ function dao(num) {
             
             i = 0, j = 0;
             //if(bals.rm && config.features.inflation)post = post + `${parseFloat(parseInt(bals.rm) / 1000).toFixed(3)} ${config.TOKEN} is in the Marketing Allocation.\n`
-            if(bals.rn)post = post + `##### Node Rewards for Elected Reports and Escrow Transfers\n`;
+            if(bals.rn)post = post + `##### Node Rewards\n`;
             console.log(num + `:${bals.rm} is availible in the marketing account\n${bals.rn} ${config.TOKEN} set aside to distribute to nodes`);
             stats.validators = {}
             for (var node in mnode) { //tally the wins
@@ -253,23 +253,22 @@ function dao(num) {
                 // here we could find the price of the tokens and include either side of the DEX 
                     var dailyICODistrobution = bals.ra,
                         y = stats.inAuction;
-                    bals.ra = 0
-                    post = post + `### SIP Auction Results:\n${parseFloat(dailyICODistrobution / 1000).toFixed(3)} LARYNX has been minted and purchased by ${parseFloat(y / 1000).toFixed(3)} HIVE today.\n`;
-                    for (i = 0; i < ico.length; i++) {
-                        for (var node in ico[i]) {
-                            cbals[node] = cbals[node] ? cbals[node] + parseInt(ico[i][node] / y * dailyICODistrobution) :  parseInt(ico[i][node] / y * dailyICODistrobution);
-                            dailyICODistrobution -= parseInt(ico[i][node] / y * dailyICODistrobution);
-                            post = post + `* @${node} purchased  ${parseFloat(parseInt(ico[i][node] / y * dailyICODistrobution) / 1000).toFixed(3)} LARYNX\n`;
-                            console.log(num + `:${node} purchased  ${parseInt(ico[i][node] / y * dailyICODistrobution)} LARYNX`);
-                            if (i == ico.length - 1) {
-                                cbals[node] = cbals[node] ? cbals[node] + dailyICODistrobution :  dailyICODistrobution
-                                post = post + `* @${node} purchased  ${parseFloat(parseInt(dailyICODistrobution) / 1000).toFixed(3)} LARYNX\n`;
-                                console.log(num + `:${node} given  ${dailyICODistrobution} remainder`);
-                            }
+                        //AMM here to settle DEX orders favorable to this price
+                    post = post + `### LARYNX Auction Results:\n${parseFloat(dailyICODistrobution / 1000).toFixed(3)} LARYNX has been minted and purchased at ${parseFloat(y / 1000).toFixed(3)} HIVE today.\n`;
+                    var auctionEntries = Object.keys(ico), iico = 0, ihive = 0
+                    for (var node in ico) {
+                        ihive += ico[node]
+                        cbals[node] = cbals[node] ? cbals[node] + parseInt(ico[node] / y * dailyICODistrobution) :  parseInt(ico[node] / y * dailyICODistrobution);
+                        dailyICODistrobution -= parseInt(ico[node] / y * dailyICODistrobution);
+                        post = post + `* @${node} purchased  ${parseFloat(parseInt(ico[node] / y * dailyICODistrobution) / 1000).toFixed(3)} LARYNX\n`;
+                        console.log(num + `:${node} purchased  ${parseInt(ico[node] / y * dailyICODistrobution)} LARYNX`);
+                        if (iico == auctionEntries.length - 1) {
+                            bals.ra = dailyICODistrobution
                         }
                     }
+                    stats.hive_pool = ihive
                     dailyICODistrobution = 0;
-                    ico = [];
+                    ico = {}
             }
             var vol = 0,
                 volhbd = 0,

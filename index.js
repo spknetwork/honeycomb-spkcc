@@ -1,5 +1,5 @@
 const config = require("./config");
-const VERSION = "v1.2.0-t1";
+const VERSION = "v1.2.0-t2";
 exports.VERSION = VERSION;
 exports.exit = exit;
 exports.processor = processor;
@@ -21,8 +21,7 @@ var ipfs = IPFS(
   `${config.ipfsprotocol}://${config.ipfshost}:${config.ipfsport}`
 );
 console.log(
-  `IPFS: ${config.ipfshost == "ipfs" ? "DockerIPFS" : config.ipfshost}:${
-    config.ipfsport
+  `IPFS: ${config.ipfshost == "ipfs" ? "DockerIPFS" : config.ipfshost}:${config.ipfsport
   }`
 );
 exports.ipfs = ipfs;
@@ -49,12 +48,12 @@ console.log("Using APIURL: ", config.clientURL);
 exports.hiveClient = hiveClient;
 //non-consensus node memory
 var plasma = {
-    consensus: "",
-    pending: {},
-    page: [],
-    hashLastIBlock: 0,
-    hashSecIBlock: 0,
-  },
+  consensus: "",
+  pending: {},
+  page: [],
+  hashLastIBlock: 0,
+  hashSecIBlock: 0,
+},
   jwt;
 exports.plasma = plasma;
 var NodeOps = [];
@@ -202,7 +201,7 @@ exports.processor = processor;
 //HIVE API CODE
 
 //Start Program Options
-const replay = "QmVpSaqgqgSoq8uGYVvMMq4TaJjduu3YUnorQA744dce57"
+const replay = "QmV33z2C2vzecme4S57ziPgJcTB4qoMaQJxsMerTXxAuKR"
 //startWith(replay, true);
 dynStart();
 Watchdog.monitor();
@@ -216,6 +215,7 @@ api.get("/services/:type", API.servicesByType);
 api.get("/stats", API.root);
 api.get("/coin", API.coin);
 api.get("/@:un", API.user);
+api.get("/spk/@:un", API.user_spk);
 api.get("/api/mirrors", API.mirrors);
 api.get("/api/coin_detail", API.detail);
 api.get("/report/:un", API.report); // probably not needed
@@ -229,7 +229,13 @@ api.get("/api/status/:txid", API.status);
 api.get("/api/contract/:to/:from/:id", API.proffer);
 api.get("/api/fileContract/:id", API.contract_id);
 api.get("/api/file/:id", API.cid_contract);
-//api.get("/services/") // currently just IPFS
+// spk dex
+api.get("/spk/runners", API.runners);
+api.get("/spk/markets", API.markets);
+api.get("/spk/queue", API.queue);
+api.get("/spk/api/protocol", API.protocol_spk);
+api.get("/spk/api/status/:txid", API.status);
+api.get("/services/") // currently just IPFS
 if (config.features.dex) {
   api.get("/dex", API.dex);
   api.get("/api/tickers", API.tickers);
@@ -239,6 +245,15 @@ if (config.features.dex) {
   api.get("/api/historical", API.historical_trades);
   api.get("/api/historical/:ticker_id", API.historical_trades);
   api.get("/api/recent/:ticker_id", API.chart);
+  //spk dex
+  api.get("/spk/dex", API.dex_spk);
+  api.get("/spk/api/tickers", API.tickers_spk);
+  api.get("/spk/api/orderbook", API.orderbook_spk);
+  api.get("/spk/api/orderbook/:ticker_id", API.orderbook_spk);
+  api.get("/spk/api/pairs", API.pairs_spk);
+  api.get("/spk/api/historical", API.historical_trades_spk);
+  api.get("/spk/api/historical/:ticker_id", API.historical_trades_spk);
+  api.get("/spk/api/recent/:ticker_id", API.chart_spk);
 }
 if (config.features.nft) {
   api.get("/api/nfts/:user", API.nfts);
@@ -299,22 +314,22 @@ function startApp() {
     });
   processor = hiveState(client, startingBlock, config.prefix);
   processor.on("send", HR.send);
-  if(config.mirrorNet)processor.on("Tsend", HR.send);
+  if (config.mirrorNet) processor.on("Tsend", HR.send);
   processor.on("spk_send", HR.spk_send);
-  if(config.mirrorNet)processor.on("Tspk_send", HR.spk_send);
+  if (config.mirrorNet) processor.on("Tspk_send", HR.spk_send);
   processor.on("spk_up", HR.spk_up);
   processor.on("spk_down", HR.spk_down);
   processor.on("spk_vote", HR.spk_vote);
   processor.on("val_vote", HR.val_vote);
   processor.on("shares_claim", HR.shares_claim);
-  if(config.mirrorNet)processor.on("Tshares_claim", HR.shares_claim);
+  if (config.mirrorNet) processor.on("Tshares_claim", HR.shares_claim);
   processor.on("node_add", HR.node_add);
-  if(config.mirrorNet)processor.on("Tnode_add", HR.node_add);
+  if (config.mirrorNet) processor.on("Tnode_add", HR.node_add);
   processor.on(`report${config.mirrorNet ? 'M' : ''}`, HR.report);
   processor.on("gov_down", HR.gov_down); //larynx collateral
-  if(config.mirrorNet)processor.on("Tgov_down", HR.gov_down);
+  if (config.mirrorNet) processor.on("Tgov_down", HR.gov_down);
   processor.on("gov_up", HR.gov_up); //larynx collateral
-  if(config.mirrorNet)processor.on("Tgov_up", HR.gov_up);
+  if (config.mirrorNet) processor.on("Tgov_up", HR.gov_up);
   processor.on("channel_open", HR.channel_open)
   processor.on("channel_update", HR.channel_update)
   processor.on("store", HR.store)
@@ -328,17 +343,17 @@ function startApp() {
   // processor.on("val_bundle", HR.val_bundle); //Place IPFS bundle on storage market
   // processor.on("val_report", HR.val_report); //Validator report
   // processor.on("val_check", HR.val_check); //Validator second check -> merge to val_report
-  if(!config.mirrorNet)processor.onOperation("account_update", HR.account_update);
+  if (!config.mirrorNet) processor.onOperation("account_update", HR.account_update);
   processor.onOperation("comment", HR.comment);
   processor.onOperation("comment_options", HR.comment_options);
   //processor.on("queueForDaily", HR.q4d);
   processor.on("nomention", HR.nomention);
   processor.on("power_up", HR.power_up);
-  if(config.mirrorNet)processor.on("Tpower_up", HR.power_up);
+  if (config.mirrorNet) processor.on("Tpower_up", HR.power_up);
   processor.on("power_down", HR.power_down);
-  if(config.mirrorNet)processor.on("Tpower_down", HR.power_down);
+  if (config.mirrorNet) processor.on("Tpower_down", HR.power_down);
   processor.on("power_grant", HR.power_grant);
-  if(config.mirrorNet)processor.on("Tpower_grant", HR.power_grant);
+  if (config.mirrorNet) processor.on("Tpower_grant", HR.power_grant);
   processor.on("register_service", HR.register_service);
   processor.on("register_service_type", HR.register_service_type);
   if (config.features.pob) {
@@ -358,6 +373,9 @@ function startApp() {
   if (config.features.dex) {
     processor.on("dex_sell", HR.dex_sell);
     processor.on("dex_clear", HR.dex_clear);
+    processor.on("spk_dex_sell", HR.spk_dex_sell);
+    processor.on("spk_dex_clear", HR.spk_dex_clear);
+    
     processor.on(`sig_submit${config.mirrorNet ? "M" : ""}`, HR.sig_submit); //dlux is for putting executable programs into IPFS... this is for additional accounts to sign the code as non-malicious
     processor.on(`osig_submit${config.mirrorNet ? "M" : ""}`, HR.osig_submit);
   }
@@ -606,7 +624,7 @@ function startApp() {
                         b
                       ).then((x) => res(x));
                       break;
-                    case "channel_check": 
+                    case "channel_check":
                       let Pproffer = getPathObj(['proffer', b.to, b.from, b.c]),
                         Ptemplate = getPathObj(["template", b.c]),
                         Pstats = getPathObj(["stats"]),
@@ -620,9 +638,9 @@ function startApp() {
                         b
                       ).then((x) => res(x));
                       break;
-                    case "contract_close": 
+                    case "contract_close":
                       let Pcontract = getPathObj(['contracts', b.to, b.id]),
-                      Pstatss = getPathObj(["stats"])
+                        Pstatss = getPathObj(["stats"])
                       Chron.contractClose(
                         [Pcontract, Pstatss],
                         passed.delKey,
@@ -664,131 +682,134 @@ function startApp() {
         }
         function every(stats) {
           return new Promise((res, rej) => {
-            let promises = [HR.margins(num), HR.poa(num, prand, stats)]; //, HR.poa(num, prand, stats)];
-            if (num % 100 !== 50) {
-              if (mso_keys.length && !config.mirrorNet) {
-                promises.push(
-                  new Promise((res, rej) => {
-                    osig_submit(osign(num, "mso", mso_keys, bh))
-                      .then((nodeOp) => {
-                        res("SAT");
-                        try {
-                          if (plasma.rep && JSON.parse(nodeOp[1][1].json).sig)
-                            NodeOps.unshift(nodeOp);
-                        } catch (e) {}
+            HR.margins(num).then(r => {
+              HR.poa(num, prand, stats).then(r => {
+                let promises = []; //, HR.poa(num, prand, stats)];
+                if (num % 100 !== 50) {
+                  if (mso_keys.length && !config.mirrorNet) {
+                    promises.push(
+                      new Promise((res, rej) => {
+                        osig_submit(osign(num, "mso", mso_keys, bh))
+                          .then((nodeOp) => {
+                            res("SAT");
+                            try {
+                              if (plasma.rep && JSON.parse(nodeOp[1][1].json).sig)
+                                NodeOps.unshift(nodeOp);
+                            } catch (e) { }
+                          })
+                          .catch((e) => {
+                            rej(e);
+                          });
                       })
-                      .catch((e) => {
-                        rej(e);
-                      });
-                  })
-                );
-              } else if (msso.length && !config.mirrorNet) {
-                promises.push(
-                  new Promise((res, rej) => {
-                    osig_submit(osign(num, "msso", msso, bh))
-                      .then((nodeOp) => {
-                        res("SAT");
-                        try {
-                          if (plasma.rep && JSON.parse(nodeOp[1][1].json).sig)
-                            NodeOps.unshift(nodeOp); //check to see if sig
-                        } catch (e) {}
+                    );
+                  } else if (msso.length && !config.mirrorNet) {
+                    promises.push(
+                      new Promise((res, rej) => {
+                        osig_submit(osign(num, "msso", msso, bh))
+                          .then((nodeOp) => {
+                            res("SAT");
+                            try {
+                              if (plasma.rep && JSON.parse(nodeOp[1][1].json).sig)
+                                NodeOps.unshift(nodeOp); //check to see if sig
+                            } catch (e) { }
+                          })
+                          .catch((e) => {
+                            rej(e);
+                          });
                       })
-                      .catch((e) => {
-                        rej(e);
-                      });
-                  })
-                );
-              } else if (msa_keys.length > 80 && !config.mirrorNet) {
-                promises.push(
-                  new Promise((res, rej) => {
-                    sig_submit(consolidate(num, plasma, bh))
-                      .then((nodeOp) => {
-                        res("SAT");
-                        if (plasma.rep) NodeOps.unshift(nodeOp);
+                    );
+                  } else if (msa_keys.length > 80 && !config.mirrorNet) {
+                    promises.push(
+                      new Promise((res, rej) => {
+                        sig_submit(consolidate(num, plasma, bh))
+                          .then((nodeOp) => {
+                            res("SAT");
+                            if (plasma.rep) NodeOps.unshift(nodeOp);
+                          })
+                          .catch((e) => {
+                            rej(e);
+                          });
                       })
-                      .catch((e) => {
-                        rej(e);
-                      });
-                  })
-                );
-              }
-              for (var missed = 0; missed < mss.length; missed++) {
-                if (mss[missed].split(":").length == 1 && !config.mirrorNet) {
-                  missed_num = mss[missed];
+                    );
+                  }
+                  for (var missed = 0; missed < mss.length; missed++) {
+                    if (mss[missed].split(":").length == 1 && !config.mirrorNet) {
+                      missed_num = mss[missed];
+                      promises.push(
+                        new Promise((res, rej) => {
+                          sig_submit(sign(num, plasma, missed_num, bh))
+                            .then((nodeOp) => {
+                              res("SAT");
+                              if (JSON.parse(nodeOp[1][1].json).sig) {
+                                NodeOps.unshift(nodeOp);
+                              }
+                            })
+                            .catch((e) => {
+                              rej(e);
+                            });
+                        })
+                      );
+                      break;
+                    }
+                  }
+                }
+                if (num % 100 === 0 && processor.isStreaming()) {
+                  client.database
+                    .getDynamicGlobalProperties()
+                    .then(function (result) {
+                      console.log(
+                        "At block",
+                        num,
+                        "with",
+                        result.head_block_number - num,
+                        `left until real-time. DAO in ${30240 - ((num - 20000) % 28800)
+                        } blocks`
+                      );
+                    });
+                }
+                if (num % 10000 === 0) {
+                  const { Hive } = require("./hive");
+                  Hive.getAccounts([config.msaccount]).then((r) => {
+                    getPathObj(['stats']).then(stats => {
+                      try {
+                        plasma.hbd_offset = stats.MSHeld.HBD - parseInt(parseFloat(r[0].hbd_balance) * 1000)
+                        plasma.hive_offset = stats.MSHeld.HIVE - parseInt(parseFloat(r[0].balance) * 1000)
+                      } catch (e) { }
+                    })
+                  });
+                }
+                if (num % 100 === 50) {
                   promises.push(
                     new Promise((res, rej) => {
-                      sig_submit(sign(num, plasma, missed_num, bh))
+                      report(plasma, consolidate(num, plasma, bh), HR.poa.Pending)
                         .then((nodeOp) => {
                           res("SAT");
-                          if (JSON.parse(nodeOp[1][1].json).sig) {
-                            NodeOps.unshift(nodeOp);
-                          }
+                          if (processor.isStreaming()) NodeOps.unshift(nodeOp);
                         })
                         .catch((e) => {
                           rej(e);
                         });
                     })
                   );
-                  break;
                 }
-              }
-            }
-            if (num % 100 === 0 && processor.isStreaming()) {
-              client.database
-                .getDynamicGlobalProperties()
-                .then(function (result) {
-                  console.log(
-                    "At block",
-                    num,
-                    "with",
-                    result.head_block_number - num,
-                    `left until real-time. DAO in ${
-                      30240 - ((num - 20000) % 28800)
-                    } blocks`
-                  );
-                });
-            }
-            if(num % 10000 === 0){
-              const { Hive } = require("./hive");
-              Hive.getAccounts([config.msaccount]).then((r) => {
-                getPathObj(['stats']).then(stats =>{
-                  try {
-                    plasma.hbd_offset = stats.MSHeld.HBD - parseInt(parseFloat(r[0].hbd_balance) * 1000)
-                    plasma.hive_offset = stats.MSHeld.HIVE - parseInt(parseFloat(r[0].balance) * 1000)
-                  } catch (e) {}
-                })
-              });
-            }
-            if (num % 100 === 50) {
-              promises.push(
-                new Promise((res, rej) => {
-                  report(plasma, consolidate(num, plasma, bh))
-                    .then((nodeOp) => {
-                      res("SAT");
-                      if (processor.isStreaming()) NodeOps.unshift(nodeOp);
-                    })
-                    .catch((e) => {
-                      rej(e);
-                    });
-                })
-              );
-            }
-            if ((num - 18505) % 28800 === 0) {
-              //time for daily magic
-              promises.push(dao(num));
-              block.prev_root = block.root;
-              block.root = "";
-            }
-            if (num % 100 === 0) {
-              promises.push(tally(num, plasma, processor.isStreaming()));
-            }
-            if (num % 100 === 99) {
-              if (config.features.liquidity) promises.push(Liquidity());
-            }
-            if ((num - 2) % 3000 === 0) {
-              promises.push(voter());
-            }
-            Promise.all(promises).then(() => resolve(pc));
+                if ((num - 18505) % 28800 === 0) {
+                  //time for daily magic
+                  promises.push(dao(num));
+                  block.prev_root = block.root;
+                  block.root = "";
+                }
+                if (num % 100 === 0) {
+                  promises.push(tally(num, plasma, processor.isStreaming()));
+                }
+                if (num % 100 === 99) {
+                  if (config.features.liquidity) promises.push(Liquidity());
+                }
+                if ((num - 2) % 3000 === 0) {
+                  promises.push(voter());
+                }
+                Promise.all(promises).then(() => resolve(pc));
+              })
+            })
           });
         }
         if (num % 100 === 1 && !block.root) {
@@ -909,7 +930,7 @@ function startApp() {
 function exit(consensus, reason) {
   console.log(`Restarting with ${consensus}. Reason: ${reason}`);
 
-  if (processor) processor.stop(function () {});
+  if (processor) processor.stop(function () { });
   if (consensus) {
     startWith(consensus, true);
   } else {
@@ -949,7 +970,7 @@ function dynStart(account) {
       start: false,
       first: config.engineCrank,
     };
-    if(config.mirrorNet){
+    if (config.mirrorNet) {
       consensus_init.reports.push(Hive.getRecentReport("spk-test", walletOperationsBitmask))
     } else {
       for (i in oa) {
@@ -1012,8 +1033,23 @@ function startWith(hash, second) {
                 if (!e && (second || data[0] > API.RAM.head - 325)) {
                   if (hash) {
                     var cleanState = data[1];
-                    // adding new variables
-                    if(config.mirrorNet && hash == replay){ //test net and upgrade init
+                    cleanState.dexs = {
+                      hive: {
+                        buyBook: "",
+                        sellBook: "",
+                        days: {},
+                        orderBook: {},
+                        tick: "1.0"
+                      },
+                      hbd: {
+                        buyBook: "",
+                        sellBook: "",
+                        days: {},
+                        orderBook: {},
+                        tick: "1.0"
+                      },
+                    }
+                    if (config.mirrorNet && hash == replay) { //test net and upgrade init
                       cleanState.stats.channel_bytes = 1024
                       cleanState.stats.channel_min = 100
                       cleanState.stats.interestRate = 303311 // 100% for 2 years compounded every 5 minutes
@@ -1033,7 +1069,7 @@ function startWith(hash, second) {
                             t: 28800 * 30,
                             a: "VAL"
                           }
-                          },
+                        },
                         "1": {
                           i: "1",
                           d: "account:percent*100",
@@ -1046,32 +1082,32 @@ function startWith(hash, second) {
                             t: 28800 * 30,
                             a: 'VAL'
                           }
-                          }
+                        }
                       }
                       delete cleanState.snap
                       cleanState.stats.broca_refill = 144000
                       cleanState.stats.spk_cycle_length = 200000 //downpower time
                       cleanState.stats.max_coll_members = 25 //consensus members in DEX
                       cleanState.stats.vals_per_day = 0
-                      cleanState.stats.vals_target = "10.00000" // 10%
+                      cleanState.stats.vals_target = "1000.00000" // 1000%
                       cleanState.stats.total_bytes = 0
                       cleanState.stats.total_files = 0
                       cleanState.stats.ms = {
                         active_account_auths: {
-                           ["spk-test"]: 1,
+                          ["spk-test"]: 1,
                         },
                         active_threshold: 1,
                         memo_key: "STM5GNM3jpjWh7Msts5Z37eM9UPfGwTMU7Ksats3RdKeRaP5SveR9",
                         owner_key_auths: {
-                           STM6EUEaEywYoxpeVDX1fPDxrsyQLGTsgYf1LLDSHWwiKBdgRhGrx: 1,
+                          STM6EUEaEywYoxpeVDX1fPDxrsyQLGTsgYf1LLDSHWwiKBdgRhGrx: 1,
                         },
                         owner_threshold: 1,
                         posting_account_auths: {
-                           ["test-spk"]: 1
+                          ["test-spk"]: 1
                         },
                         posting_threshold: 1
-                     }
-                     delete cleanState.queue
+                      }
+                      delete cleanState.queue
                       cleanState.runners = {
                         ["spk-test"]: {
                           g: 17672776,
@@ -1102,8 +1138,7 @@ function startWith(hash, second) {
                                 function (error, returns) {
                                   if (!error) {
                                     console.log(
-                                      `State Check:  ${returns}\nAccount: ${
-                                        config.username
+                                      `State Check:  ${returns}\nAccount: ${config.username
                                       }\nKey: ${config.active.substr(0, 3)}...`
                                     );
                                     let info = API.coincheck(cleanState);
@@ -1262,8 +1297,7 @@ function startWith(hash, second) {
           store.get(["stats", "hashLastIBlock"], function (error, returns) {
             if (!error) {
               console.log(
-                `State Check:  ${returns}\nAccount: ${
-                  config.username
+                `State Check:  ${returns}\nAccount: ${config.username
                 }\nKey: ${config.active.substr(0, 3)}...`
               );
             }
@@ -1332,8 +1366,11 @@ function rundelta(arr, ops, sb, pr) {
 
 function unwrapOps(arr) {
   return new Promise((resolve, reject) => {
-    var d = [];
-    if (arr[arr.length - 1] !== "W") arr.push("W");
+    var d = [], changed = false;
+    if (arr[arr.length - 1] !== "W") {
+      arr.push("W"); // flag for removal
+      changed = true
+    }
     if (arr.length) write(0);
     else resolve([]);
     function write(int) {
@@ -1347,6 +1384,7 @@ function unwrapOps(arr) {
         }
         if (e == "W" && i == arr.length - 1) {
           store.batch(d, [resolve, null, i + 1]);
+          if(changed)arr.pop()
           break;
         } else if (e == "W") {
           store.batch(d, [write, null, i + 1]);
@@ -1400,10 +1438,10 @@ function issc(n, b, i, r, a) {
       if (
         (block.chain.length > 2 &&
           block.chain[block.chain.length - 2].hive_block <
-            block.chain[block.chain.length - 1].hive_block - 100) ||
+          block.chain[block.chain.length - 1].hive_block - 100) ||
         (chain.length > block.chain.length &&
           block.chain[block.chain.length - 1].hash !=
-            chain[block.chain.length - 1].hash)
+          chain[block.chain.length - 1].hash)
       ) {
         exit(block.chain[block.chain.length - 2].hash, "Chain Out Of Order");
       } else if (typeof i == "function") {

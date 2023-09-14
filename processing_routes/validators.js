@@ -24,7 +24,7 @@ const PoA = {
           if (node.val_code && val[account]) {
               const [gte, lte] = this.getRange(prand, account, val, stats)
               getPathSome(["IPFS"], { gte, lte }).then(items => { //need to wrap this call to 0 thru remainder 
-                  var promises = [], toVerify = {}
+                  var promises = []
                   for (var pointer of items) {
                       promises.push(getPathObj(['contract', items[pointer].split(',')[0], items[pointer].split(',')[1]]))
                       const asset = pointer.split("").reverse().join("")
@@ -95,14 +95,14 @@ const PoA = {
       }
       return Base58.fromNumber((r % 7427658739644928).intValue())
   },
-  validate: function (cid, name, peerIDs, salt, bn) {
+  validate: function (CID, Name, peerIDs, SALT, bn) {
       return new Promise((res, rej) => {
           setTimeout(rej,280000)
           peerids = peerIDs.split(',')
           for (var i = 0; i < peerids.length; i++) {
               var socket = new WebSocketClient(`ws://localhost:3000/validate`);
               socket.addEventListener('open', () => {
-                  socket.send(JSON.stringify({ name, cid, peerid: peerids[i], salt }));
+                  socket.send(JSON.stringify({ Name, CID, peerid: peerids[i], SALT }));
               })
               socket.addEventListener('message', (event) => {
                   const data = JSON.parse(event.data);
@@ -127,7 +127,7 @@ const PoA = {
                       if (config.mode == 'verbose') console.log('Validating Proof', { data })
                   } else if (data.Status === "Proof Validated") {
                       if (config.mode == 'verbose') console.log('Proof Validated', { data })
-                      res([data, cid, name, peerIDs, salt, bn])
+                      res([data, CID, Name, peerIDs, SALT, bn])
                   } else if (data.Status === "Proof Invalid") {
                       if (config.mode == 'verbose') console.log('Proof Invalid', { data })
                       rej(data)

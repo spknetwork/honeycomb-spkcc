@@ -1074,6 +1074,7 @@ exports.transfer = (json, pc) => {
       //console.log(json)
       let order = {
           type: "LIMIT",
+          token: "SPK"
         },
         path = "",
         waiting = Promise.resolve(""),
@@ -1096,8 +1097,9 @@ exports.transfer = (json, pc) => {
       order.amount = parseInt(json.amount.amount);
       //console.log({order})
       if (order.type == "MARKET" || order.type == "LIMIT") {
-        let pDEX = getPathObj(["dex", order.pair]),
-          pBal = getPathNum(["balances", json.from]),
+        if(order.tokem != 'SPK')order.token = 'LARYNX'
+        let pDEX = getPathObj([`dex${order.token == 'SPK' ? 's' : ''}`, order.pair]),
+          pBal = getPathNum([order.token == 'SPK' ? 'spk' : 'balances', json.from]),
           pInv = getPathNum(["balances", "ri"]),
           pStats = getPathObj(["stats"]);
         Promise.all([pDEX, pBal, pInv, pStats]).then((mem) => {
@@ -1208,7 +1210,7 @@ exports.transfer = (json, pc) => {
                   delete dex.sellOrders[`${price}:${item}`];
                   ops.push({
                     type: "del",
-                    path: ["dex", order.pair, "sellOrders", `${price}:${item}`],
+                    path: [order.token == 'SPK' ? 'dexs' : 'dex', order.pair, "sellOrders", `${price}:${item}`],
                   }); //remove the order
                   ops.push({
                     type: "del",
@@ -1355,7 +1357,7 @@ exports.transfer = (json, pc) => {
                     };
                     const msg = `@${json.from}| bought ${parseFloat(
                       purchase / 1000
-                    ).toFixed(3)} ${config.TOKEN} with ${parseFloat(
+                    ).toFixed(3)} ${order.token == 'SPK' ? 'SPK' : 'LARYNX'} with ${parseFloat(
                       remaining / 1000
                     ).toFixed(3)} HIVE`;
                     ops.push(
@@ -1367,7 +1369,7 @@ exports.transfer = (json, pc) => {
                         ],
                         data: msg,
                       },
-                      { type: "put", path: ["balances", "ri"], data: inv }
+                      { type: "put", path: [order.token == 'SPK' ? 'spk' : 'balances', "ri"], data: inv }
                     );
                   } else {
                     bal += inv;
@@ -1385,7 +1387,7 @@ exports.transfer = (json, pc) => {
                     };
                     const msg = `@${json.from}| bought ALL ${parseFloat(
                       parseInt(purchase - left)
-                    ).toFixed(3)} ${config.TOKEN} with ${parseFloat(
+                    ).toFixed(3)} ${order.token == 'SPK' ? 'SPK' : 'LARYNX'} with ${parseFloat(
                       parseInt(amount) / 1000
                     ).toFixed(3)} HIVE. And bid in the over-auction`;
                     ops.push(
@@ -1394,7 +1396,7 @@ exports.transfer = (json, pc) => {
                         path: ["ico", `${json.block_num}`, json.from],
                         data: parseInt((amount * left) / purchase),
                       },
-                      { type: "put", path: ["balances", "ri"], data: 0 },
+                      { type: "put", path: [order.token == 'SPK' ? 'spk' : 'balances', "ri"], data: 0 },
                       {
                         type: "put",
                         path: [
@@ -1409,7 +1411,7 @@ exports.transfer = (json, pc) => {
                 } else {
                   const msg = `@${json.from}| bought ALL ${parseFloat(
                     parseInt(purchase - left)
-                  ).toFixed(3)} ${config.TOKEN} with ${parseFloat(
+                  ).toFixed(3)} ${order.token == 'SPK' ? 'SPK' : 'LARYNX'} with ${parseFloat(
                     parseInt(amount) / 1000
                   ).toFixed(3)} HIVE. And bid in the over-auction`;
                   if (config.hookurl || config.status)
@@ -1550,12 +1552,12 @@ exports.transfer = (json, pc) => {
               }
               let msg = `@${json.from} is buying ${parseFloat(
                 parseInt(contract.amount) / 1000
-              ).toFixed(3)} ${config.TOKEN} for ${parseFloat(
+              ).toFixed(3)} ${order.token == 'SPK' ? 'SPK' : 'LARYNX'} for ${parseFloat(
                 parseInt(contract[order.pair]) / 1000
               ).toFixed(3)} ${order.pair.toUpperCase()}(${contract.rate}:${
                 contract.txid
               })`;
-              ops.push({ type: "put", path: ["dex", order.pair], data: dex });
+              ops.push({ type: "put", path: [order.token == 'SPK' ? 'dexs' : 'dex', order.pair], data: dex });
               ops.push({
                 type: "put",
                 path: ["feed", `${json.block_num}:${json.transaction_id}.${i}`],

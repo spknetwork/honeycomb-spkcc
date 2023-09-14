@@ -1,15 +1,28 @@
 const config = require('./config');
 const { plasma, VERSION } = require('./index');
+const { val_add } = require('./processing_routes');
 
 //tell the hive your state, this is asynchronous with IPFS return... 
 function report(plas, con) {
     return new Promise((resolve, reject) => {
         con.then(r =>{
+            var val = []
+            if(plas.v){
+                const offset = plas.hashBlock % 200 > 100 ? 100 : 0
+                for(var i = 0; i < 100; i ++){
+                    if(plas.v[`${i + offset}`]){
+                        for(var node in plas.v[`${i + offset}`]){
+                            val.push(plas.v[`${i + offset}`][node])
+                        }
+                    }
+                }
+            }
             let report = {
                 hash: plas.hashLastIBlock,
                 block: plas.hashBlock,
                 stash: plas.privHash,
                 ipfs_id: plas.id,
+                v: val,
                 version: VERSION
             }
             if(plas.hashBlock % 10000 == 1){

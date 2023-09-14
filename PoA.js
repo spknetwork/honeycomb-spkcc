@@ -88,18 +88,17 @@ const PoA = {
         }
         return Base58.fromNumber((r % 7427658739644928).intValue())
     },
-    validate: function (cid, name, peerIDs, salt, bn) {
+    validate: function (CID, name, peerIDs, SALT, bn) {
         return new Promise((res, rej) => {
             setTimeout(rej,280000)
             peerids = peerIDs.split(',')
             for (var i = 0; i < peerids.length; i++) {
                 var socket = new WebSocketClient(`ws://localhost:3000/validate`);
                 socket.addEventListener('open', () => {
-                    socket.send(JSON.stringify({ name, cid, peerid: peerids[i], salt }));
+                    socket.send(JSON.stringify({ name, CID, peerid: peerids[i], SALT }));
                 })
                 socket.addEventListener('message', (event) => {
                     const data = JSON.parse(event.data);
-                    const stepText = document.querySelectorAll('.step-text');
                     if (data.Status === 'Connecting to Peer') {
                         if (config.mode == 'verbose') console.log('Connecting to Peer')
                     } else if (data.Status === 'IpfsPeerIDError') {

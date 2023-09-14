@@ -161,6 +161,23 @@ exports.pairs = (req, res, next) => {
   res.send(JSON.stringify(pairs, null, 3));
 };
 
+exports.pairs_spk = (req, res, next) => {
+  res.setHeader("Content-Type", "application/json");
+  const pairs = [
+    {
+      ticker_id: `HIVE_SPK`,
+      base: "HIVE",
+      target: 'SPK',
+    },
+    {
+      ticker_id: `HBD_SPK`,
+      base: "HBD",
+      target: 'SPK',
+    },
+  ];
+  res.send(JSON.stringify(pairs, null, 3));
+};
+
 exports.tickers = (req, res, next) => {
   var dex = getPathObj(["dex"]);
   var stats = getPathObj(["stats"]);
@@ -272,6 +289,117 @@ exports.tickers = (req, res, next) => {
     });
 };
 
+exports.tickers_spk = (req, res, next) => {
+  var dex = getPathObj(["dexs"]);
+  var stats = getPathObj(["stats"]);
+  res.setHeader("Content-Type", "application/json");
+  Promise.all([dex, stats])
+    .then(function (v) {
+      var info = {
+        hive: {
+          low: v[0].hive.tick,
+          bv: 0,
+          tv: 0,
+          high: v[0].hive.tick,
+          bid: 0,
+          ask: 999999999,
+        },
+        hbd: {
+          low: v[0].hbd.tick,
+          high: v[0].hbd.tick,
+          bv: 0,
+          tv: 0,
+          bid: 0,
+          ask: 999999999,
+        },
+      };
+      for (item in v[0].hive.his) {
+        if (v[0].hive.his[item].block > v[1].lastIBlock - 28800) {
+          // if (v[0].hive.his[item].block < hive.open){
+          //     hive.open = v[0].hive.his[item].block
+          //     hive.o = parseFloat(v[0].hive.his[item].rate)
+          //     hive.tv += v[0].hive.his[item].amount
+          //     hive.bv += v[0].hive.his[item].amount v[0].hive.his[item].rate
+          // }
+          if (v[0].hive.his[item].rate < info.hive.low) {
+            info.hive.low = v[0].hive.his[item].rate;
+          }
+          if (v[0].hive.his[item].rate > info.hive.high) {
+            info.hive.high = v[0].hive.his[item].rate;
+          }
+          info.hive.tv += parseFloat(v[0].hive.his[item].amount);
+          info.hive.bv += parseFloat(
+            parseFloat(v[0].hive.his[item].amount) *
+              parseFloat(v[0].hive.his[item].rate)
+          ).toFixed(3);
+        }
+      }
+      for (item in v[0].hbd.his) {
+        if (v[0].hbd.his[item].block > v[1].lastIBlock - 28800) {
+          if (v[0].hbd.his[item].rate < info.hbd.low) {
+            info.hbd.low = v[0].hbd.his[item].rate;
+          }
+          if (v[0].hbd.his[item].rate > info.hbd.high) {
+            info.hbd.high = v[0].hbd.his[item].rate;
+          }
+          info.hbd.tv += parseFloat(v[0].hbd.his[item].amount);
+          info.hbd.bv += parseFloat(
+            parseFloat(v[0].hbd.his[item].amount) *
+              parseFloat(v[0].hbd.his[item].rate)
+          ).toFixed(3);
+        }
+      }
+      for (item in v[0].hbd.sellOrders) {
+        if (parseFloat(v[0].hbd.sellOrders[item].rate) < info.hbd.ask) {
+          info.hbd.ask = v[0].hbd.sellOrders[item].rate;
+        }
+      }
+      for (item in v[0].hbd.buyOrders) {
+        if (parseFloat(v[0].hbd.buyOrders[item].rate) > info.hbd.bid) {
+          info.hbd.bid = v[0].hbd.buyOrders[item].rate;
+        }
+      }
+      for (item in v[0].hive.sellOrders) {
+        if (parseFloat(v[0].hive.sellOrders[item].rate) < info.hive.ask) {
+          info.hive.ask = v[0].hive.sellOrders[item].rate;
+        }
+      }
+      for (item in v[0].hive.buyOrders) {
+        if (parseFloat(v[0].hive.buyOrders[item].rate) > info.hive.bid) {
+          info.hive.bid = v[0].hive.buyOrders[item].rate;
+        }
+      }
+      var hive = {
+          ticker_id: `HIVE_SPK`,
+          base_currency: "HIVE",
+          target_currency: 'SPK',
+          last_price: v[0].hive.tick,
+          base_volume: parseFloat(parseFloat(info.hive.bv) / 1000).toFixed(3),
+          target_volume: parseFloat(parseFloat(info.hive.tv) / 1000).toFixed(3),
+          bid: info.hive.bid,
+          ask: info.hive.ask,
+          high: info.hive.high,
+          low: info.hive.low,
+        },
+        hbd = {
+          ticker_id: `HBD_SPK`,
+          base_currency: "HBD",
+          target_currency: 'SPK',
+          last_price: v[0].hbd.tick,
+          base_volume: parseFloat(parseFloat(info.hbd.bv) / 1000).toFixed(3),
+          target_volume: parseFloat(parseFloat(info.hbd.tv) / 1000).toFixed(3),
+          bid: info.hbd.bid,
+          ask: info.hbd.ask,
+          high: info.hbd.high,
+          low: info.hbd.low,
+        };
+      res.send(JSON.stringify([hive, hbd], null, 3));
+    })
+    .catch(function (err) {
+      console.log(err);
+    });
+};
+
 exports.orderbook = (req, res, next) => {
   var dex = getPathObj(["dex"]);
   var stats = getPathObj(["stats"]);
@@ -297,6 +425,87 @@ exports.orderbook = (req, res, next) => {
         JSON.stringify(
           {
             ERROR: `ticker_id must be HIVE_${config.TOKEN} or HBD_${config.TOKEN}`,
+            node: config.username,
+            VERSION,
+          },
+          null,
+          3
+        )
+      );
+      break;
+  }
+  function makeBook(dep, promises) {
+    var get = dep;
+    if (!get) get = 50;
+    const type = orderbook.ticker_id.split("_")[0].toLowerCase();
+    Promise.all(promises)
+      .then(function (v) {
+        var count1 = 0,
+          count2 = 0;
+        for (item in v[0][type].sellOrders) {
+          orderbook.asks.push([
+            v[0][type].sellOrders[item].rate,
+            parseFloat(v[0][type].sellOrders[item].amount / 1000).toFixed(3),
+          ]);
+          count1++;
+          if (count1 == get) break;
+        }
+        for (item in v[0][type].buyOrders) {
+          orderbook.bids.push([
+            v[0][type].buyOrders[item].rate,
+            parseFloat(v[0][type].buyOrders[item].amount / 1000).toFixed(3),
+          ]);
+          count2++;
+          if (count2 == get) break;
+        }
+        res.send(
+          JSON.stringify(
+            {
+              asks: orderbook.asks,
+              bids: orderbook.bids,
+              timestamp: orderbook.timestamp,
+              ticker_id: orderbook.ticker_id,
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
+      })
+      .catch(function (err) {
+        console.log(err);
+      });
+  }
+};
+
+exports.orderbook_spk = (req, res, next) => {
+  var dex = getPathObj(["dexs"]);
+  var stats = getPathObj(["stats"]);
+  var orderbook = {
+    timestamp: Date.now(),
+    bids: [],
+    asks: [],
+  };
+  var pair = req.params.ticker_id || req.query.ticker_id;
+  const depth = parseInt(req.query.depth) || 50;
+  res.setHeader("Content-Type", "application/json");
+  switch (pair) {
+    case `HIVE_SPK`:
+      orderbook.ticker_id = `HIVE_SPK`;
+      makeBook(depth, [dex, stats]);
+      break;
+    case `HBD_SPK`:
+      orderbook.ticker_id = `HBD_SPK`;
+      makeBook(depth, [dex, stats]);
+      break;
+    default:
+      res.send(
+        JSON.stringify(
+          {
+            ERROR: `ticker_id must be HIVE_SPK or HBD_SPK`,
             node: config.username,
             VERSION,
           },
@@ -379,6 +588,91 @@ exports.chart = (req, res, next) => {
       getHistory([dex, stats], "hive", limit);
       break;
     case `HBD_${config.TOKEN}`:
+      getHistory([dex, stats], "hbd", limit);
+      break;
+    default:
+      res.send(
+        JSON.stringify(
+          {
+            error: "Ticker_ID is not supported",
+            node: config.username,
+            VERSION,
+          },
+          null,
+          3
+        )
+      );
+      break;
+  }
+  function getHistory(promises, pair, lim) {
+    Promise.all(promises)
+      .then(function (v) {
+        var his = [];
+        count = 0;
+        if (v[0][pair].his)
+          for (var item in v[0][pair].his) {
+            const record = {
+              trade_id: v[0][pair].his[item].id,
+              price: v[0][pair].his[item].price,
+              base_volume: parseFloat(
+                parseInt(v[0][pair].his[item].base_vol) / 1000
+              ).toFixed(3),
+              target_volume: parseFloat(
+                parseInt(v[0][pair].his[item].target_vol) / 1000
+              ).toFixed(3),
+              trade_timestamp: v[0][pair].his[item].t,
+              type: v[0][pair].his[item].type,
+            };
+            his.push(record);
+            count++;
+            if (count == limit) break;
+          }
+        res.send(
+          JSON.stringify(
+            {
+              recent_trades: his,
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
+      })
+      .catch(function (err) {
+        console.log(err);
+      });
+  }
+};
+
+exports.chart_spk = (req, res, next) => {
+  var dex = getPathObj(["dexs"]);
+  var stats = getPathObj(["stats"]);
+  var orderbook = {
+    timestamp: Date.now(),
+    recents: [],
+  };
+  /*
+{        
+      trade_id:1234567,
+      price:"50.1",
+      base_volume:"0.1",
+      target_volume:"1",
+      trade_timestamp:"1700050000",
+      type:"buy"
+   }
+
+    */
+  var pair = req.params.ticker_id || req.query.ticker_id;
+  const limit = parseInt(req.query.limit) || 50;
+  res.setHeader("Content-Type", "application/json");
+  switch (pair) {
+    case `HIVE_SPK`:
+      getHistory([dex, stats], "hive", limit);
+      break;
+    case `HBD_SPK`:
       getHistory([dex, stats], "hbd", limit);
       break;
     default:
@@ -556,6 +850,124 @@ exports.historical_trades = (req, res, next) => {
   }
 };
 
+exports.historical_trades_spk = (req, res, next) => {
+  var dex = getPathObj(["dexs"]);
+  var stats = getPathObj(["stats"]);
+  var orderbook = {
+    timestamp: Date.now(),
+    buys: [],
+    sells: [],
+  };
+  /*
+{        
+      trade_id:1234567,
+      price:"50.1",
+      base_volume:"0.1",
+      target_volume:"1",
+      trade_timestamp:"1700050000",
+      type:"buy"
+   }
+
+    */
+  var pair = req.params.ticker_id || req.query.ticker_id;
+  const limit = parseInt(req.query.limit) || 50;
+  var type = req.query.type;
+  switch (type) {
+    case "buy":
+      type = ["buy"];
+      break;
+    case "ask":
+      type = ["sell"];
+      break;
+    default:
+      type = ["buy", "sell"];
+      break;
+  }
+  res.setHeader("Content-Type", "application/json");
+  switch (pair) {
+    case `HIVE_SPK`:
+      getHistory([dex, stats], "hive", type, limit);
+      break;
+    case `HBD_SPK`:
+      getHistory([dex, stats], "hbd", type, limit);
+      break;
+    default:
+      res.send(
+        JSON.stringify(
+          {
+            error: "Ticker_ID is not supported",
+            node: config.username,
+            VERSION,
+          },
+          null,
+          3
+        )
+      );
+      break;
+  }
+  function getHistory(promises, pair, typ, lim) {
+    Promise.all(promises)
+      .then(function (v) {
+        var buy = [],
+          sell = [],
+          countb = 0;
+        counts = 0;
+        if (v[0][pair].his)
+          for (var item in v[0][pair].his) {
+            const record = {
+              trade_id: v[0][pair].his[item].id,
+              price: v[0][pair].his[item].price,
+              base_volume: parseFloat(
+                parseInt(v[0][pair].his[item].base_vol) / 1000
+              ).toFixed(3),
+              target_volume: parseFloat(
+                parseInt(v[0][pair].his[item].target_vol) / 1000
+              ).toFixed(3),
+              trade_timestamp: v[0][pair].his[item].t,
+              type: v[0][pair].his[item].type,
+            };
+            if (record.type == "buy") {
+              countb++;
+              if (countb <= lim) {
+                buy.push(record);
+                if (counts == lim) break;
+              }
+            } else {
+              counts++;
+              if (counts <= lim) {
+                sell.push(record);
+                if (countb == lim) break;
+              }
+            }
+          }
+        if (typ.indexOf("buy") < 0) {
+          buy = [];
+        }
+        if (typ.indexOf("sell") < 0) {
+          sell = [];
+        }
+
+        res.send(
+          JSON.stringify(
+            {
+              sell,
+              buy,
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
+      })
+      .catch(function (err) {
+        console.log(err);
+      });
+  }
+};
+
 exports.dex = (req, res, next) => {
   var Pdex = getPathObj(["dex"]);
   var Pstats = getPathObj(["stats"]);
@@ -569,40 +981,6 @@ exports.dex = (req, res, next) => {
       markets.hive.buys = [];
       markets.hbd.sells = [];
       markets.hbd.buys = [];
-      if (config.features.ico)
-        markets.hive.sells.push({
-          amount: v[2],
-          block: 0,
-          expire_path: "NA",
-          fee: 0,
-          from: "ICO",
-          hbd: 0,
-          hive: parseInt((v[2] * v[1].icoPrice) / 1000),
-          rate: parseFloat(v[1].icoPrice / 1000).toFixed(6),
-          txid: "DLUXICO",
-          type: "hive:sell",
-          key: `${parseFloat(v[1].icoPrice / 1000).toFixed(6)}:DLUXICO`,
-          hivenai: {
-            amount: parseInt((v[2] * v[1].icoPrice) / 1000),
-            precision: 3,
-            token: "HIVE",
-          },
-          hbdnai: {
-            amount: 0,
-            precision: 3,
-            token: "HBD",
-          },
-          amountnai: {
-            amount: v[2],
-            precision: 3,
-            token: "DLUX",
-          },
-          feenai: {
-            amount: 0,
-            precision: 3,
-            token: "DLUX",
-          },
-        });
       for (item in v[0].hive.sellOrders) {
         markets.hive.sellOrders[item].key = item;
         var order = {};
@@ -712,6 +1090,156 @@ exports.dex = (req, res, next) => {
           amount: order.fee,
           precision: config.precision,
           token: config.TOKEN,
+        };
+        markets.hbd.buys.push(order);
+      }
+      delete markets.hbd.buyOrders;
+      delete markets.hbd.sellOrders;
+      delete markets.hive.buyOrders;
+      delete markets.hbd.sellOrders;
+      res.send(
+        JSON.stringify(
+          {
+            markets,
+            stats: v[1],
+            queue: v[3],
+            node: config.username,
+            head_block: RAM.head,
+            behind: RAM.behind,
+            VERSION,
+          },
+          null,
+          3
+        )
+      );
+    })
+    .catch(function (err) {
+      console.log(err);
+    });
+};
+
+exports.dex_spk = (req, res, next) => {
+  var Pdex = getPathObj(["dexs"]);
+  var Pstats = getPathObj(["stats"]);
+  var Pico = getPathObj(["balances", "ri"]);
+  var PQueue = getPathObj(["queue"]);
+  res.setHeader("Content-Type", "application/json");
+  Promise.all([Pdex, Pstats, Pico, PQueue])
+    .then(function (v) {
+      var markets = v[0];
+      markets.hive.sells = [];
+      markets.hive.buys = [];
+      markets.hbd.sells = [];
+      markets.hbd.buys = [];
+      for (item in v[0].hive.sellOrders) {
+        markets.hive.sellOrders[item].key = item;
+        var order = {};
+        for (let key in markets.hive.sellOrders[item]) {
+          order[key] = markets.hive.sellOrders[item][key];
+        }
+        order.hivenai = {
+          amount: order.hive,
+          precision: 3,
+          token: "HIVE",
+        };
+        order.hbdnai = {
+          amount: order.hbd,
+          precision: 3,
+          token: "HBD",
+        };
+        order.amountnai = {
+          amount: order.amount,
+          precision: config.precision,
+          token: 'SPK',
+        };
+        order.feenai = {
+          amount: order.fee,
+          precision: config.precision,
+          token: "SPK",
+        };
+        markets.hive.sells.push(order);
+      }
+      for (item in v[0].hive.buyOrders) {
+        markets.hive.buyOrders[item].key = item;
+        var order = {};
+        for (let key in markets.hive.buyOrders[item]) {
+          order[key] = markets.hive.buyOrders[item][key];
+        }
+        order.hivenai = {
+          amount: order.hive,
+          precision: 3,
+          token: "HIVE",
+        };
+        order.hbdnai = {
+          amount: order.hbd,
+          precision: 3,
+          token: "HBD",
+        };
+        order.amountnai = {
+          amount: order.amount,
+          precision: config.precision,
+          token: "SPK",
+        };
+        order.feenai = {
+          amount: order.fee,
+          precision: config.precision,
+          token: "SPK",
+        };
+        markets.hive.buys.push(order);
+      }
+      for (item in v[0].hbd.sellOrders) {
+        markets.hbd.sellOrders[item].key = item;
+        var order = {};
+        for (let key in markets.hbd.sellOrders[item]) {
+          order[key] = markets.hbd.sellOrders[item][key];
+        }
+        order.hivenai = {
+          amount: order.hive,
+          precision: 3,
+          token: "HIVE",
+        };
+        order.hbdnai = {
+          amount: order.hbd,
+          precision: 3,
+          token: "HBD",
+        };
+        order.amountnai = {
+          amount: order.amount,
+          precision: config.precision,
+          token: "SPK",
+        };
+        order.feenai = {
+          amount: order.fee,
+          precision: config.precision,
+          token: "SPK",
+        };
+        markets.hbd.sells.push(order);
+      }
+      for (item in v[0].hbd.buyOrders) {
+        markets.hbd.buyOrders[item].key = item;
+        var order = {};
+        for (let key in markets.hbd.buyOrders[item]) {
+          order[key] = markets.hbd.buyOrders[item][key];
+        }
+        order.hivenai = {
+          amount: order.hive,
+          precision: 3,
+          token: "HIVE",
+        };
+        order.hbdnai = {
+          amount: order.hbd,
+          precision: 3,
+          token: "HBD",
+        };
+        order.amountnai = {
+          amount: order.amount,
+          precision: config.precision,
+          token: "SPK",
+        };
+        order.feenai = {
+          amount: order.fee,
+          precision: config.precision,
+          token: "SPK",
         };
         markets.hbd.buys.push(order);
       }
@@ -1040,6 +1568,33 @@ exports.protocol = (req, res, next) => {
           node: config.username,
           multisig: config.msaccount,
           jsontoken: config.jsonTokenName,
+          memoKey: config.msPubMemo,
+          features: config.featuresModel,
+          votable: config.votable,
+          head_block: RAM.head,
+          behind: RAM.behind,
+          info: "/markets will return node information and published APIs for the consensus nodes, you may check these other APIs to ensure that the information in the API is in consensus.\nThe prefix is used to address this tokens architecture built on Hive.",
+          VERSION,
+        },
+        null,
+        3
+      )
+    );
+  });
+};
+
+exports.protocol_spk = (req, res, next) => {
+  res.setHeader("Content-Type", "application/json");
+  store.get(["queue"], function (err, obj) {
+    var feed = obj;
+    res.send(
+      JSON.stringify(
+        {
+          consensus: obj,
+          prefix: config.prefix + "spk_",
+          node: config.username,
+          multisig: config.msaccount,
+          jsontoken: 'spk',
           memoKey: config.msPubMemo,
           features: config.featuresModel,
           votable: config.votable,
@@ -2430,6 +2985,141 @@ exports.user = (req, res, next) => {
                       down: v[7],
                       power_downs,
                       gov_downs: v[15],
+                      gov: v[5],
+                      spk: v[11],
+                      spk_block: v[12],
+                      spk_power: v[18],
+                      spk_vote: v[21],
+                      broca: typeof v[19] == 'string' ? v[19] : '0,0',
+                      tick: v[13],
+                      node: config.username,
+                      head_block: RAM.head,
+                      behind: RAM.behind,
+                      VERSION,
+                    },
+                    null,
+                    3
+                  )
+                );
+        })
+        .catch(function(err) {
+            console.log(err)
+        })
+}
+
+function reward_spk(head_block, spk_block, gov, pow, sstats, granted, granting) {
+      var r = 0,
+        a = 0,
+        b = 0,
+        c = 0,
+        t = 0,
+        diff = head_block - spk_block;
+      if (spk_block) {
+        return 0;
+      } else if (diff < 28800) {
+        return 0;
+      } else {
+        t = parseInt(diff / 28800);
+        a = gov
+          ? simpleInterest(gov, t, sstats.spk_rate_lgov)
+          : 0;
+        b = pow
+          ? simpleInterest(pow, t, sstats.spk_rate_lpow)
+          : 0;
+        c = simpleInterest(
+          parseInt(
+            granted?.t > 0 ? granted.t : 0
+          ) +
+            parseInt(
+              granting?.t > 0 ? granting.t : 0
+            ),
+          t,
+          sstats.spk_rate_ldel
+        );
+        const i = a + b + c;
+        if (i) {
+          return i;
+        } else {
+          return 0;
+        }
+      }
+      function simpleInterest(p, t, r) {
+        const amount = p * (1 + parseFloat(r) / 365);
+        const interest = amount - p;
+        return parseInt(interest * t);
+      }
+    }
+
+exports.user_spk = (req, res, next) => {
+    let un = req.params.un,
+        stats = getPathNum(['stats']),
+        cbal = getPathNum(['cbalances', un]),
+        claims = getPathObj(['snap', un]),
+        pb = getPathNum(['spow', un]),
+        lp = getPathObj(['granted', un]),
+        lg = getPathObj(['granting', un]),
+        contracts = getPathObj(['contracts', un]),
+        incol = getPathNum(['col', un]), //collateral
+        gp = getPathNum(['gov', un]),
+        pup = getPathObj(['up', un]),
+        pdown = getPathObj(['down', un]),
+        pspk = getPathNum(['spk', un]),
+        pspkb = getPathNum(['spkb', un]),
+        tick = getPathObj(['dexs', 'hive', 'tick']),
+        powdown = getPathObj(['powd', un]),
+        govdown = getPathObj(['govd', un]),
+        chron = getPathObj(['chrono']),
+        ppubKey = getPathObj(['authorities', un]),
+        pspow = getPathNum(['spow', un]),
+        pbroca = getPathObj(["broca", un]),
+        pChannels = getPathObj(["proffer", un]),
+        pContract = getPathObj(["contract", un]),
+        pspkVote = getPathObj(["spkVote", un]),
+        pNode = getPathObj(["markets", "node", un]),
+        pStorage = getPathObj(["service", "IPFS", un]);
+    res.setHeader('Content-Type', 'application/json');
+    Promise.all([stats, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims, pspk, pspkb, tick, powdown, govdown, chron, ppubKey, pspow, pbroca, pChannels, pspkVote, pContract, pStorage, pNode])
+        .then(function(v) {
+            var arr = []
+            for (var i in v[3]) {
+                var c = v[3][i]
+                if(c.partial){
+                    c.partials = []
+                    for(var p in c.partial){
+                        var j = c.partial[p]
+                        j.txid = p
+                        c.partials.push(j)
+                    }
+                }
+                arr.push(c)
+            }
+            const pubKey = typeof v[17] == 'string' ? v[17] : 'NA'
+            var power_downs = v[14]
+            if (power_downs){
+                for(var pd in power_downs){
+                    power_downs[pd] = v[16][pd]
+                }
+            }
+            
+                res.send(
+                  JSON.stringify(
+                    {
+                      balance: v[11] + reward_spk(RAM.head, v[12], v[5], v[1], v[0], v[2], v[8]),
+                      claim: v[9],
+                      poweredUp: v[18],
+                      granted: v[2],
+                      granting: v[8],
+                      heldCollateral: v[4],
+                      contracts: arr,
+                      channels: v[20],
+                      file_contracts: v[22],
+                      storage: v[23],
+                      spknode: v[24],
+                      pubKey,
+                      up: v[6],
+                      down: v[7],
+                      power_downs,
+                      gov_downs: v[15],  //spk power downs
                       gov: v[5],
                       spk: v[11],
                       spk_block: v[12],
