@@ -3,8 +3,9 @@ const { plasma, VERSION } = require('./index');
 const { val_add } = require('./processing_routes');
 
 //tell the hive your state, this is asynchronous with IPFS return... 
-function report(plas, con) {
+function report(plas, con, poa) {
     return new Promise((resolve, reject) => {
+        // console.log({poa})
         con.then(r =>{
             var val = []
             if(plas.v){

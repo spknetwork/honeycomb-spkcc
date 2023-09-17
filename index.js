@@ -201,7 +201,7 @@ exports.processor = processor;
 //HIVE API CODE
 
 //Start Program Options
-const replay = "QmV33z2C2vzecme4S57ziPgJcTB4qoMaQJxsMerTXxAuKR"
+const replay = "QmYnW1jqHFHCg74LyKFCgu8weA4g4JRT2DPzQqnUL3Ti1z"
 //startWith(replay, true);
 dynStart();
 Watchdog.monitor();
@@ -684,7 +684,7 @@ function startApp() {
           return new Promise((res, rej) => {
             HR.margins(num).then(r => {
               HR.poa(num, prand, stats).then(r => {
-                let promises = []; //, HR.poa(num, prand, stats)];
+                let promises = [];
                 if (num % 100 !== 50) {
                   if (mso_keys.length && !config.mirrorNet) {
                     promises.push(
@@ -781,7 +781,7 @@ function startApp() {
                 if (num % 100 === 50) {
                   promises.push(
                     new Promise((res, rej) => {
-                      report(plasma, consolidate(num, plasma, bh), HR.poa.Pending)
+                      report(plasma, consolidate(num, plasma, bh), HR.PoA.Pending)
                         .then((nodeOp) => {
                           res("SAT");
                           if (processor.isStreaming()) NodeOps.unshift(nodeOp);
@@ -1366,10 +1366,9 @@ function rundelta(arr, ops, sb, pr) {
 
 function unwrapOps(arr) {
   return new Promise((resolve, reject) => {
-    var d = [], changed = false;
+    var d = []
     if (arr[arr.length - 1] !== "W") {
       arr.push("W"); // flag for removal
-      changed = true
     }
     if (arr.length) write(0);
     else resolve([]);
@@ -1384,7 +1383,6 @@ function unwrapOps(arr) {
         }
         if (e == "W" && i == arr.length - 1) {
           store.batch(d, [resolve, null, i + 1]);
-          if(changed)arr.pop()
           break;
         } else if (e == "W") {
           store.batch(d, [write, null, i + 1]);
@@ -1427,6 +1425,7 @@ function ipfspromise(hash) {
 }
 
 function issc(n, b, i, r, a) {
+  if(b.ops && b.ops[b.ops.length - 1] !== "W")b.ops.push("W")
   const chain = JSON.parse(b.toString())[1].chain; //to verify runDelta matches current chain
   ipfsSaveState(n, b, i, r, a)
     .then((pla) => {

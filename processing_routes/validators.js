@@ -8,6 +8,7 @@ const { Base64, Base58, Base38 } = require("./../helpers");
 const { chronAssign } = require("./../lil_ops");
 //const { poa } = require("./validators");
 const fetch = require("node-fetch");
+const WebSocketClient = require('websocket').client
 
 
 const PoA = {
@@ -16,39 +17,49 @@ const PoA = {
   },
   Validate: function (block, prand, stats, account = config.username) {
       //get val, match with this account
+      this.Pending[ block % 200 ] = {}
       let Pval = getPathObj(['val'])
       let Pnode = getPathObj(['markets', 'node', account])
       Promise.all([Pval, Pnode]).then(mem => {
           const val = mem[0],
               node = mem[1]
-          if (node.val_code && val[account]) {
+          //if (node.val_code && val[account]) {
               const [gte, lte] = this.getRange(prand, account, val, stats)
               getPathSome(["IPFS"], { gte, lte }).then(items => { //need to wrap this call to 0 thru remainder 
-                  var promises = []
-                  for (var pointer of items) {
-                      promises.push(getPathObj(['contract', items[pointer].split(',')[0], items[pointer].split(',')[1]]))
-                      const asset = pointer.split("").reverse().join("")
-                      toVerify[asset] = {
-                          r: pointer,
-                          a: asset,
-                          fo: items[pointer].split(',')[0],
-                          id: items[pointer].split(',')[1]
-                      }
+                var promises = [], toVerify = {}
+                for(var i = 0; i < items.length; i++){
+                  promises.push(getPathObj(['IPFS', items[i]]))
+                }  
+                Promise.all(promises).then(contractIDs=>{
+                  promises = []
+                  for(var i = 0; i < contractIDs.length; i++){
+                    console.log(contractIDs[i])
+                    promises.push(getPathObj(['contract', contractIDs[i].split(',')[0], contractIDs[i].split(',')[1]]))
+                    const asset = items[i].split("").reverse().join("")
+                        toVerify[asset] = {
+                            r: items[i],
+                            a: asset,
+                            fo: contractIDs[i].split(',')[0],
+                            id: contractIDs[i].split(',')[1]
+                        }
+                        console.log(toVerify[asset])
                   }
                   if (promises.length) Promise.all(promises).then(contracts => {
-                      promises = [], j = []
+                      promises = [], k = []
+                      console.log({contracts})
                       for (var i = 0; i < contracts.length; i++) {
-                          for (var item of contracts[i].df) {
-                              if (toVerify[item]) {
-                                  toVerify[item].n = contracts[i].n
-                                  toVerify[item].b = contracts[i].df[item]
-                                  toVerify[item].i = i
-                                  toVerify[item].v = 0
-                                  toVerify[item].npid = {}
-                                  for (var node of toVerify[item].n) {
-                                      toVerify[item].npid[node] = j.length //?
-                                      j.push([item, node])
-                                      promises.push(getPathObj(['service', 'IPFS', node]))
+                        const dfKeys =  contracts[i].df ? Object.keys(contracts[i].df) : []
+                          for (var j = 0; j < dfKeys.length; j++) {
+                              if (toVerify[dfKeys[j]]) {
+                                  toVerify[dfKeys[j]].n = contracts[i].n
+                                  toVerify[dfKeys[j]].b = contracts[i].df[dfKeys[j]]
+                                  toVerify[dfKeys[j]].i = i
+                                  toVerify[dfKeys[j]].v = 0
+                                  toVerify[dfKeys[j]].npid = {}
+                                  for (var node in toVerify[dfKeys[j]].n) {
+                                      toVerify[dfKeys[j]].npid[node] = j.length //?
+                                      k.push([dfKeys[j], toVerify[dfKeys[j]].n[node]])
+                                      promises.push(getPathObj(['service', 'IPFS', toVerify[dfKeys[j]].n[node]]))
                                   }
                                   this.Pending[block % 200] = toVerify
                               }
@@ -56,8 +67,8 @@ const PoA = {
                       }
                       Promise.all(promises).then(peerIDs => {
                           for (var i = 0; i < peerIDs.length; i++) {
-                              j[i].push(peerIDs[i])
-                              this.validate(j[0], j[1], j[2], prand, block).then(res=>{
+                              k[i].push(peerIDs[i])
+                              this.validate(k[i][0], k[i][1], k[i][2], prand, block).then(res=>{
                                   this.Pending[`${res[5] % 200}`][res[1]].val = res[0]
                                   this.Pending[`${res[5] % 200}`][res[1]].v++
                                   this.Pending.vals++
@@ -67,20 +78,23 @@ const PoA = {
                           }
                       })
                   })
+                })
+                  
               })
-          }
+          //}
       })
   },
-  getRange(prand, account = config.username, val, stats) {
-      const cutoff = stats.val_threshold
-      var val_total = 0
-      for (var n of val) {
-          if (val[n] >= cutoff) total += cutoff * 2
-          else total += val[n]
+  getRange(prand, account, val, stats) {
+      const cutoff = stats.val_threshold || 1
+      var total = 0
+      var n = Object.keys(val)
+      for (var i = 0; i < n.length; i++) {
+          if (val[n[i]] >= cutoff) total += cutoff * 2
+          else total += val[n] || 1
       }
       const gte = this.getPrand58(account, prand)
-      const range = parseInt(((val[account] >= cutoff ? cutoff * 2 : val[account]) / total) * (stats.total_files * parseInt(stats.vals_target * 10000) / 288) * 7427658739)
-      const lte = Base58.fromNumber(Base58.toNumber(start) + range)
+      const range = parseInt(((val[account] >= cutoff ? cutoff * 2 : val[account]||1) / total) * (stats.total_files * parseInt(stats.vals_target * 10000) / 288) * 7427658739)
+      const lte = Base58.fromNumber(Base58.toNumber(gte) + range)
       return [gte, lte]
   },
   getPrand58(account, prand) {
@@ -93,20 +107,24 @@ const PoA = {
       for (var i = 0; i < a.length; i++) {
           r = r * BigInt(1 + Base38.toNumber(a[i]))
       }
-      return Base58.fromNumber((r % 7427658739644928).intValue())
+
+      return Base58.fromNumber(Number(r % 7427658739644928n))
   },
   validate: function (CID, Name, peerIDs, SALT, bn) {
       return new Promise((res, rej) => {
           setTimeout(rej,280000)
+          console.log("PoA: ",CID, Name, peerIDs, SALT, bn)
           peerids = peerIDs.split(',')
           for (var i = 0; i < peerids.length; i++) {
-              var socket = new WebSocketClient(`ws://localhost:3000/validate`);
-              socket.addEventListener('open', () => {
+              var socket = new WebSocketClient();
+              socket.addListener('open', (data) => {
+                console.log({data})
                   socket.send(JSON.stringify({ Name, CID, peerid: peerids[i], SALT }));
               })
-              socket.addEventListener('message', (event) => {
+              socket.addListener('message', (event) => {
                   const data = JSON.parse(event.data);
-                  const stepText = document.querySelectorAll('.step-text');
+                  console.log({data})
+                  //const stepText = document.querySelectorAll('.step-text');
                   if (data.Status === 'Connecting to Peer') {
                       if (config.mode == 'verbose') console.log('Connecting to Peer')
                   } else if (data.Status === 'IpfsPeerIDError') {
@@ -133,6 +151,10 @@ const PoA = {
                       rej(data)
                   }
               })
+              socket.on('connectFailed', function(error) {
+                  console.log('Connect Error: ' + error.toString());
+              });
+              socket.connect('ws://localhost:3000/validate');
           }
       })
   },

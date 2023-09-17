@@ -17,7 +17,8 @@ const {
   val_bytes_flag,
   val_add,
   val_reg,
-  poa
+  poa,
+  PoA
 } = require("./validators");
 const { gov_up, gov_down } = require('./gov')
 const { power_up, power_down, power_grant, spk_vote, val_vote, spk_up, spk_down } = require('./power')
@@ -140,5 +141,6 @@ module.exports = {
   register_service,
   register_service_type,
   validator_burn,
-  poa
+  poa,
+  PoA
 };
