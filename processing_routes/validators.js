@@ -118,7 +118,6 @@ const PoA = {
           for (var i = 0; i < peerids.length; i++) {
               var socket = new WebSocketClient();
               socket.on('connect', (connection) => {
-                console.log('OPENED: ', {connection})
                 connection.send(JSON.stringify({ Name, CID, peerid: peerids[i], SALT }));
                 connection.on('message', (event) => {
                   console.log(event)
