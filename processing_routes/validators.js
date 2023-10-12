@@ -116,48 +116,7 @@ const PoA = {
           console.log("PoA: ",CID, Name, peerIDs, SALT, bn)
           peerids = peerIDs.split(',')
           for (var i = 0; i < peerids.length; i++) {
-              var socket = new WebSocketClient();
-              socket.on('connect', (connection) => {
-                console.log({ Name, CID, peerid: peerids[i], SALT })
-                connection.send(JSON.stringify({ Name, CID, peerid: peerids[i], SALT }));
-                connection.on('message', (event) => {
-                  console.log(event)
-                  const data = event.utf8Data ? JSON.parse(event.utf8Data) : {}
-                  console.log({data})
-                  //const stepText = document.querySelectorAll('.step-text');
-                  if (data.Status === 'Connecting to Peer') {
-                      if (config.mode == 'verbose') console.log('Connecting to Peer')
-                  } else if (data.Status === 'IpfsPeerIDError') {
-                    connection.close()
-                      rej(data)
-                      if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
-                  } else if (data.Status === 'RequestingProof') {
-                    if (config.mode == 'verbose') console.log('RequestingProof')
-                  } else if (data.Status === 'Connection Error') {
-                    connection.close()
-                      rej(data)
-                      if (config.mode == 'verbose') console.log('Error: Connection Error')
-                  } else if (data.Status === 'Waiting Proof') {
-                      if (config.mode == 'verbose') console.log('Waiting Proof', { data })
-                  } else if (data.Status === "Validating") {
-                      if (config.mode == 'verbose') console.log('Validating', { data })
-                  } else if (data.Status === "Validated") {
-                      if (config.mode == 'verbose') console.log('Validated', { data })
-                  } else if (data.Status === "Validating Proof") {
-                      if (config.mode == 'verbose') console.log('Validating Proof', { data })
-                  } else if (data.Status === "Proof Validated") {
-                      if (config.mode == 'verbose') console.log('Proof Validated', { data })
-                      res([data, CID, Name, peerIDs, SALT, bn])
-                  } else if (data.Status === "Proof Invalid") {
-                      if (config.mode == 'verbose') console.log('Proof Invalid', { data })
-                      rej(data)
-                  }
-              })
-              })
-              socket.on('connectFailed', function(error) {
-                  console.log('Connect Error: ' + error.toString());
-              });
-              socket.connect('ws://spk.tv/validate')//('ws://localhost:8000/validate');
+              PoA (res, rej, Name, CID, peerids[i], SALT)
           }
       })
   },
@@ -187,7 +146,50 @@ const PoA = {
 }
 exports.PoA = PoA;
 
-
+function PoA (res, rej, Name, CID, peerid, SALT){
+  var socket = new WebSocketClient();
+  socket.on('connect', (connection) => {
+    console.log({ Name, CID, peerid, SALT })
+    connection.send(JSON.stringify({ Name, CID, peerid, SALT }));
+    connection.on('message', (event) => {
+      console.log(event)
+      const data = event.utf8Data ? JSON.parse(event.utf8Data) : {}
+      console.log({data})
+      //const stepText = document.querySelectorAll('.step-text');
+      if (data.Status === 'Connecting to Peer') {
+          if (config.mode == 'verbose') console.log('Connecting to Peer')
+      } else if (data.Status === 'IpfsPeerIDError') {
+        connection.close()
+          rej(data)
+          if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
+      } else if (data.Status === 'RequestingProof') {
+        if (config.mode == 'verbose') console.log('RequestingProof')
+      } else if (data.Status === 'Connection Error') {
+        connection.close()
+          rej(data)
+          if (config.mode == 'verbose') console.log('Error: Connection Error')
+      } else if (data.Status === 'Waiting Proof') {
+          if (config.mode == 'verbose') console.log('Waiting Proof', { data })
+      } else if (data.Status === "Validating") {
+          if (config.mode == 'verbose') console.log('Validating', { data })
+      } else if (data.Status === "Validated") {
+          if (config.mode == 'verbose') console.log('Validated', { data })
+      } else if (data.Status === "Validating Proof") {
+          if (config.mode == 'verbose') console.log('Validating Proof', { data })
+      } else if (data.Status === "Proof Validated") {
+          if (config.mode == 'verbose') console.log('Proof Validated', { data })
+          res([data, CID, Name, peerIDs, SALT, bn])
+      } else if (data.Status === "Proof Invalid") {
+          if (config.mode == 'verbose') console.log('Proof Invalid', { data })
+          rej(data)
+      }
+  })
+  })
+  socket.on('connectFailed', function(error) {
+      console.log('Connect Error: ' + error.toString());
+  });
+  socket.connect('ws://spk.tv/validate')//('ws://localhost:8000/validate');
+}
 
 exports.poa = function (block, prand, stats) {
   return new Promise ((res, rej) => {
