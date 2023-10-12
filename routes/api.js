@@ -3245,6 +3245,28 @@ exports.blog = (req, res, next) => {
   );
 };
 
+exports.list_storage = (req, res, next) => {
+    var contracts = {};
+    res.setHeader("Content-Type", "application/json");
+    store.get(["contract"], function (err, obj) {
+      (contracts = obj),
+        res.send(
+          JSON.stringify(
+            {
+              contracts,
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        );
+    });
+  
+};
+
 exports.state = (req, res, next) => {
   if (config.mode == "normal") {
     res.send(

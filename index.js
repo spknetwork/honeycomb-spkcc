@@ -201,7 +201,7 @@ exports.processor = processor;
 //HIVE API CODE
 
 //Start Program Options
-const replay = "QmNR9JeCHj6WN8no5WCdyt1ce3bH2y2dcN8ehQyYhDngmB"
+const replay = "Qmd35WgqJoDMS1NNvsp1V5qyGkpt1aFxVHs3ptmHwkZejU"
 startWith(replay, true);
 //dynStart();
 Watchdog.monitor();
@@ -210,6 +210,7 @@ Watchdog.monitor();
 api.use(API.https_redirect);
 api.use(cors());
 api.get("/", API.root);
+api.get("/list-contracts", API.list_storage);
 api.get("/user_services/:un", API.servicesByUser);
 api.get("/services/:type", API.servicesByType);
 api.get("/stats", API.root);
