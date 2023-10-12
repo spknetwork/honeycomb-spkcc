@@ -201,9 +201,9 @@ exports.processor = processor;
 //HIVE API CODE
 
 //Start Program Options
-const replay = "QmYnW1jqHFHCg74LyKFCgu8weA4g4JRT2DPzQqnUL3Ti1z"
-//startWith(replay, true);
-dynStart();
+const replay = "Qmaj6i22daSsuv7cTN5nV8oU1AS8UkefigTaUYY7z147Fa"
+startWith(replay, true);
+//dynStart();
 Watchdog.monitor();
 
 // API defs

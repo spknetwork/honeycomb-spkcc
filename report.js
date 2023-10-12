@@ -7,7 +7,7 @@ function report(plas, con, poa) {
     return new Promise((resolve, reject) => {
         // console.log({poa})
         con.then(r =>{
-            var val = []
+            var val = [], POAS = []
             if(plas.v){
                 const offset = plas.hashBlock % 200 > 100 ? 100 : 0
                 for(var i = 0; i < 100; i ++){
@@ -24,6 +24,7 @@ function report(plas, con, poa) {
                 stash: plas.privHash,
                 ipfs_id: plas.id,
                 v: val,
+                PoAs: poa,
                 version: VERSION
             }
             if(plas.hashBlock % 10000 == 1){

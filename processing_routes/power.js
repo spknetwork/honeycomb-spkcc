@@ -512,7 +512,7 @@ exports.val_vote = (json, from, active, pc) => {
       .then(mem => {
         var spk_power = mem[0],
           stats = mem[1],
-          daoStringArr = mem[2].split(','),
+          daoStringArr = typeof mem[2] == "string" ? mem[2]?.split(',') : "",
           vals = mem[3],
           votes = json.votes || ''
           votes = votes.replace(/[^0-9A-Za-z+=]/g, '')

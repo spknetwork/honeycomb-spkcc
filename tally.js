@@ -21,7 +21,8 @@ exports.tally = (num, plasma, isStreaming) => {
             Prpow = getPathObj(["gov"]),
             Prqueue = getPathObj(["queue"]),
             Ppending = getPathObj(["pendingpayment"]),
-            Pmss = getPathObj(["mss"]);
+            Pmss = getPathObj(["mss"]),
+            Pbroca = getPathObj(["rb"])
         Promise.all([
             Prunners,
             Pnode,
@@ -32,6 +33,7 @@ exports.tally = (num, plasma, isStreaming) => {
             Prqueue,
             Ppending,
             Pmss,
+            Pbroca
         ]).then(function (v) {
             deleteObjs([["runners"], ["queue"], ["pendingpayment"]])
                 .then((empty) => {
@@ -43,7 +45,8 @@ exports.tally = (num, plasma, isStreaming) => {
                         rgov = v[5],
                         pending = v[7],
                         mssp = v[8],
-                        ms = [9],
+                        ms = v[9],
+                        broca = v[10], 
                         signatures = [],
                         tally = {
                             agreements: {
@@ -51,6 +54,7 @@ exports.tally = (num, plasma, isStreaming) => {
                                 runners: {},
                                 tally: {},
                                 votes: 0,
+                                poa: [],
                             },
                         },
                         consensus = undefined,
@@ -89,6 +93,7 @@ exports.tally = (num, plasma, isStreaming) => {
                             when = nodes[node].report.block_num;
                         } catch (e) { }
                         if (when > num - 50 && hash) {
+                            tally.agreements.poa[node] = nodes[node].report.PoAs || []
                             tally.agreements.hashes[node] = hash;
                             tally.agreements.tally[hash] = 0;
                         } //recent and signing
