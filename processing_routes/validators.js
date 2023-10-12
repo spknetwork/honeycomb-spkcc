@@ -117,24 +117,23 @@ const PoA = {
           peerids = peerIDs.split(',')
           for (var i = 0; i < peerids.length; i++) {
               var socket = new WebSocketClient();
-              socket.addListener('open', (data) => {
-                console.log('OPENED: ', {data})
-                  socket.send(JSON.stringify({ Name, CID, peerid: peerids[i], SALT }));
-              })
-              socket.addListener('message', (event) => {
+              socket.on('connect', (connection) => {
+                console.log('OPENED: ', {connection})
+                connection.send(JSON.stringify({ Name, CID, peerid: peerids[i], SALT }));
+                connection.on('message', (event) => {
                   const data = JSON.parse(event.data);
                   console.log({data})
                   //const stepText = document.querySelectorAll('.step-text');
                   if (data.Status === 'Connecting to Peer') {
                       if (config.mode == 'verbose') console.log('Connecting to Peer')
                   } else if (data.Status === 'IpfsPeerIDError') {
-                      socket.close()
+                    connection.close()
                       rej(data)
                       if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
                   } else if (data.Status === 'RequestingProof') {
                     if (config.mode == 'verbose') console.log('RequestingProof')
                   } else if (data.Status === 'Connection Error') {
-                      Socket.close()
+                    connection.close()
                       rej(data)
                       if (config.mode == 'verbose') console.log('Error: Connection Error')
                   } else if (data.Status === 'Waiting Proof') {
@@ -152,6 +151,7 @@ const PoA = {
                       if (config.mode == 'verbose') console.log('Proof Invalid', { data })
                       rej(data)
                   }
+              })
               })
               socket.on('connectFailed', function(error) {
                   console.log('Connect Error: ' + error.toString());
