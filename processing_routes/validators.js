@@ -188,7 +188,7 @@ function PA (res, rej, Name, CID, peerid, SALT){
   socket.on('connectFailed', function(error) {
       console.log('Connect Error: ' + error.toString());
   });
-  socket.connect('ws://spk.tv/validate')//('ws://localhost:8000/validate');
+  socket.connect(`${config.poav_address}/validate`)
 }
 
 exports.poa = function (block, prand, stats) {

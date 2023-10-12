@@ -4,6 +4,7 @@ const ENV = process.env;
 const username = ENV.account || 'regardspk';
 const active = ENV.active || '';
 const follow = ENV.follow || 'regardspk';
+const poav_address = ENV.POA_URL || "ws://localhost:8000"
 const msowner = ENV.msowner || '';
 const mspublic = ENV.mspublic || '';
 const memoKey = ENV.memo || '';
@@ -186,6 +187,7 @@ let config = {
   username,
   active,
   dbmods,
+  poav_address,
   msowner,
   mspublic,
   memoKey,
