@@ -201,9 +201,9 @@ exports.processor = processor;
 //HIVE API CODE
 
 //Start Program Options
-const replay = "QmdRrRuxYyUyFsppnDwN1F9eXMF3WSuQdSLjfK5NFqNoh2"
-startWith(replay, true);
-//dynStart();
+const replay = "QmZM6HVQnCkg4cQD6Z3AFHcM25CZYDh1qjPcDuwKCd3pS5"
+//startWith(replay, true);
+dynStart();
 Watchdog.monitor();
 
 // API defs
@@ -1034,27 +1034,29 @@ function startWith(hash, second) {
                 if (!e && (second || data[0] > API.RAM.head - 325)) {
                   if (hash) {
                     var cleanState = data[1];
-                    cleanState.dexs = {
-                      hive: {
-                        buyBook: "",
-                        sellBook: "",
-                        days: {},
-                        orderBook: {},
-                        tick: "1.0"
-                      },
-                      hbd: {
-                        buyBook: "",
-                        sellBook: "",
-                        days: {},
-                        orderBook: {},
-                        tick: "1.0"
-                      },
-                    }
                     if (config.mirrorNet && hash == replay) { //test net and upgrade init
+                      delete cleanState.powd
+                      delete cleanState.govd
+                      cleanState.dexs = {
+                        hive: {
+                          buyBook: "",
+                          sellBook: "",
+                          days: {},
+                          orderBook: {},
+                          tick: "1.0"
+                        },
+                        hbd: {
+                          buyBook: "",
+                          sellBook: "",
+                          days: {},
+                          orderBook: {},
+                          tick: "1.0"
+                        },
+                      }
                       cleanState.stats.channel_bytes = 1024
                       cleanState.stats.channel_min = 100
                       cleanState.stats.interestRate = 303311 // 100% for 2 years compounded every 5 minutes
-                      cleanState.stats.validators_registered = "00" //validator registeration
+                      cleanState.stats.validators_registered = "02" //validator registeration
                       cleanState.stats.validators = "20.500000" // number of validators
                       cleanState.stats.val_threshold = 0
                       cleanState.stats.flags_to_penalty = "2.50000" //flags until penalty

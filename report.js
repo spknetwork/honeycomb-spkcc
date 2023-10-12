@@ -24,7 +24,7 @@ function report(plas, con, poa) {
                 stash: plas.privHash,
                 ipfs_id: plas.id,
                 v: val,
-                PoAs: poa,
+                //PoAs: poa,
                 version: VERSION
             }
             if(plas.hashBlock % 10000 == 1){
