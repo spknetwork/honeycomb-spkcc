@@ -118,7 +118,7 @@ const PoA = {
           for (var i = 0; i < peerids.length; i++) {
               var socket = new WebSocketClient();
               socket.addListener('open', (data) => {
-                console.log({data})
+                console.log('OPENED: ', {data})
                   socket.send(JSON.stringify({ Name, CID, peerid: peerids[i], SALT }));
               })
               socket.addListener('message', (event) => {
