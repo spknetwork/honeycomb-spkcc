@@ -116,7 +116,7 @@ const PoA = {
           console.log("PoA: ",CID, Name, peerIDs, SALT, bn)
           peerids = peerIDs.split(',')
           for (var i = 0; i < peerids.length; i++) {
-              PoA (res, rej, Name, CID, peerids[i], SALT)
+              PA (res, rej, Name, CID, peerids[i], SALT)
           }
       })
   },
@@ -146,7 +146,7 @@ const PoA = {
 }
 exports.PoA = PoA;
 
-function PoA (res, rej, Name, CID, peerid, SALT){
+function PA (res, rej, Name, CID, peerid, SALT){
   var socket = new WebSocketClient();
   socket.on('connect', (connection) => {
     console.log({ Name, CID, peerid, SALT })
