@@ -131,6 +131,8 @@ const PoA = {
                       socket.close()
                       rej(data)
                       if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
+                  } else if (data.Status === 'RequestingProof') {
+                    if (config.mode == 'verbose') console.log('RequestingProof')
                   } else if (data.Status === 'Connection Error') {
                       Socket.close()
                       rej(data)
