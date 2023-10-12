@@ -121,7 +121,8 @@ const PoA = {
                 console.log('OPENED: ', {connection})
                 connection.send(JSON.stringify({ Name, CID, peerid: peerids[i], SALT }));
                 connection.on('message', (event) => {
-                  const data = JSON.parse(event.data);
+                  console.log(event)
+                  const data = event.data ? JSON.parse(event.data) : {}
                   console.log({data})
                   //const stepText = document.querySelectorAll('.step-text');
                   if (data.Status === 'Connecting to Peer') {
