@@ -154,7 +154,7 @@ const PoA = {
               socket.on('connectFailed', function(error) {
                   console.log('Connect Error: ' + error.toString());
               });
-              socket.connect('ws://localhost:3000/validate');
+              socket.connect('ws://localhost:8000/validate');
           }
       })
   },
