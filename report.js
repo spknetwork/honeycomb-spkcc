@@ -8,7 +8,7 @@ function report(plas, con, poa) {
         con.then(r =>{
             var val = [], POAS = []
             const offset = plas.hashBlock % 200 > 100 ? 0 : 100
-            console.log(poa)
+            console.log(poa, offset)
             for(var i = 0; i < 100; i ++){
                 for(var CID in poa[`${i + offset}`]){
                     console.log(`${i + offset}`, CID, poa[`${i + offset}`][CID])
@@ -16,7 +16,7 @@ function report(plas, con, poa) {
                     const nodes = Object.keys(poa[`${i + offset}`][CID])
                     if(nodes.length){
                         for(var j = 0; i < nodes.length; j++){    
-                            formated.push([nodes[i], poa[`${i + offset}`][CID][nodes[j]].Elapsed, poa[`${i + offset}`][CID][nodes[j]].Message])
+                            formated.push([nodes[j], poa[`${i + offset}`][CID][nodes[j]].Elapsed, poa[`${i + offset}`][CID][nodes[j]].Message])
                         }
                         if(formated.length > 2)val.push(formated)
                     }
@@ -53,6 +53,7 @@ function report(plas, con, poa) {
             json: JSON.stringify(report),
           },
         ];
+        console.log(op[1])
         delete plasma.oracle
         resolve([
             [0, 0], op
