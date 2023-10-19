@@ -41,9 +41,10 @@ function dao(num) {
             Pfeed = getPathObj(['feed']),
             Ppaid = getPathObj(['paid']),
             Pvals = getPathObj(['val']),
-            Prnfts = getPathObj(['rnfts']);
+            Prnfts = getPathObj(['rnfts']),
+            PcBroca = getPathObj(['cbroca'])
             Pdistro = Distro()
-        Promise.all([Pnews, Pbals, Prunners, Pnodes, Pstats, Pdelegations, Pico, Pdex, Pbr, Ppbal, Pnomen, Pposts, Pfeed, Ppaid, Prnfts, Pdistro, Pcbals, Pgov, Pvals]).then(function(v) {
+        Promise.all([Pnews, Pbals, Prunners, Pnodes, Pstats, Pdelegations, Pico, Pdex, Pbr, Ppbal, Pnomen, Pposts, Pfeed, Ppaid, Prnfts, Pdistro, Pcbals, Pgov, Pvals, PcBroca]).then(function(v) {
             daops.push({ type: 'del', path: ['postQueue'] });
             daops.push({ type: 'del', path: ['br'] });
             daops.push({ type: 'del', path: ['rolling'] });
@@ -68,7 +69,8 @@ function dao(num) {
                 rnftsCleaner = v[14];
                 dist = v[15],
                 gov = v[17],
-                vals = v[18]
+                vals = v[18],
+                cbroca = v[19]
             for(var i = 0; i < dist.length;i++){
                 if(dist[i][0].split('div:')[1]){
                     addMT(['div', dist[i][0].split('div:')[1], 'b'], dist[i][1] )
@@ -357,9 +359,22 @@ function dao(num) {
                 post = post + `*****\n### DEX Report\n#### Prices:\n* ${parseFloat(dex.hive.tick).toFixed(3)} HIVE per ${config.TOKEN}\n* ${parseFloat(dex.hbd.tick).toFixed(3)} HBD per ${config.TOKEN}\n#### Daily Volume:\n* ${parseFloat(vol / 1000).toFixed(3)} ${config.TOKEN}\n* ${parseFloat(vols / 1000).toFixed(3)} HIVE\n* ${parseFloat(parseInt(volhbd) / 1000).toFixed(3)} HBD\n*****\n`;
             }
             stats.movingWeight.dailyPool = bals.ra
-            if(config.features.pob)bals.rc = bals.rc + bals.ra;
-            else bals.rn = bals.rn + bals.ra
-            bals.ra = 0;
+            const inflationHedge = pasreInt(( bals.ra * (gov.t / stats.tokenSupply)))
+            bals.rn = bals.rn + inflationHedge
+            bals.ra -= inflationHedge
+            var totBroca = 0
+            for(var acc of cbroca){
+                totBroca += cbroca[acc]
+            }
+            const brocaPerMil = parseInt(bals.ra / totBroca)
+            for(var acc of cbroca){
+                const fromMint = parseInt(brocaPerMil/cbroca[acc])
+                cbals[acc] = cbals[acc] ? 
+                    cbals[acc] + fromMint :
+                    fromMint
+                cbroca[acc] -= fromMint
+                bals.ra -= fromMint
+            }
             var q = 0,
                 r = bals.rc;
             for (var i in br) {
@@ -448,6 +463,7 @@ function dao(num) {
             daops.push({ type: 'put', path: ['stats'], data: stats });
             daops.push({ type: 'put', path: ['balances'], data: bals });
             daops.push({ type: 'put', path: ['cbalances'], data: cbals });
+            daops.push({ type: 'put', path: ['cbroca'], data: cbroca });
             daops.push({ type: 'put', path: ['posts'], data: cpost });
             daops.push({ type: 'put', path: ['markets', 'node'], data: mnode });
             daops.push({ type: 'put', path: ['delegations'], data: deles });

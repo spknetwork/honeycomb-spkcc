@@ -11,13 +11,49 @@ const fetch = require("node-fetch");
 const WebSocketClient = require('websocket').client
 
 
-const PoA = {
+var PoA = {
   Pending: {
       vals: 0
   },
+  Check: function (b, rand, stats, val, cBroca, pc){
+    var promises = []
+    for(var i = 0; i < b.report.v.length; i++){
+      const [gte, lte] = this.getRange(rand[b.report.v[i][1]], b.self, val, stats)
+      const rev = b.report.v[i][0].split("").reverse().join("")
+      if(Base58.toNumber(rev) >= Base58.toNumber(gte) && Base58.toNumber(rev) <= Base58.toNumber(lte)){
+        promises.push(getPathObj(['IPFS', rev]))
+      } else {
+        b.report.v.splice(i,1)
+        i--
+      }
+    }
+    if(promises.length)Promise.all(promises).then(contractIDs=>{
+      promises = []
+        for(var i = 0; i < contractIDs.length; i++){
+          promises.push(getPathObj(['contract', contractIDs[i].split(',')[0], contractIDs[i].split(',')[1]]))
+        }
+        if (promises.length) Promise.all(promises).then(contracts => {
+          for (var i = 0; i < contracts.length; i++) {
+            const reward = pasreInt((contracts[i].p * contracts[i].r * contracts[i].df[b.report.v[i][0]]) / (contracts[i].u * 3))
+            cBroca[b.report.v[i][1]] = cBroca[b.report.v[i][1]] ? cBroca[b.report.v[i][1]] + reward : reward
+            for(var j = 2; j < b.report.v[i].length - 2; j ++){
+              if(j < contracts[i].p + 2)cBroca[b.report.v[i][j][0]] = cBroca[b.report.v[i][j][0]] ? 
+                cBroca[b.report.v[i][j][0]] + parseInt(reward * contracts[i].p / (contracts[i].p < b.report.v[i].length - 2 ? b.report.v[i].length - 2 : contracts[i].p)):
+                parseInt(reward * contracts[i].p / (contracts[i].p < b.report.v[i].length - 2 ? b.report.v[i].length - 2 : contracts[i].p))
+              else cBroca[b.report.v[i][j][0]] ? 
+                cBroca[b.report.v[i][j][0]] + parseInt(reward / Math.pow(j - 1 - contracts[i].p, 2)):
+                parseInt(reward / Math.pow(j - 1 - contracts[i].p, 2))
+            }
+          }
+          store.batch([{type: "put", path: ["markets", "node", b.self], data: b}, {type: "put", path: ["cbroca"], data: cBroca}], pc)
+      })
+      else store.batch([{type: "put", path: ["markets", "node", b.self], data: b}], pc)
+    })
+    else store.batch([{type: "put", path: ["markets", "node", b.self], data: b}], pc)
+  },
   Validate: function (block, prand, stats, account = config.username) {
       //get val, match with this account
-      this.Pending[ block % 200 ] = {}
+      this.Pending[ `${block % 200}` ] = {}
       let Pval = getPathObj(['val'])
       let Pnode = getPathObj(['markets', 'node', account])
       Promise.all([Pval, Pnode]).then(mem => {
@@ -33,7 +69,6 @@ const PoA = {
                 Promise.all(promises).then(contractIDs=>{
                   promises = []
                   for(var i = 0; i < contractIDs.length; i++){
-                    console.log(contractIDs[i])
                     promises.push(getPathObj(['contract', contractIDs[i].split(',')[0], contractIDs[i].split(',')[1]]))
                     const asset = items[i].split("").reverse().join("")
                         toVerify[asset] = {
@@ -42,11 +77,9 @@ const PoA = {
                             fo: contractIDs[i].split(',')[0],
                             id: contractIDs[i].split(',')[1]
                         }
-                        console.log(toVerify[asset])
                   }
                   if (promises.length) Promise.all(promises).then(contracts => {
                       promises = [], k = []
-                      console.log({contracts})
                       for (var i = 0; i < contracts.length; i++) {
                         const dfKeys =  contracts[i].df ? Object.keys(contracts[i].df) : []
                           for (var j = 0; j < dfKeys.length; j++) {
@@ -66,16 +99,11 @@ const PoA = {
                           }
                       }
                       Promise.all(promises).then(peerIDs => {
-                          for (var i = 0; i < peerIDs.length; i++) {
-                              k[i].push(peerIDs[i])
-                              this.validate(k[i][0], k[i][1], k[i][2], prand, block).then(res=>{
-                                  this.Pending[`${res[5] % 200}`][res[1]].val = res[0]
-                                  this.Pending[`${res[5] % 200}`][res[1]].v++
-                                  this.Pending.vals++
-                                  //check to bundle
-                              })
-                              .catch(e=>{console.log(e)})
-                          }
+                        for (var i = 0; i < peerIDs.length; i++) {
+                            this.Pending[`${block % 200}`][k[i][0]] = {}
+                            k[i].push(peerIDs[i])
+                            this.validate(k[i][0], k[i][1], k[i][2], prand, block)
+                        }
                       })
                   })
                 })
@@ -110,15 +138,12 @@ const PoA = {
 
       return Base58.fromNumber(Number(r % 7427658739644928n))
   },
-  validate: function (CID, Name, peerIDs, SALT, bn) {
-      return new Promise((res, rej) => {
-          setTimeout(rej,280000)
-          console.log("PoA: ",CID, Name, peerIDs, SALT, bn)
-          peerids = peerIDs.split(',')
-          for (var i = 0; i < peerids.length; i++) {
-              PA (res, rej, Name, CID, peerids[i], SALT)
-          }
-      })
+  validate: function (CID, Name, peerIDs, SALT, bn) {  
+    console.log("PoA: ",CID, Name, peerIDs, SALT, bn)
+    peerids = peerIDs.split(',')
+    for (var i = 0; i < peerids.length; i++) {
+        PA (Name, CID, peerids[i], SALT, bn)
+    }
   },
   read: function (key) {
       return new Promise((res, rej) => {
@@ -146,12 +171,15 @@ const PoA = {
 }
 exports.PoA = PoA;
 
-function PA (res, rej, Name, CID, peerid, SALT){
+function PA (Name, CID, peerid, SALT, bn){
   var socket = new WebSocketClient();
   socket.on('connect', (connection) => {
     console.log({ Name, CID, peerid, SALT })
     connection.send(JSON.stringify({ Name, CID, peerid, SALT }));
     connection.on('message', (event) => {
+      setTimeout(() => {
+        connection.close()
+        console.log("Timeout:", CID)}, 240000)
       console.log(event)
       const data = event.utf8Data ? JSON.parse(event.utf8Data) : {}
       console.log({data})
@@ -160,13 +188,11 @@ function PA (res, rej, Name, CID, peerid, SALT){
           if (config.mode == 'verbose') console.log('Connecting to Peer')
       } else if (data.Status === 'IpfsPeerIDError') {
         connection.close()
-          rej(data)
           if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
       } else if (data.Status === 'RequestingProof') {
         if (config.mode == 'verbose') console.log('RequestingProof')
       } else if (data.Status === 'Connection Error') {
         connection.close()
-          rej(data)
           if (config.mode == 'verbose') console.log('Error: Connection Error')
       } else if (data.Status === 'Waiting Proof') {
           if (config.mode == 'verbose') console.log('Waiting Proof', { data })
@@ -176,12 +202,13 @@ function PA (res, rej, Name, CID, peerid, SALT){
           if (config.mode == 'verbose') console.log('Validated', { data })
       } else if (data.Status === "Validating Proof") {
           if (config.mode == 'verbose') console.log('Validating Proof', { data })
-      } else if (data.Status === "Proof Validated") {
+      } else if (data.Status === "Valid") {
           if (config.mode == 'verbose') console.log('Proof Validated', { data })
-          res([data, CID, Name, peerIDs, SALT, bn])
+          if (PoA.Pending[`${bn % 200}`][CID])PoA.Pending[`${bn % 200}`][CID][Name] = data
+          connection.close()
       } else if (data.Status === "Proof Invalid") {
           if (config.mode == 'verbose') console.log('Proof Invalid', { data })
-          rej(data)
+          connection.close()
       }
   })
   })

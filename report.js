@@ -5,16 +5,20 @@ const { val_add } = require('./processing_routes');
 //tell the hive your state, this is asynchronous with IPFS return... 
 function report(plas, con, poa) {
     return new Promise((resolve, reject) => {
-        // console.log({poa})
         con.then(r =>{
             var val = [], POAS = []
-            if(plas.v){
-                const offset = plas.hashBlock % 200 > 100 ? 100 : 0
-                for(var i = 0; i < 100; i ++){
-                    if(plas.v[`${i + offset}`]){
-                        for(var node in plas.v[`${i + offset}`]){
-                            val.push(plas.v[`${i + offset}`][node])
+            const offset = plas.hashBlock % 200 > 100 ? 0 : 100
+            console.log(poa)
+            for(var i = 0; i < 100; i ++){
+                for(var CID in poa[`${i + offset}`]){
+                    console.log(`${i + offset}`, CID, poa[`${i + offset}`][CID])
+                    var formated = [CID, `${i + offset}`]
+                    const nodes = Object.keys(poa[`${i + offset}`][CID])
+                    if(nodes.length){
+                        for(var j = 0; i < nodes.length; j++){    
+                            formated.push([nodes[i], poa[`${i + offset}`][CID][nodes[j]].Elapsed, poa[`${i + offset}`][CID][nodes[j]].Message])
                         }
+                        if(formated.length > 2)val.push(formated)
                     }
                 }
             }
@@ -23,10 +27,9 @@ function report(plas, con, poa) {
                 block: plas.hashBlock,
                 stash: plas.privHash,
                 ipfs_id: plas.id,
-                v: val,
-                //PoAs: poa,
                 version: VERSION
             }
+            if(val.length)report.v = val
             if(plas.hashBlock % 10000 == 1){
                 report.hive_offset = plas.hive_offset,
                 report.hbd_offset = plas.hbd_offset

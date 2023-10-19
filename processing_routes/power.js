@@ -523,7 +523,7 @@ exports.val_vote = (json, from, active, pc) => {
           ops.push({
             type: "put",
             path: ['spkVote', from],
-            data: `${daoStringArr[0]},${votes}`,
+            data: `${daoStringArr[0] || ""},${votes}`,
           });
           ops.push({
             type: "put",

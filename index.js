@@ -201,7 +201,7 @@ exports.processor = processor;
 //HIVE API CODE
 
 //Start Program Options
-const replay = "QmZM6HVQnCkg4cQD6Z3AFHcM25CZYDh1qjPcDuwKCd3pS5"
+const replay = "QmbiWaWb3H3oDWbCfrQyWrNCPsFEc3oQn1tvqHE3z6oK5Y"
 //startWith(replay, true);
 dynStart();
 Watchdog.monitor();
@@ -1092,9 +1092,9 @@ function startWith(hash, second) {
                       cleanState.stats.spk_cycle_length = 200000 //downpower time
                       cleanState.stats.max_coll_members = 25 //consensus members in DEX
                       cleanState.stats.vals_per_day = 0
-                      cleanState.stats.vals_target = "1000.00000" // 1000%
-                      cleanState.stats.total_bytes = 0
-                      cleanState.stats.total_files = 0
+                      cleanState.stats.vals_target = "10.00000" // 1000%
+                      cleanState.stats.total_bytes = 9820045
+                      cleanState.stats.total_files = 3
                       cleanState.stats.ms = {
                         active_account_auths: {
                           ["spk-test"]: 1,

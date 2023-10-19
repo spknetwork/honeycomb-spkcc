@@ -32,7 +32,7 @@ const Validator = {
     return vals
   },
   changeVote: function (vals, oldVotes, newVotes, spk) {
-    var votes = this.valStr2Arr(valStr)
+    var votes = this.valStr2Arr(oldVotes)
     vals = this.removeVote(vals, votes, spk)
     vals = this.addVote(vals, votes, spk)
     return vals
@@ -51,7 +51,7 @@ const Validator = {
     }
     return vals
   },
-  valStr2Arr: function (valStr) {
+  valStr2Arr: function (valStr = "") {
     var vals = []
     var a = valStr.split('')
     for (var i = 0; i < valStr.length / 2; i++) {
