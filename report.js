@@ -8,7 +8,6 @@ function report(plas, con, poa) {
         con.then(r =>{
             var val = [], POAS = []
             const offset = plas.hashBlock % 200 > 100 ? 0 : 100
-            console.log(poa, offset)
             for(var i = 0; i < 100; i ++){
                 for(var CID in poa[`${i + offset}`]){
                     console.log(`${i + offset}`, CID, poa[`${i + offset}`][CID])

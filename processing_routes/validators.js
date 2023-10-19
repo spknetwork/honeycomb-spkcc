@@ -20,8 +20,8 @@ var PoA = {
     for(var i = 0; i < b.report.v.length; i++){
       const [gte, lte] = this.getRange(rand[b.report.v[i][1]], b.self, val, stats)
       const rev = b.report.v[i][0].split("").reverse().join("")
-      console.log('lottery:', gte, rev.substr(0,8), lte)
-      if(Base58.toNumber(rev.substr(0,8)) >= Base58.toNumber(gte) && Base58.toNumber(rev.substr(0,8)) <= Base58.toNumber(lte)){
+      console.log('lottery:', gte, rev.substr(0,9), lte)
+      if(Base58.toNumber(rev.substr(0,gte.length)) >= Base58.toNumber(gte) && Base58.toNumber(rev.substr(0,lte.length)) <= Base58.toNumber(lte)){
         promises.push(getPathObj(['IPFS', rev]))
       } else {
         b.report.v.splice(i,1)

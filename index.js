@@ -1,5 +1,5 @@
 const config = require("./config");
-const VERSION = "v1.2.0-t3";
+const VERSION = "v1.2.0-t4";
 exports.VERSION = VERSION;
 exports.exit = exit;
 exports.processor = processor;
@@ -202,8 +202,8 @@ exports.processor = processor;
 
 //Start Program Options
 const replay = "QmczM1Yq5yTSdr8Gv1PAm8ow8e7RdEMzHEioxGEHA62ScQ"
-startWith(replay, true);
-//dynStart();
+//startWith(replay, true);
+dynStart();
 Watchdog.monitor();
 
 // API defs
