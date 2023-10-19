@@ -20,7 +20,8 @@ var PoA = {
     for(var i = 0; i < b.report.v.length; i++){
       const [gte, lte] = this.getRange(rand[b.report.v[i][1]], b.self, val, stats)
       const rev = b.report.v[i][0].split("").reverse().join("")
-      if(Base58.toNumber(rev) >= Base58.toNumber(gte) && Base58.toNumber(rev) <= Base58.toNumber(lte)){
+      console.log('lottery:', gte, rev.substr(0,8), lte)
+      if(Base58.toNumber(rev.substr(0,8)) >= Base58.toNumber(gte) && Base58.toNumber(rev.substr(0,8)) <= Base58.toNumber(lte)){
         promises.push(getPathObj(['IPFS', rev]))
       } else {
         b.report.v.splice(i,1)
@@ -34,18 +35,22 @@ var PoA = {
         }
         if (promises.length) Promise.all(promises).then(contracts => {
           for (var i = 0; i < contracts.length; i++) {
-            const reward = pasreInt((contracts[i].p * contracts[i].r * contracts[i].df[b.report.v[i][0]]) / (contracts[i].u * 3))
-            cBroca[b.report.v[i][1]] = cBroca[b.report.v[i][1]] ? cBroca[b.report.v[i][1]] + reward : reward
-            for(var j = 2; j < b.report.v[i].length - 2; j ++){
+            const reward = parseInt((contracts[i].p * contracts[i].r * contracts[i].df[b.report.v[i][0]]) / (contracts[i].u * 3))
+            console.log({reward})
+            cBroca[b.self] = cBroca[b.self] ? cBroca[b.self] + reward : reward
+            for(var j = 2; j < b.report.v[i].length; j ++){
+              console.log({j})
               if(j < contracts[i].p + 2)cBroca[b.report.v[i][j][0]] = cBroca[b.report.v[i][j][0]] ? 
-                cBroca[b.report.v[i][j][0]] + parseInt(reward * contracts[i].p / (contracts[i].p < b.report.v[i].length - 2 ? b.report.v[i].length - 2 : contracts[i].p)):
-                parseInt(reward * contracts[i].p / (contracts[i].p < b.report.v[i].length - 2 ? b.report.v[i].length - 2 : contracts[i].p))
-              else cBroca[b.report.v[i][j][0]] ? 
+                cBroca[b.report.v[i][j][0]] + parseInt((reward * contracts[i].p) / (contracts[i].p > b.report.v[i].length - 2 ? b.report.v[i].length - 2 : contracts[i].p)):
+                parseInt((reward * contracts[i].p) / (contracts[i].p > b.report.v[i].length - 2 ? b.report.v[i].length - 2 : contracts[i].p))
+              else cBroca[b.report.v[i][j][0]] = cBroca[b.report.v[i][j][0]] ? 
                 cBroca[b.report.v[i][j][0]] + parseInt(reward / Math.pow(j - 1 - contracts[i].p, 2)):
                 parseInt(reward / Math.pow(j - 1 - contracts[i].p, 2))
             }
           }
-          store.batch([{type: "put", path: ["markets", "node", b.self], data: b}, {type: "put", path: ["cbroca"], data: cBroca}], pc)
+          delete b.report.v
+          var ops = [{type: "put", path: ["markets", "node", b.self], data: b}, {type: "put", path: ["cbroca"], data: cBroca}]
+          store.batch(ops, pc)
       })
       else store.batch([{type: "put", path: ["markets", "node", b.self], data: b}], pc)
     })

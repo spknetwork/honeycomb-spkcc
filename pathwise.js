@@ -53,7 +53,8 @@ Pathwise.prototype.batch = function(ops, pc) { // promise chain[resolve(), rejec
         if (err && pc[1]) {
             console.log('fail', err)
             pc[1](err)
-        } else if (pc.length > 2) {
+        } else if (err) {
+        }else if (pc.length > 2) {
             block.ops.push('W')
             batch.write(()=>{pc[0](pc[2])})
         } else {
