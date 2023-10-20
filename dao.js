@@ -359,15 +359,15 @@ function dao(num) {
                 post = post + `*****\n### DEX Report\n#### Prices:\n* ${parseFloat(dex.hive.tick).toFixed(3)} HIVE per ${config.TOKEN}\n* ${parseFloat(dex.hbd.tick).toFixed(3)} HBD per ${config.TOKEN}\n#### Daily Volume:\n* ${parseFloat(vol / 1000).toFixed(3)} ${config.TOKEN}\n* ${parseFloat(vols / 1000).toFixed(3)} HIVE\n* ${parseFloat(parseInt(volhbd) / 1000).toFixed(3)} HBD\n*****\n`;
             }
             stats.movingWeight.dailyPool = bals.ra
-            const inflationHedge = pasreInt(( bals.ra * (gov.t / stats.tokenSupply)))
+            const inflationHedge = parseInt(( bals.ra * (gov.t / stats.tokenSupply)))
             bals.rn = bals.rn + inflationHedge
             bals.ra -= inflationHedge
             var totBroca = 0
-            for(var acc of cbroca){
+            for(var acc in cbroca){
                 totBroca += cbroca[acc]
             }
             const brocaPerMil = parseInt(bals.ra / totBroca)
-            for(var acc of cbroca){
+            for(var acc in cbroca){
                 const fromMint = parseInt(brocaPerMil/cbroca[acc])
                 cbals[acc] = cbals[acc] ? 
                     cbals[acc] + fromMint :
