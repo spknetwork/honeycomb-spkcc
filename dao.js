@@ -362,18 +362,21 @@ function dao(num) {
             const inflationHedge = parseInt(( bals.ra * (gov.t / stats.tokenSupply)))
             bals.rn = bals.rn + inflationHedge
             bals.ra -= inflationHedge
+            bals.rb += bals.ra
+            bals.ra = 0
             var totBroca = 0
             for(var acc in cbroca){
                 totBroca += cbroca[acc]
             }
-            const brocaPerMil = parseInt(bals.ra / totBroca)
+            const rewardBig = bals.rb > totBroca
+            const brocaPerMil = bals.rb > totBroca ? parseInt(bals.rb / totBroca) : parseInt(totBroca / bals.rb)
             for(var acc in cbroca){
-                const fromMint = parseInt(brocaPerMil/cbroca[acc])
+                const fromMint = rewardBig ? parseInt(cbroca[acc] * brocaPerMil) : parseInt(brocaPerMil / cbroca[acc])
                 cbals[acc] = cbals[acc] ? 
                     cbals[acc] + fromMint :
                     fromMint
-                cbroca[acc] -= fromMint
-                bals.ra -= fromMint
+                bals.rb -= fromMint
+                cbroca[acc] -= rewardBig ? parseInt( fromMint / brocaPerMil) : parseInt(brocaPerMil / fromMint)
             }
             var q = 0,
                 r = bals.rc;
