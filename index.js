@@ -1064,6 +1064,7 @@ function startWith(hash, second) {
                       cleanState.stats.spk_val = "0.100000" //percent that goes toward validators
                       cleanState.stats.spk_dex = "0.100000" //percent set asside for DEX liquidity
                       cleanState.stats.spk_liq = "0.500000" //percent of above allocation subject to liquidity quality
+                      cleanState.stats.spk_interest_rate = 50
                       cleanState.template = {
                         "0": {
                           i: "0",

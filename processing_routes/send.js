@@ -200,21 +200,3 @@ exports.claim = (json, from, active, pc) => {
         })
         .catch(e => { console.log(e); });
 }
-
-/*
-
-const half = parseInt(claim / 2),
-                    other = claim - half,
-                    msg = `@${from}| Claimed ${parseFloat(parseInt(claim) / 1000).toFixed(3)} ${config.TOKEN} - Half locked in gov`
-                ops.push({ type: 'del', path: ['cbalances', from] });
-                ops.push({ type: 'put', path: ['balances', from], data: parseInt(tbal + half) });
-                ops.push({ type: 'put', path: ['gov', from], data: parseInt(split + other) });
-                ops.push({ type: 'put', path: ['gov', 't'], data: parseInt(tot + other) });
-                if (config.hookurl || config.status) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
-                ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
-
-                ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: `@${from}| Invalid claim operation` });
-
-                if (process.env.npm_lifecycle_event == 'test') pc[2] = ops
-            store.batch(ops, pc);
-*/

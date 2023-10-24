@@ -17,6 +17,7 @@ const pintoken = ENV.pintoken || ''
 const pinurl = ENV.pinurl || '';
 const status = ENV.status || true
 const dbcs = ENV.DATABASE_URL || '';
+const BlackListURL = ENV.BLACKLIST_URL || "http://localhost:5050"
 const dbmods = ENV.DATABASE_MODS || []; //list of moderators to hide posts in above db
 const snapcs = ENV.SNAPBASE_URL || "http://65.108.66.120:8002"; // get a public facing snapshot server
 const history = ENV.history || 3600
@@ -246,7 +247,8 @@ let config = {
   timeoutContinuous,
   rollup_ops,
   mirrorNet,
-  votable
+  votable,
+  BlackListURL
 };
 
 module.exports = config;

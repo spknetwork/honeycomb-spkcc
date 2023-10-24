@@ -42,9 +42,10 @@ function dao(num) {
             Ppaid = getPathObj(['paid']),
             Pvals = getPathObj(['val']),
             Prnfts = getPathObj(['rnfts']),
-            PcBroca = getPathObj(['cbroca'])
+            PcBroca = getPathObj(['cbroca']),
+            PSpk = getPathObj(['spk'])
             Pdistro = Distro()
-        Promise.all([Pnews, Pbals, Prunners, Pnodes, Pstats, Pdelegations, Pico, Pdex, Pbr, Ppbal, Pnomen, Pposts, Pfeed, Ppaid, Prnfts, Pdistro, Pcbals, Pgov, Pvals, PcBroca]).then(function(v) {
+        Promise.all([Pnews, Pbals, Prunners, Pnodes, Pstats, Pdelegations, Pico, Pdex, Pbr, Ppbal, Pnomen, Pposts, Pfeed, Ppaid, Prnfts, Pdistro, Pcbals, Pgov, Pvals, PcBroca, PSpk]).then(function(v) {
             daops.push({ type: 'del', path: ['postQueue'] });
             daops.push({ type: 'del', path: ['br'] });
             daops.push({ type: 'del', path: ['rolling'] });
@@ -70,7 +71,8 @@ function dao(num) {
                 dist = v[15],
                 gov = v[17],
                 vals = v[18],
-                cbroca = v[19]
+                cbroca = v[19],
+                spk = v[20]
             for(var i = 0; i < dist.length;i++){
                 if(dist[i][0].split('div:')[1]){
                     addMT(['div', dist[i][0].split('div:')[1], 'b'], dist[i][1] )
@@ -361,21 +363,32 @@ function dao(num) {
             stats.movingWeight.dailyPool = bals.ra
             const inflationHedge = parseInt(( bals.ra * (gov.t / stats.tokenSupply)))
             bals.rn = bals.rn + inflationHedge
+            var newSPK = parseInt(bals.ra / stats.spk_interest_rate)
+            spk.t += newSPK
+            spk.u += newSPK
+            stats.spk_interest_rate++
             bals.ra -= inflationHedge
             bals.rb += bals.ra
             bals.ra = 0
             var totBroca = 0
             for(var acc in cbroca){
-                totBroca += cbroca[acc]
+                totBroca += cbroca[acc] ? cbroca[acc] : 0
             }
+            const BrocaPerSpk = spk.u > totBroca ? parseInt(spk.u / totBroca) : parseInt(totBroca / spk.u)
+            const SpkBig = spk.u > totBroca
             const rewardBig = bals.rb > totBroca
             const brocaPerMil = bals.rb > totBroca ? parseInt(bals.rb / totBroca) : parseInt(totBroca / bals.rb)
             for(var acc in cbroca){
                 const fromMint = rewardBig ? parseInt(cbroca[acc] * brocaPerMil) : parseInt(brocaPerMil / cbroca[acc])
+                const fromSPK = SpkBig ? parseInt(cbroca[acc] * BrocaPerSpk) : parseInt(BrocaPerSpk / cbroca[acc])
                 cbals[acc] = cbals[acc] ? 
                     cbals[acc] + fromMint :
                     fromMint
+                spk[acc] = spk[acc] ? 
+                    spk[acc] + fromSPK :
+                    fromSPK
                 bals.rb -= fromMint
+                spk.u -= fromSPK
                 cbroca[acc] -= rewardBig ? parseInt( fromMint / brocaPerMil) : parseInt(brocaPerMil / fromMint)
             }
             var q = 0,

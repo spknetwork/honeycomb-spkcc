@@ -56,6 +56,15 @@ var PoA = {
     })
     else store.batch([{type: "put", path: ["markets", "node", b.self], data: b}], pc)
   },
+  BlackListed: function (reversedCID){
+    return new Promise((resolve, reject) => {
+      const CID = reversedCID.split("").reverse().join("")
+      fetch(`${config.BlackListURL}/flag-qry/${CID}`).then(r => r.json()).then(json =>{
+        if(json.flag)resolve(true)
+        else resolve(false)
+      }).catch(e=> resolve(false))
+    })
+  },
   Validate: function (block, prand, stats, account = config.username) {
       //get val, match with this account
       this.Pending[ `${block % 200}` ] = {}
@@ -64,57 +73,62 @@ var PoA = {
       Promise.all([Pval, Pnode]).then(mem => {
           const val = mem[0],
               node = mem[1]
-          //if (node.val_code && val[account]) {
+          if (node.val_code && val[account]) {
               const [gte, lte] = this.getRange(prand, account, val, stats)
               getPathSome(["IPFS"], { gte, lte }).then(items => { //need to wrap this call to 0 thru remainder 
-                var promises = [], toVerify = {}
+                var promises = [], toVerify = {}, BlackListed = []
                 for(var i = 0; i < items.length; i++){
+                  BlackListed.push(PoA.checkForFlags(items[i]))
                   promises.push(getPathObj(['IPFS', items[i]]))
-                }  
-                Promise.all(promises).then(contractIDs=>{
-                  promises = []
-                  for(var i = 0; i < contractIDs.length; i++){
-                    promises.push(getPathObj(['contract', contractIDs[i].split(',')[0], contractIDs[i].split(',')[1]]))
-                    const asset = items[i].split("").reverse().join("")
-                        toVerify[asset] = {
-                            r: items[i],
-                            a: asset,
-                            fo: contractIDs[i].split(',')[0],
-                            id: contractIDs[i].split(',')[1]
-                        }
+                }
+                Promise.all(BlackListed).then(flags => {
+                  for(var i = flags.length -1; i >= 0; i--){
+                    if(flags[i])promises.splice(i, 1)
                   }
-                  if (promises.length) Promise.all(promises).then(contracts => {
-                      promises = [], k = []
-                      for (var i = 0; i < contracts.length; i++) {
-                        const dfKeys =  contracts[i].df ? Object.keys(contracts[i].df) : []
-                          for (var j = 0; j < dfKeys.length; j++) {
-                              if (toVerify[dfKeys[j]]) {
-                                  toVerify[dfKeys[j]].n = contracts[i].n
-                                  toVerify[dfKeys[j]].b = contracts[i].df[dfKeys[j]]
-                                  toVerify[dfKeys[j]].i = i
-                                  toVerify[dfKeys[j]].v = 0
-                                  toVerify[dfKeys[j]].npid = {}
-                                  for (var node in toVerify[dfKeys[j]].n) {
-                                      toVerify[dfKeys[j]].npid[node] = j.length //?
-                                      k.push([dfKeys[j], toVerify[dfKeys[j]].n[node]])
-                                      promises.push(getPathObj(['service', 'IPFS', toVerify[dfKeys[j]].n[node]]))
-                                  }
-                                  //this.Pending[block % 200] = toVerify
-                              }
+                  Promise.all(promises).then(contractIDs=>{
+                    promises = []
+                    for(var i = 0; i < contractIDs.length; i++){
+                      promises.push(getPathObj(['contract', contractIDs[i].split(',')[0], contractIDs[i].split(',')[1]]))
+                      const asset = items[i].split("").reverse().join("")
+                          toVerify[asset] = {
+                              r: items[i],
+                              a: asset,
+                              fo: contractIDs[i].split(',')[0],
+                              id: contractIDs[i].split(',')[1]
                           }
-                      }
-                      Promise.all(promises).then(peerIDs => {
-                        for (var i = 0; i < peerIDs.length; i++) {
-                            this.Pending[`${block % 200}`][k[i][0]] = {}
-                            k[i].push(peerIDs[i])
-                            this.validate(k[i][0], k[i][1], k[i][2], prand, block)
+                    }
+                    if (promises.length) Promise.all(promises).then(contracts => {
+                        promises = [], k = []
+                        for (var i = 0; i < contracts.length; i++) {
+                          const dfKeys =  contracts[i].df ? Object.keys(contracts[i].df) : []
+                            for (var j = 0; j < dfKeys.length; j++) {
+                                if (toVerify[dfKeys[j]]) {
+                                    toVerify[dfKeys[j]].n = contracts[i].n
+                                    toVerify[dfKeys[j]].b = contracts[i].df[dfKeys[j]]
+                                    toVerify[dfKeys[j]].i = i
+                                    toVerify[dfKeys[j]].v = 0
+                                    toVerify[dfKeys[j]].npid = {}
+                                    for (var node in toVerify[dfKeys[j]].n) {
+                                        toVerify[dfKeys[j]].npid[node] = j.length //?
+                                        k.push([dfKeys[j], toVerify[dfKeys[j]].n[node]])
+                                        promises.push(getPathObj(['service', 'IPFS', toVerify[dfKeys[j]].n[node]]))
+                                    }
+                                    //this.Pending[block % 200] = toVerify
+                                }
+                            }
                         }
-                      })
+                        Promise.all(promises).then(peerIDs => {
+                          for (var i = 0; i < peerIDs.length; i++) {
+                              this.Pending[`${block % 200}`][k[i][0]] = {}
+                              k[i].push(peerIDs[i])
+                              this.validate(k[i][0], k[i][1], k[i][2], prand, block)
+                          }
+                        })
+                    })
                   })
-                })
-                  
+                })  
               })
-          //}
+          }
       })
   },
   getRange(prand, account, val, stats) {
