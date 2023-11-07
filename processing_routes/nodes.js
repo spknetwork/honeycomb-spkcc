@@ -83,17 +83,21 @@ exports.register_service = function (json, from, active, pc) {
         list[json.type] &&
         json.api.length < 256 &&
         json.id &&
+        json.id.length < 256 &&
+        json.id &&
         send >= stats.IPFSRate &&
         fbal >= send &&
         active && 
         !services?.[json.type]?.[json.id]
       ) {
+        const memo = json.memo && json.memo.length < 256 ? JSON.stringify(json.memo) : ''
         ops.push({
           type: "put",
           path: ["services", from, json.type, json.id],
           data: {
             a: json.api, //api
             i: json.id, //ipfs peerID
+            m: memo, //additional information
             e: 1, //enabled
             b: from, //by
             t: json.type, //type
@@ -153,6 +157,8 @@ exports.register_service = function (json, from, active, pc) {
         send
       ){
         services[json.type][json.id].c += send
+        if(json.memo && json.memo.length < 256)services[json.type][json.id].m = JSON.stringify(json.memo)
+        if(json.api && json.api.length < 256)services[json.type][json.id].a = json.api
         ops.push({
           type: "put",
           path: ["services", from, json.type, json.id],

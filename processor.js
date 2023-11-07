@@ -227,6 +227,7 @@ module.exports = function (
     if (!at && blocks.requests.last_range > bln) return;
     console.log({ bln, count, at });
     if (!at) blocks.requests.last_range = bln + count - 1;
+    console.log(client.currentAddress)
     fetch(client.currentAddress, {
       body: `{"jsonrpc":"2.0", "method":"block_api.get_block_range", "params":{"starting_block_num": ${bln}, "count": ${count}}, "id":1}`,
       headers: {
