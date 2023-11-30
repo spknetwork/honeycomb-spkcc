@@ -1,15 +1,15 @@
 require('dotenv').config();
 const ENV = process.env;
 
-const username = ENV.account || 'regardspk';
-const active = ENV.active || '';
+const username = ENV.ACCOUNT || 'regardspk';
+const active = ENV.ACTIVE || '';
 const follow = ENV.follow || 'regardspk';
 const poav_address = ENV.POA_URL || "ws://validator.dlux.io"
 const msowner = ENV.msowner || '';
 const mspublic = ENV.mspublic || '';
 const memoKey = ENV.memo || '';
 const hookurl = ENV.discordwebhook || '';
-const NODEDOMAIN = ENV.domain || 'https://spktoken.dlux.io' //where your API lives
+const NODEDOMAIN = ENV.DOMAIN || 'https://spktoken.dlux.io' //where your API lives
 const acm = ENV.account_creator || false //account creation market ... use your accounts HP to claim account tokens
 const mirror = ENV.mirror || false //makes identical posts, votes and IPFS pins as the leader account
 const port = ENV.PORT || 3001;

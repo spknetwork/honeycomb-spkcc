@@ -1,5 +1,5 @@
 const config = require("./config");
-const VERSION = "v1.2.0-t7";
+const VERSION = "v1.2.0-t8";
 exports.VERSION = VERSION;
 exports.exit = exit;
 exports.processor = processor;
