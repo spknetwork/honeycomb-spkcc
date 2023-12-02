@@ -102,14 +102,13 @@ exports.comment_options = (json, pc) => {
         promises = []
     
     for (var i = 0; i < filter.length; i++) {
-        promises.push(getPathObj['ben', json.author, filter[i].account ])
+        promises.push(getPathObj(['ben', `${json.author}`, `${filter[i].account}`])) // filter[i].account
     }
     if(promises.length){
         Promise.all(promises)
         .then(q => {
             var contractPointers = []
             for (var i = 0; i < q.length; i++){
-                //console.log(q[i])
                 if(q[i]){
                     contractPointers.push([i, q[i]])
                 }
@@ -117,24 +116,31 @@ exports.comment_options = (json, pc) => {
             promises = []
             if(contractPointers.length){
                 for (var j = 0; j < contractPointers.length; j++){
-                    promises.push(getPathObj['contract', json.author, contractPointers[j][1] ])
+                    if(typeof contractPointers[j][1] == "string")promises.push(getPathObj(['contract', json.author, contractPointers[j][1] ]))
                 }
                 Promise.all(promises)
                 .then(contracts => {
                     promises = []
                     for(var k = 0; k < contracts.length; k++){
-                        if(contract[k].s && 
-                            contract[k].s.split(',')[0] == filter[contractPointers[k][0]].account && 
-                            contract[k].s.split(',')[1] <= filter[contractPointers[k][0]].weight){
-                                contract[k].c++
-                                promises.push(exp_path(contract[k], json.author, contractPointers[k][1]))
+                        if(contracts[k].s && 
+                            contracts[k].s.split(',')[0] == filter[contractPointers[k][0]].account && 
+                            contracts[k].s.split(',')[1] <= filter[contractPointers[k][0]].weight){
+                                promises.push(exp_path(contracts[k], json.author, contractPointers[k][1]))
                                 ops.push({
                                     type: 'del',
                                     path: ['ben', json.author, filter[contractPointers[k][0]].account ]
                                 })
                                 ops.push({
                                     type: 'del',
-                                    path: ['proffer', json.author, contract[k].f, "1" ]
+                                    path: ['chrono', contracts[k].e ]
+                                })
+                                ops.push({
+                                    type: 'del',
+                                    path: ['proffer', json.author, contracts[k].f, "1" ]
+                                })
+                                ops.push({
+                                    type: 'del',
+                                    path: ['contract', json.author, contractPointers[k][1], 'exp']
                                 })
                             }
                     }
@@ -144,13 +150,14 @@ exports.comment_options = (json, pc) => {
                     })
                     function exp_path(Contract, author, pointer){
                         return new Promise((res,rej)=>{
-                        chronAssign(Contract.exp, {
-                            block: Contract.exp,
+                        chronAssign(Contract.exp + (28800 * 29), {
+                            block: Contract.exp + (28800 * 29),
                             op: 'contract_close',
-                            fo: Contract.to,
+                            fo: Contract.t,
                             id: Contract.i
                           }).then(exp_path =>{
                             Contract.e = exp_path
+                            Contract.c++
                             delete Contract.exp
                                 res({
                                     type: 'put',

@@ -1,5 +1,5 @@
 const config = require("./config");
-const VERSION = "v1.2.0-t8";
+const VERSION = "v1.2.0-t9";
 exports.VERSION = VERSION;
 exports.exit = exit;
 exports.processor = processor;
@@ -201,7 +201,7 @@ exports.processor = processor;
 //HIVE API CODE
 
 //Start Program Options
-const replay = "QmczM1Yq5yTSdr8Gv1PAm8ow8e7RdEMzHEioxGEHA62ScQ"
+const replay = "QmQYMRFCxybeAPnAzReLsVJ7vnAmeFXgRtQMnNtmdwMeJK"
 //startWith(replay, true);
 dynStart();
 Watchdog.monitor();
