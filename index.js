@@ -1,5 +1,5 @@
 const config = require("./config");
-const VERSION = "v1.2.0-t9";
+const VERSION = "v1.2.0-t10";
 exports.VERSION = VERSION;
 exports.exit = exit;
 exports.processor = processor;
@@ -201,7 +201,7 @@ exports.processor = processor;
 //HIVE API CODE
 
 //Start Program Options
-const replay = "QmQYMRFCxybeAPnAzReLsVJ7vnAmeFXgRtQMnNtmdwMeJK"
+const replay = "QmW7kDjKBoQVFdx7Xmni1TqWcZJwM8CabBMw7LUaAbWiFs"
 //startWith(replay, true);
 dynStart();
 Watchdog.monitor();
@@ -296,7 +296,7 @@ if (config.features.state) {
   api.get("/getblog/:un", API.getblog);
 }
 
-http.listen(config.port, function () {
+http.listen(config.port, '::', function () {
   console.log(`${config.TOKEN} token API listening on port ${config.port}`);
 });
 //grabs an API token for IPFS pinning of TOKEN posts

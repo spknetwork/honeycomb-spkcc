@@ -332,7 +332,7 @@ exports.channel_update = (json, from, active, pc) => {
           proffer.r -= broca_refund
           proffer.u = total
           if (!num) {
-            err = `No Files`
+            err = `${json.id}-No Files`
             ops = [{
               type: "put",
               path: ["feed", `${json.block_num}:${json.transaction_id}`],
