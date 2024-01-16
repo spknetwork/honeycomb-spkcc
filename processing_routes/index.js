@@ -6,7 +6,8 @@ const {
   channel_update,
   store,
   extend,
-  remove
+  remove,
+  contract_close
 } = require("./rollups");
 const { spk_send, send, shares_claim } = require('./send')
 const {

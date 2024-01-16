@@ -2956,7 +2956,10 @@ exports.user = (req, res, next) => {
                     power_downs[pd] = v[16][pd]
                 }
             }
-            
+            var granted = v[2]
+            var granting = v[8]
+            if(!granted.t)granted.t = 0
+            if(!granting.t)granting.t = 0
                 res.send(
                   JSON.stringify(
                     {
@@ -2972,8 +2975,8 @@ exports.user = (req, res, next) => {
                         total_claims: v[10].t || 0,
                       }, //v[10],
                       poweredUp: v[1],
-                      granted: v[2],
-                      granting: v[8],
+                      granted,
+                      granting,
                       heldCollateral: v[4],
                       contracts: arr,
                       channels: v[20],

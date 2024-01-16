@@ -1,5 +1,5 @@
 const config = require("./config");
-const VERSION = "v1.2.0-t10";
+const VERSION = "v1.2.0-t13";
 exports.VERSION = VERSION;
 exports.exit = exit;
 exports.processor = processor;
@@ -201,7 +201,7 @@ exports.processor = processor;
 //HIVE API CODE
 
 //Start Program Options
-const replay = "QmW7kDjKBoQVFdx7Xmni1TqWcZJwM8CabBMw7LUaAbWiFs"
+const replay = "QmZsE62tpzc1oK84rw5AsWipFDDNStNtzvZ86VGqgySun4"
 //startWith(replay, true);
 dynStart();
 Watchdog.monitor();
@@ -333,6 +333,7 @@ function startApp() {
   if (config.mirrorNet) processor.on("Tgov_up", HR.gov_up);
   processor.on("channel_open", HR.channel_open)
   processor.on("channel_update", HR.channel_update)
+  processor.on("contract_close", HR.contract_close)
   processor.on("store", HR.store)
   processor.on("extend", HR.extend)
   processor.on("remove", HR.remove)
@@ -1034,9 +1035,11 @@ function startWith(hash, second) {
                 if (!e && (second || data[0] > API.RAM.head - 325)) {
                   if (hash) {
                     var cleanState = data[1];
+                    delete cleanState.spkVote //remove after next 
                     if (config.mirrorNet && hash == replay) { //test net and upgrade init
                       delete cleanState.powd
                       delete cleanState.govd
+                      delete cleanState.spkVote
                       cleanState.dexs = {
                         hive: {
                           buyBook: "",
