@@ -61,7 +61,7 @@ exports.cid_contract = (req, res, next) =>{
     statsp = getPathObj(["stats"]);
     Promise.all([cpp, statsp])
       .then((mem) => {
-        if(typeof mem[1] != 'string'){
+        if(typeof mem[0] != 'string'){
           res.send(
             JSON.stringify(
               {
@@ -70,7 +70,7 @@ exports.cid_contract = (req, res, next) =>{
                 behind: RAM.behind,
                 node: config.username,
                 VERSION,
-                realtime: stats.realtime,
+                realtime: mem[1].realtime,
               },
               null,
               3
@@ -78,7 +78,7 @@ exports.cid_contract = (req, res, next) =>{
           )
         }
         let stats = mem[1]
-        let contractp = getPathObj(["contract", mem[1].split(',')[0], mem[1].split(',')[1]])
+        let contractp = getPathObj(["contract", mem[0].split(',')[0], mem[0].split(',')[1]])
         Promise.all([contractp])
           .then((contract) => {
             res.send(
@@ -89,7 +89,7 @@ exports.cid_contract = (req, res, next) =>{
                   behind: RAM.behind,
                   node: config.username,
                   VERSION,
-                  realtime: stats.realtime,
+                  realtime: mem[1].realtime,
                 },
                 null,
                 3
