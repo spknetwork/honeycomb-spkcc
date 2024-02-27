@@ -37,7 +37,7 @@ const engineCrank =
 const rta = ENV.rta || '' //rtrades account : IPFS pinning interface
 const rtp = ENV.rtp || '' //rtrades password : IPFS pinning interface
 
-const ipfshost = ENV.ipfshost || "hiveipfs.rishipanthee.com"; //IPFS upload/download provider provider
+const ipfshost = ENV.ipfshost || "127.0.0.1"; //IPFS upload/download provider provider
 const ipfsport = ENV.ipfsport || '5001' //IPFS upload/download provider provider
 
 const ipfsLinks = ENV.ipfsLinks
@@ -51,7 +51,7 @@ const ipfsLinks = ENV.ipfsLinks
       "https://ipfs1.alloyxuast.tk/ipfs/"
     ];
 
-const ipfsprotocol = ENV.ipfsprotocol || 'https' //IPFS upload/download protocol
+const ipfsprotocol = ENV.ipfsprotocol || 'http' //IPFS upload/download protocol
 //node market config > 2500 is 25% inflation to node operators, this is currently not used
 const bidRate = ENV.BIDRATE || 500 // your vote for the dex fee 500 = 0.500% Max 1000
 
