@@ -1039,6 +1039,7 @@ function startWith(hash, second) {
                       delete cleanState.powd
                       delete cleanState.govd
                       delete cleanState.spkVote
+                      delete cleanState.chrono
                       cleanState.dexs = {
                         hive: {
                           buyBook: "",
