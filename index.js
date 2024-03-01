@@ -1055,10 +1055,26 @@ function startWith(hash, second) {
                           tick: "1.0"
                         },
                       }
+                      cleanState.dex = {
+                        hive: {
+                          buyBook: "",
+                          sellBook: "",
+                          days: {},
+                          orderBook: {},
+                          tick: "1.0"
+                        },
+                        hbd: {
+                          buyBook: "",
+                          sellBook: "",
+                          days: {},
+                          orderBook: {},
+                          tick: "1.0"
+                        },
+                      }
                       cleanState.stats.channel_bytes = 1024
                       cleanState.stats.channel_min = 100
                       cleanState.stats.interestRate = 303311 // 100% for 2 years compounded every 5 minutes
-                      cleanState.stats.validators_registered = "02" //validator registeration
+                      cleanState.stats.validators_registered = "00" //validator registeration
                       cleanState.stats.validators = "20.500000" // number of validators
                       cleanState.stats.val_threshold = 0
                       cleanState.stats.flags_to_penalty = "2.50000" //flags until penalty
@@ -1109,7 +1125,7 @@ function startWith(hash, second) {
                         },
                         owner_threshold: 1,
                         posting_account_auths: {
-                          ["test-spk"]: 1
+                          ["spk-test"]: 1
                         },
                         posting_threshold: 1
                       }
