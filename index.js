@@ -1044,14 +1044,16 @@ function startWith(hash, second) {
                           buyBook: "",
                           sellBook: "",
                           days: {},
-                          orderBook: {},
+                          buyOrders: {},
+                          sellOrders: {},
                           tick: "1.0"
                         },
                         hbd: {
                           buyBook: "",
                           sellBook: "",
                           days: {},
-                          orderBook: {},
+                          buyOrders: {},
+                          sellOrders: {},
                           tick: "1.0"
                         },
                       }
@@ -1060,14 +1062,16 @@ function startWith(hash, second) {
                           buyBook: "",
                           sellBook: "",
                           days: {},
-                          orderBook: {},
+                          buyOrders: {},
+                          sellOrders: {},
                           tick: "1.0"
                         },
                         hbd: {
                           buyBook: "",
                           sellBook: "",
                           days: {},
-                          orderBook: {},
+                          buyOrders: {},
+                          sellOrders: {},
                           tick: "1.0"
                         },
                       }
