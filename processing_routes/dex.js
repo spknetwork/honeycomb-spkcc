@@ -14,7 +14,7 @@ const {
   hashThis,
   isEmpty,
   addMT,
-  burnSpk,
+  burnBroca,
 } = require("./../lil_ops");
 const { postToDiscord } = require("./../discord");
 const stringify = require("json-stable-stringify");
@@ -326,11 +326,11 @@ exports.dex_sell = (json, from, active, pc) => {
           data: msg,
         });
         ops.push({ type: "put", path: [order.token == 'SPK' ? 'spk' : "balances", from], data: bal });
-        ops.push({ type: "put", path: [order.token == 'SPK' ? 'dexs' : "dex", order.pair], data: dex });
+        ops.push({ type: "put", path: [order.token == 'SPK' ? 'dexs' : (order.token == 'BROCA' ? 'dexb' : 'dex'), order.pair], data: dex });
         if (Object.keys(his).length)
           ops.push({
             type: "put",
-            path: [order.token == 'SPK' ? 'dexs' : "dex", order.pair, "his"],
+            path: [order.token == 'SPK' ? 'dexs' : (order.token == 'BROCA' ? 'dexb' : 'dex'), order.pair, "his"],
             data: his,
           });
         add("rn", fee).then((empty) => {
@@ -1107,7 +1107,7 @@ exports.transfer = (json, pc) => {
       //console.log({order})
       if (order.type == "MARKET" || order.type == "LIMIT") {
         if(order.token != 'SPK')order.token = 'LARYNX'
-        let pDEX = getPathObj([`dex${order.token == 'SPK' ? 's' : ''}`, order.pair]),
+        let pDEX = getPathObj([`dex${order.token == 'SPK' ? 's' : (order.token == 'BROCA' ? 'b' : '')}}`, order.pair]),
           pBal = getPathNum([order.token == 'SPK' ? 'spk' : 'balances', json.from]),
           pInv = getPathNum(["balances", "ri"]),
           pStats = getPathObj(["stats"]);
@@ -1138,7 +1138,7 @@ exports.transfer = (json, pc) => {
               item &&
               (order.pair == "hbd" ||
                 (order.pair == "hive" &&
-                  (order.token == 'SPK' || price <= stats.icoPrice / 1000 || !config.features.ico))) &&
+                  (order.token == 'SPK' || order.token == 'BROCA' || price <= stats.icoPrice / 1000 || !config.features.ico))) &&
               (order.type == "MARKET" ||
                 (order.type == "LIMIT" && order.rate >= price))
             ) {
@@ -1147,8 +1147,8 @@ exports.transfer = (json, pc) => {
               if (next && next[order.pair] <= remaining) {
                 if (next[order.pair]) {
                   console.log("Partial Fill");
-                  if(order.token == 'SPK' && stats.spk_clawback){
-                    newClawback = parseInt((remaining / next.amount) * stats.spk_clawback / 10000)
+                  if(order.token == 'BROCA' && stats.broca_clawback){
+                    newClawback = parseInt((remaining / next.amount) * stats.broca_clawback / 10000)
                     clawback += newClawback
                     next.amount -= newClawback
                   }
@@ -1199,7 +1199,7 @@ exports.transfer = (json, pc) => {
                   if (Object.keys(his).length)
                     ops.push({
                       type: "put",
-                      path: [order.token == 'SPK' ? 'dexs' : 'dex', order.pair, "his"],
+                      path: [order.token == 'SPK' ? 'dexs' : (order.token == 'BROCA' ? 'dexb' : 'dex') , order.pair, "his"],
                       data: his,
                     });
                   ops.push({
@@ -1209,7 +1209,7 @@ exports.transfer = (json, pc) => {
                   }); //send HIVE out via MS
                   ops.push({
                     type: "del",
-                    path: [order.token == 'SPK' ? 'dexs' : 'dex', order.pair, "sellOrders", `${price}:${item}`],
+                    path: [order.token == 'SPK' ? 'dexs' : (order.token == 'BROCA' ? 'dexb' : 'dex'), order.pair, "sellOrders", `${price}:${item}`],
                   }); //remove the order
                   ops.push({
                     type: "del",
@@ -1224,7 +1224,7 @@ exports.transfer = (json, pc) => {
                   delete dex.sellOrders[`${price}:${item}`];
                   ops.push({
                     type: "del",
-                    path: [order.token == 'SPK' ? 'dexs' : 'dex', order.pair, "sellOrders", `${price}:${item}`],
+                    path: [order.token == 'SPK' ? 'dexs' : (order.token == 'BROCA' ? 'dexb' : 'dex'), order.pair, "sellOrders", `${price}:${item}`],
                   }); //remove the order
                   ops.push({
                     type: "del",
@@ -1237,8 +1237,8 @@ exports.transfer = (json, pc) => {
                 dex.sellBook = DEX.remove(item, dex.sellBook);
               } else {
                 console.log("Filled");
-                if(order.token == 'SPK' && stats.spk_clawback){
-                  newClawback = parseInt((remaining / next.amount) * stats.spk_clawback / 10000)
+                if(order.token == 'BROCA' && stats.broca_clawback){
+                  newClawback = parseInt((remaining / next.amount) * stats.broca_clawback / 10000)
                   clawback += newClawback
                   next.amount -= newClawback
                 }
@@ -1312,7 +1312,7 @@ exports.transfer = (json, pc) => {
                 });
                 ops.push({
                   type: "put",
-                  path: [order.token == 'SPK' ? 'dexs' : 'dex', order.pair, "his"],
+                  path: [order.token == 'SPK' ? 'dexs' : (order.token == 'BROCA' ? 'dexb' : 'dex'), order.pair, "his"],
                   data: his,
                 });
                 ops.push({
@@ -1330,7 +1330,7 @@ exports.transfer = (json, pc) => {
             } else {
               if (
                 config.features.ico &&
-                order.token != 'SPK' &&
+                ( order.token != 'SPK' || order.token != 'BROCA')  &&
                 order.pair == "hive" &&
                 (order.type == "MARKET" ||
                   order.type == "AUCTION")
@@ -1376,7 +1376,7 @@ exports.transfer = (json, pc) => {
                   //   };
                   //   const msg = `@${json.from}| bought ${parseFloat(
                   //     purchase / 1000
-                  //   ).toFixed(3)} ${order.token == 'SPK' ? 'SPK' : 'LARYNX'} with ${parseFloat(
+                  //   ).toFixed(3)} ${order.token == 'SPK' ? 'SPK' : (order.token == 'BROCA' ? 'BROCA' : 'LARYNX')} with ${parseFloat(
                   //     remaining / 1000
                   //   ).toFixed(3)} HIVE`;
                   //   ops.push(
@@ -1406,7 +1406,7 @@ exports.transfer = (json, pc) => {
                   //   };
                   //   const msg = `@${json.from}| bought ALL ${parseFloat(
                   //     parseInt(purchase - left)
-                  //   ).toFixed(3)} ${order.token == 'SPK' ? 'SPK' : 'LARYNX'} with ${parseFloat(
+                  //   ).toFixed(3)} ${order.token == 'SPK' ? 'SPK' : (order.token == 'BROCA' ? 'BROCA' : 'LARYNX')} with ${parseFloat(
                   //     parseInt(order.amount) / 1000
                   //   ).toFixed(3)} HIVE. And bid in the over-auction`;
                   //   ops.push(
@@ -1525,7 +1525,7 @@ exports.transfer = (json, pc) => {
             msg = `@${json.from} set a buy order at ${contrate.rate}.`;
           } else if (json.from != "rn") {
             msg = `@${json.from} | order received.`;
-            waiting = order.token != 'SPK' ? add("rn", fee) : addSpk("u", fee)
+            waiting = order.token == 'SPK' ? addSpk("u", fee) : (  order.token == 'BROCA' ? addBroca("u", fee) : add("rn", fee) )
           } else {
             console.log({ fee });
             msg = `@${json.from} | order received.`;
@@ -1533,7 +1533,7 @@ exports.transfer = (json, pc) => {
           }
           if (config.hookurl || config.status)
             postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
-          ops.push({ type: "put", path: [order.token == 'SPK' ? "spk" : "balances", json.from], data: bal });
+          ops.push({ type: "put", path: [order.token == 'SPK' ? "spk" : ( order.token == 'BROCA' ? "Broca" : "balances"), json.from], data: bal });
           ops.push({
             type: "put",
             path: ["feed", `${json.block_num}:${json.transaction_id}.${i++}`],
@@ -1542,12 +1542,12 @@ exports.transfer = (json, pc) => {
           if (Object.keys(his).length)
             ops.push({
               type: "put",
-              path: [`dex${order.token == 'SPK' ? 's' : ''}`, order.pair, "his"],
+              path: [`dex${order.token == 'SPK' ? 's' : (order.token == 'BROCA' ? 'b' : '')}`, order.pair, "his"],
               data: his,
             });
           if (!path) {
-            Promise.all([waiting, burnSpk(clawback)]).then((empty) => {
-              ops.push({ type: "put", path: [`dex${order.token == 'SPK' ? 's' : ''}`, order.pair], data: dex });
+            Promise.all([waiting, burnBroca(clawback)]).then((empty) => {
+              ops.push({ type: "put", path: [`dex${order.token == 'SPK' ? 's' : (order.token == 'BROCA' ? 'b' : '')}`, order.pair], data: dex });
               ops.push({ type: "put", path: ["stats"], data: stats });
               if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
               store.batch(ops, pc);
@@ -1569,12 +1569,12 @@ exports.transfer = (json, pc) => {
               }
               let msg = `@${json.from} is buying ${parseFloat(
                 parseInt(contract.amount) / 1000
-              ).toFixed(3)} ${order.token == 'SPK' ? 'SPK' : 'LARYNX'} for ${parseFloat(
+              ).toFixed(3)} ${order.token == 'SPK' ? 'SPK' : (order.token == 'BROCA' ? 'BROCA' : 'LARYNX')} for ${parseFloat(
                 parseInt(contract[order.pair]) / 1000
               ).toFixed(3)} ${order.pair.toUpperCase()}(${contract.rate}:${
                 contract.txid
               })`;
-              ops.push({ type: "put", path: [order.token == 'SPK' ? 'dexs' : 'dex', order.pair], data: dex });
+              ops.push({ type: "put", path: [order.token == 'SPK' ? 'dexs' : (order.token == 'BROCA' ? 'dexb' : 'dex'), order.pair], data: dex });
               ops.push({
                 type: "put",
                 path: ["feed", `${json.block_num}:${json.transaction_id}.${i}`],

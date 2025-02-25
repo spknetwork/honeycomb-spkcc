@@ -120,7 +120,6 @@ function verifySig(msg, sig, key) {
 
 exports.register_authority = (json, from, active, pc) => {
   if (
-    active &&
     json.pubKey &&
     typeof json.pubKey == "string" &&
     json.pubKey.substr(0, 3) == "STM" && json.pubKey.length == 53) {

@@ -2490,11 +2490,14 @@ exports.proffer = (req, res, next) => {
   let id = req.params.id || ''
   res.setHeader("Content-Type", "application/json");
   if(from && to && id){
-    store.get(["proffer", to, from, id], function (err, mem) {
+    const proffer = getPathObj(["proffer", to, from, id])
+    const partial = getPathObj(["partial_updates", id.split(':')[2]])
+    Promise.all([proffer, partial]).then((mem) => {
       res.send(
         JSON.stringify(
           {
-            proffer: mem,
+            proffer: mem[0],
+            partial_status: mem[1],
             node: config.username,
             head_block: RAM.head,
             behind: RAM.behind,
