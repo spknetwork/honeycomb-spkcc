@@ -1031,16 +1031,8 @@ exports.contract_close = (json, from, active, pc) => {
             }
           }
           var offset = 0
-          console.log('refund calc:', exts[0], exts[1], stats, json.block_num, original)
-          if (original) {
-            offset = 2
-            ops.push({
-              type: 'put',
-              path: ['broca', contract.f],
-              data: broca_calc(exts[0], exts[1], stats, json.block_num, original)
-            })
-          }
-          console.log(refunds, )
+          console.log('refund calc:', exts[0], exts[1], stats, json.block_num)
+          console.log(refunds)
           for (var account in refunds) {
             console.log({account}, exts[refunds[account].i + offset], exts[refunds[account].i + offset + 1], stats, json.block_num, refunds[account].a)
             ops.push({
