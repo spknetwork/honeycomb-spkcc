@@ -1019,26 +1019,25 @@ exports.contract_close = (json, from, active, pc) => {
                 if (refunds[extentions[i].split(':')[0]]) refunds[extentions[i].split(':')[0]].a += parseInt(extentions[i].split(':')[1])
                 else refunds[extentions[i].split(':')[0]] = {
                   a: parseInt(extentions[i].split(':')[1]),
-                  i
+                  i: i * 2
                 }
               } else {
                 if (refunds[extentions[i].split(':')[0]]) refunds[extentions[i].split(':')[0]].a += parseInt(parseInt(extentions[i].split(':')[1]) * ((parseInt(extentions[i].split(':')[2].split('-')[1]) - json.block_num) / (parseInt(extentions[i].split(':')[2].split('-')[1]) - parseInt(extentions[i].split(':')[2].split('-')[0]))))
                 else refunds[extentions[i].split(':')[0]] = {
                   a: parseInt(parseInt(extentions[i].split(':')[1]) * ((parseInt(extentions[i].split(':')[2].split('-')[1]) - json.block_num) / (parseInt(extentions[i].split(':')[2].split('-')[1]) - parseInt(extentions[i].split(':')[2].split('-')[0])))),
-                  i
+                  i: i * 2
                 }
               }
             }
           }
-          var offset = 0
           console.log('refund calc:', exts[0], exts[1], stats, json.block_num)
           console.log(refunds)
           for (var account in refunds) {
-            console.log({account}, exts[refunds[account].i + offset], exts[refunds[account].i + offset + 1], stats, json.block_num, refunds[account].a)
+            console.log({account}, exts[refunds[account].i + 1], exts[refunds[account].i + 1], stats, json.block_num, refunds[account].a)
             ops.push({
               type: 'put',
               path: ['broca', account],
-              data: broca_calc(exts[refunds[account].i + offset], exts[refunds[account].i + offset + 1], stats, json.block_num, refunds[account].a)
+              data: broca_calc(exts[refunds[account].i], exts[refunds[account].i + 1], stats, json.block_num, refunds[account].a)
             })
           }
           var items = Object.keys(contract.df)//goods
