@@ -190,8 +190,10 @@ exports.channel_open = (json, from, active, pc) => {
       ops = [],
         err = '' //no log no broca?
       if (typeof broca != "string") broca = '0,0'
+      console.log(broca, pow, stats, json.block_num)
       brocaString = broca_calc(broca, pow, stats, json.block_num),
         broca = parseInt(broca.split(',')[0])
+      console.log({broca})
       if (typeof template.i != "string") err += `Contract doesn't exist.`
       if (typeof authF != 'string') err += `@${from} hasn't registered a public key. `
       if (typeof authT != "string") err += `@${json.to} hasn't registered a public key. `;
