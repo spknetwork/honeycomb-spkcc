@@ -811,7 +811,7 @@ exports.extend = (json, from, active, pc) => {
             type: 'del',
             path: ['chrono', contract.e]
           })
-          contract.ex = contract.ex ? contract.ex + `,${from}:${json.broca}:${exp_block}-${exp_block + blocks_additional}` : `${from}:${exp_block}-${exp_block + blocks_additional}`
+          contract.ex = contract.ex ? contract.ex + `,${from}:${json.broca}:${exp_block}-${exp_block + blocks_additional}` : `${from}:${contract.r}:${exp_block}-${exp_block + blocks_additional}`
           // clean extentions
           var extentions = contract.ex.split(',')
           var valid_exts = []
@@ -1005,17 +1005,10 @@ exports.contract_close = (json, from, active, pc) => {
       if (contract.e) {
         var extentions = []
         try { extentions = contract.ex.split(',') } catch (e) { }
-        var promises = [], original = 0
-        if (json.block_num < parseInt(json.id.split(':')[2]) + (28800 * 30)) {
-          original = parseInt(contract.r * ((parseInt(json.id.split(':')[2]) + (28800 * 30) - json.block_num) / (28800 * 30)))
-          promises.push(getPathObj(["broca", contract.f]))
-          promises.push(getPathObj(["spow", contract.f]))
-        }
-        for (var i = 1; i < extentions.length; i++) {
-          if (json.block_num < parseInt(extentions[i].split('-')[1])) {
+        var promises = []
+        for (var i = 0; i < extentions.length; i++) {
             promises.push(getPathObj(["broca", extentions[i].split(':')[0]]))
             promises.push(getPathObj(["spow", extentions[i].split(':')[0]]))
-          }
         }
         Promise.all(promises).then(exts => {
           console.log(exts, contract.ex.split(','))
