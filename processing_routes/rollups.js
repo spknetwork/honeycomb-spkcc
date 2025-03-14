@@ -1009,7 +1009,7 @@ exports.contract_close = (json, from, active, pc) => {
               promises.push(getPathObj(["spow", extentions[i].split(':')[0]]))
             }
             Promise.all(promises).then(exts =>{
-              console.log(exts)
+              console.log(exts, contract.ex.split(','))
               var refunds = {}, promises = []
               for(var i = 0; i < extentions.length; i++){
                 if (extentions[i].split(':')[2] && parseInt(extentions[i].split(':')[2].split('-')[1]) > json.block_num ){
