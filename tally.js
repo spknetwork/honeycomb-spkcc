@@ -48,8 +48,8 @@ exports.tally = (num, plasma, isStreaming) => {
                         pending = v[7],
                         mssp = v[8],
                         ms = v[9],
-                        broca = v[10],
-                        spk = v[11],
+                        broca = v[11],
+                        spk = v[10],
                         signatures = [],
                         tally = {
                             agreements: {
