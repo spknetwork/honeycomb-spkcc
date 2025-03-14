@@ -1012,119 +1012,119 @@ exports.contract_close = (json, from, active, pc) => {
           promises.push(getPathObj(["spow", contract.f]))
         }
         for (var i = 0; i < extentions.length; i++) {
-          if (json.block_num < parseInt(extentions[i].split('-')[1])) { }
-          promises.push(getPathObj(["broca", extentions[i].split(':')[0]]))
-          promises.push(getPathObj(["spow", extentions[i].split(':')[0]]))
+          if (json.block_num < parseInt(extentions[i].split('-')[1])) {
+            promises.push(getPathObj(["broca", extentions[i].split(':')[0]]))
+            promises.push(getPathObj(["spow", extentions[i].split(':')[0]]))
+          }
         }
-      }
-      Promise.all(promises).then(exts => {
-        console.log(exts, contract.ex.split(','))
-        var refunds = {}, promises = []
-        for (var i = 0; i < extentions.length; i++) {
-          if (extentions[i].split(':')[2] && parseInt(extentions[i].split(':')[2].split('-')[1]) > json.block_num) {
-            if (parseInt(extentions[i].split(':')[2].split('-')[0]) > json.block_num) {
-              if (refunds[extentions[i].split(':')[0]]) refunds[extentions[i].split(':')[0]].a += parseInt(extentions[i].split(':')[1])
-              else refunds[extentions[i].split(':')[0]] = {
-                a: parseInt(extentions[i].split(':')[1]),
-                i
-              }
-            } else {
-              if (refunds[extentions[i].split(':')[0]]) refunds[extentions[i].split(':')[0]].a += parseInt(parseInt(extentions[i].split(':')[1]) * ((parseInt(extentions[i].split(':')[2].split('-')[1]) - json.block_num) / (parseInt(extentions[i].split(':')[2].split('-')[1]) - parseInt(extentions[i].split(':')[2].split('-')[0]))))
-              else refunds[extentions[i].split(':')[0]] = {
-                a: parseInt(parseInt(extentions[i].split(':')[1]) * ((parseInt(extentions[i].split(':')[2].split('-')[1]) - json.block_num) / (parseInt(extentions[i].split(':')[2].split('-')[1]) - parseInt(extentions[i].split(':')[2].split('-')[0])))),
-                i
+        Promise.all(promises).then(exts => {
+          console.log(exts, contract.ex.split(','))
+          var refunds = {}, promises = []
+          for (var i = 0; i < extentions.length; i++) {
+            if (extentions[i].split(':')[2] && parseInt(extentions[i].split(':')[2].split('-')[1]) > json.block_num) {
+              if (parseInt(extentions[i].split(':')[2].split('-')[0]) > json.block_num) {
+                if (refunds[extentions[i].split(':')[0]]) refunds[extentions[i].split(':')[0]].a += parseInt(extentions[i].split(':')[1])
+                else refunds[extentions[i].split(':')[0]] = {
+                  a: parseInt(extentions[i].split(':')[1]),
+                  i
+                }
+              } else {
+                if (refunds[extentions[i].split(':')[0]]) refunds[extentions[i].split(':')[0]].a += parseInt(parseInt(extentions[i].split(':')[1]) * ((parseInt(extentions[i].split(':')[2].split('-')[1]) - json.block_num) / (parseInt(extentions[i].split(':')[2].split('-')[1]) - parseInt(extentions[i].split(':')[2].split('-')[0]))))
+                else refunds[extentions[i].split(':')[0]] = {
+                  a: parseInt(parseInt(extentions[i].split(':')[1]) * ((parseInt(extentions[i].split(':')[2].split('-')[1]) - json.block_num) / (parseInt(extentions[i].split(':')[2].split('-')[1]) - parseInt(extentions[i].split(':')[2].split('-')[0])))),
+                  i
+                }
               }
             }
           }
-        }
-        var offset = 0
-        console.log('refund calc:', exts[0], exts[1], stats, json.block_num, original)
-        if (original) {
-          offset = 2
+          var offset = 0
+          console.log('refund calc:', exts[0], exts[1], stats, json.block_num, original)
+          if (original) {
+            offset = 2
+            ops.push({
+              type: 'put',
+              path: ['broca', contract.f],
+              data: broca_calc(exts[0], exts[1], stats, json.block_num, original)
+            })
+          }
+          for (var account in refunds) {
+            ops.push({
+              type: 'put',
+              path: ['broca', account],
+              data: broca_calc(exts[refunds[account].i + offset], exts[refunds[account].i + offset + 1], stats, json.block_num, refunds[account].a)
+            })
+          }
+          var items = Object.keys(contract.df)//goods
+          var bytes = 0
+          var files = 0
+          for (var i = 0; i < items.length; i++) {
+            bytes += contract.df[items[i]]
+            ops.push({ type: "del", path: ['IPFS', items[i].split("").reverse().join("")] });
+          }
+          files = items.length
+          stats.total_bytes -= bytes
+          stats.total_files -= files
           ops.push({
-            type: 'put',
-            path: ['broca', contract.f],
-            data: broca_calc(exts[0], exts[1], stats, json.block_num, original)
-          })
-        }
-        for (var account in refunds) {
+            type: "put",
+            path: ["stats"],
+            data: stats
+          });
           ops.push({
-            type: 'put',
-            path: ['broca', account],
-            data: broca_calc(exts[refunds[account].i + offset], exts[refunds[account].i + offset + 1], stats, json.block_num, refunds[account].a)
-          })
-        }
-        var items = Object.keys(contract.df)//goods
-        var bytes = 0
-        var files = 0
-        for (var i = 0; i < items.length; i++) {
-          bytes += contract.df[items[i]]
-          ops.push({ type: "del", path: ['IPFS', items[i].split("").reverse().join("")] });
-        }
-        files = items.length
-        stats.total_bytes -= bytes
-        stats.total_files -= files
-        ops.push({
-          type: "put",
-          path: ["stats"],
-          data: stats
-        });
-        ops.push({
-          type: "del",
-          path: ['ben', from, json.id.split(":")[0]]
-        });
-        ops.push({ type: "del", path: ['contract', contract.t, json.id] });
-        ops.push({ type: "del", path: ['cPointers', json.id] });
-        ops.push({
-          type: "put",
-          path: ["feed", `${json.block_num}:${json.transaction_id}`],
-          data: `${json.id} canceled by file owner.`,
-        });
+            type: "del",
+            path: ['ben', from, json.id.split(":")[0]]
+          });
+          ops.push({ type: "del", path: ['contract', contract.t, json.id] });
+          ops.push({ type: "del", path: ['cPointers', json.id] });
+          ops.push({
+            type: "put",
+            path: ["feed", `${json.block_num}:${json.transaction_id}`],
+            data: `${json.id} canceled by file owner.`,
+          });
 
-        ops.push({
-          type: "del",
-          path: ['proffer', from, json.id.split(":")[0]]
-        });
-        ops.push({ type: "del", path: ["chrono", contract.e] });
-        if (config.hookurl || config.status) postToDiscord(`${contract.i} canceled by file owner.`, `${json.block_num}:${json.transaction_id}`);
-        if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-        store.batch(ops, pc);
-      })
-    } else if (proffer.e) {
-      var promises = []
-      promises.push(getPathObj(["broca", proffer.f]))
-      promises.push(getPathObj(["spow", proffer.f]))
-      Promise.all(promises).then(exts => {
-        ops.push({
-          type: 'put',
-          path: ['broca', proffer.f],
-          data: broca_calc(exts[0], exts[1], stats, json.block_num, proffer.r)
+          ops.push({
+            type: "del",
+            path: ['proffer', from, json.id.split(":")[0]]
+          });
+          ops.push({ type: "del", path: ["chrono", contract.e] });
+          if (config.hookurl || config.status) postToDiscord(`${contract.i} canceled by file owner.`, `${json.block_num}:${json.transaction_id}`);
+          if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+          store.batch(ops, pc);
         })
-        ops.push({
-          type: "del",
-          path: ['proffer', from, json.id.split(":")[0]]
-        });
-        ops.push({
-          type: "del",
-          path: ['ben', from, json.id.split(":")[0]]
-        });
-        ops.push({
-          type: "put",
-          path: ["feed", `${json.block_num}:${json.transaction_id}`],
-          data: `${json.id} canceled by channel owner.`,
-        });
-        ops.push({ type: "del", path: ["chrono", proffer.e] });
-        if (config.hookurl || config.status) postToDiscord(`${json.id} canceled by channel owner.`, `${json.block_num}:${json.transaction_id}`);
-        if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-        store.batch(ops, pc);
-      })
-    } else {
-      pc[0](pc[2]);
-    }
-  })
-} else {
-  pc[0](pc[2]);
-}
+      } else if (proffer.e) {
+        var promises = []
+        promises.push(getPathObj(["broca", proffer.f]))
+        promises.push(getPathObj(["spow", proffer.f]))
+        Promise.all(promises).then(exts => {
+          ops.push({
+            type: 'put',
+            path: ['broca', proffer.f],
+            data: broca_calc(exts[0], exts[1], stats, json.block_num, proffer.r)
+          })
+          ops.push({
+            type: "del",
+            path: ['proffer', from, json.id.split(":")[0]]
+          });
+          ops.push({
+            type: "del",
+            path: ['ben', from, json.id.split(":")[0]]
+          });
+          ops.push({
+            type: "put",
+            path: ["feed", `${json.block_num}:${json.transaction_id}`],
+            data: `${json.id} canceled by channel owner.`,
+          });
+          ops.push({ type: "del", path: ["chrono", proffer.e] });
+          if (config.hookurl || config.status) postToDiscord(`${json.id} canceled by channel owner.`, `${json.block_num}:${json.transaction_id}`);
+          if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+          store.batch(ops, pc);
+        })
+      } else {
+        pc[0](pc[2]);
+      }
+    })
+  } else {
+    pc[0](pc[2]);
+  }
 };
 
 /*
