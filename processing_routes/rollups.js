@@ -562,7 +562,8 @@ exports.channel_update = (json, from, active, pc) => {
       pc[0](pc[2]);
     });
   }
-};
+}
+}
 
 function process_complete_update(json, from, active) {
   return new Promise((resolve, reject) => {
@@ -1145,4 +1146,4 @@ exports.update_metadata = (json, from, active, pc) => {
   } else {
     pc[0](pc[2]);
   }
-};
+}
