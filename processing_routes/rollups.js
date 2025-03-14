@@ -1011,7 +1011,7 @@ exports.contract_close = (json, from, active, pc) => {
           promises.push(getPathObj(["broca", contract.f]))
           promises.push(getPathObj(["spow", contract.f]))
         }
-        for (var i = 0; i < extentions.length; i++) {
+        for (var i = 1; i < extentions.length; i++) {
           if (json.block_num < parseInt(extentions[i].split('-')[1])) {
             promises.push(getPathObj(["broca", extentions[i].split(':')[0]]))
             promises.push(getPathObj(["spow", extentions[i].split(':')[0]]))
@@ -1047,7 +1047,9 @@ exports.contract_close = (json, from, active, pc) => {
               data: broca_calc(exts[0], exts[1], stats, json.block_num, original)
             })
           }
+          console.log(refunds, )
           for (var account in refunds) {
+            console.log({account}, exts[refunds[account].i + offset], exts[refunds[account].i + offset + 1], stats, json.block_num, refunds[account].a)
             ops.push({
               type: 'put',
               path: ['broca', account],
