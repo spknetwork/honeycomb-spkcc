@@ -128,7 +128,7 @@ exports.register_authority = (json, from, active, pc) => {
       path: ["feed", `${json.block_num}:${json.transaction_id}`],
       data: `${from} registered a public key.`,
     }];
-    if (config.hookurl || config.status)postToDiscord(`${from} registered a public key.`, `${json.block_num}:${json.transaction_id}`);
+    if (config.hookurl || config.status) postToDiscord(`${from} registered a public key.`, `${json.block_num}:${json.transaction_id}`);
     if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
     store.batch(ops, pc);
   } else {
@@ -193,7 +193,7 @@ exports.channel_open = (json, from, active, pc) => {
       console.log(broca, pow, stats, json.block_num)
       brocaString = broca_calc(broca, pow, stats, json.block_num),
         broca = parseInt(broca.split(',')[0])
-      console.log({broca})
+      console.log({ broca })
       if (typeof template.i != "string") err += `Contract doesn't exist.`
       if (typeof authF != 'string') err += `@${from} hasn't registered a public key. `
       if (typeof authT != "string") err += `@${json.to} hasn't registered a public key. `;
@@ -462,109 +462,109 @@ exports.channel_update = (json, from, active, pc) => {
 
   // Check if the JSON indicates a chunked update
   if (active && json.fo && json.f && json.id && json.co === from) {
-    if(json.chunk_data) {
-    Pproffer = getPathObj(['proffer', json.fo, json.f, json.id.split(':')[1]]);
+    if (json.chunk_data) {
+      Pproffer = getPathObj(['proffer', json.fo, json.f, json.id.split(':')[1]]);
 
-    // Handle chunked update
-    const chunk_id = json.chunk_id;
-    const total_chunks = json.total_chunks;
-    const chunk_data = json.chunk_data;
+      // Handle chunked update
+      const chunk_id = json.chunk_id;
+      const total_chunks = json.total_chunks;
+      const chunk_data = json.chunk_data;
 
-    // Retrieve or initialize partial update storage
-    var Ppartial = getPathObj(["partial_updates", json.id.split(':')[2]]);
+      // Retrieve or initialize partial update storage
+      var Ppartial = getPathObj(["partial_updates", json.id.split(':')[2]]);
 
-    Promise.all([Pproffer,Ppartial ]).then(mem => {
-      let proffer = mem[0];
-      let partial = mem[1];
-      let ops = [];
+      Promise.all([Pproffer, Ppartial]).then(mem => {
+        let proffer = mem[0];
+        let partial = mem[1];
+        let ops = [];
 
-      // If no partial update exists, initialize it
-      if (!partial) {
-        partial = {
-          total_chunks: total_chunks,
-          from: from,
-          active: active,
-          chunks: {}
-        };
-      } else {
-        // Validate permission
-        if(!proffer || proffer.b !== json.co) {
-          console.log("Error: Update with incorrect broker");
-          pc[0](pc[2]);
-          return;
-        }
-        // Validate consistency
-        if (partial.total_chunks !== total_chunks) {
-          console.log("Error: Inconsistent total_chunks");
-          pc[0](pc[2]);
-          return;
-        }
-      }
-
-      // Store the current chunk
-      partial.chunks[chunk_id] = chunk_data;
-
-      // Check if all chunks are received
-      const received_chunks = Object.keys(partial.chunks).length;
-      if (received_chunks === total_chunks) {
-        // Assemble the complete JSON string
-        let complete_data = "";
-        for (let i = 1; i <= total_chunks; i++) {
-          if (!partial.chunks[i]) {
-            console.log(`Error: Missing chunk ${i}`);
+        // If no partial update exists, initialize it
+        if (!partial) {
+          partial = {
+            total_chunks: total_chunks,
+            from: from,
+            active: active,
+            chunks: {}
+          };
+        } else {
+          // Validate permission
+          if (!proffer || proffer.b !== json.co) {
+            console.log("Error: Update with incorrect broker");
             pc[0](pc[2]);
             return;
           }
-          complete_data += partial.chunks[i];
+          // Validate consistency
+          if (partial.total_chunks !== total_chunks) {
+            console.log("Error: Inconsistent total_chunks");
+            pc[0](pc[2]);
+            return;
+          }
         }
 
-        // Parse the assembled JSON
-        let complete_json;
-        try {
-          complete_json = JSON.parse(complete_data);
-        } catch (e) {
-          console.log("Error parsing complete JSON:", e);
-          pc[0](pc[2]);
-          return;
-        }
+        // Store the current chunk
+        partial.chunks[chunk_id] = chunk_data;
 
-        // Process the complete update and clean up
-        process_complete_update(complete_json, from, active).then(additional_ops => {
-          ops = additional_ops.concat({
-            type: "del",
-            path: ["partial_updates", json.id.split(':')[2]]
+        // Check if all chunks are received
+        const received_chunks = Object.keys(partial.chunks).length;
+        if (received_chunks === total_chunks) {
+          // Assemble the complete JSON string
+          let complete_data = "";
+          for (let i = 1; i <= total_chunks; i++) {
+            if (!partial.chunks[i]) {
+              console.log(`Error: Missing chunk ${i}`);
+              pc[0](pc[2]);
+              return;
+            }
+            complete_data += partial.chunks[i];
+          }
+
+          // Parse the assembled JSON
+          let complete_json;
+          try {
+            complete_json = JSON.parse(complete_data);
+          } catch (e) {
+            console.log("Error parsing complete JSON:", e);
+            pc[0](pc[2]);
+            return;
+          }
+
+          // Process the complete update and clean up
+          process_complete_update(complete_json, from, active).then(additional_ops => {
+            ops = additional_ops.concat({
+              type: "del",
+              path: ["partial_updates", json.id.split(':')[2]]
+            });
+            if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+            store.batch(ops, pc);
+          }).catch(e => {
+            console.log("Error processing update:", e);
+            pc[0](pc[2]);
+          });
+        } else {
+          // Store the partial update and wait for more chunks
+          ops.push({
+            type: "put",
+            path: ["partial_updates", json.id.split(':')[2]],
+            data: partial
           });
           if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
           store.batch(ops, pc);
-        }).catch(e => {
-          console.log("Error processing update:", e);
-          pc[0](pc[2]);
-        });
-      } else {
-        // Store the partial update and wait for more chunks
-        ops.push({
-          type: "put",
-          path: ["partial_updates", json.id.split(':')[2]],
-          data: partial
-        });
+        }
+      }).catch(e => {
+        console.log("Error accessing partial update:", e);
+        pc[0](pc[2]);
+      });
+    } else {
+      // Handle single-transaction update
+      process_complete_update(json, from, active).then(ops => {
         if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
         store.batch(ops, pc);
-      }
-    }).catch(e => {
-      console.log("Error accessing partial update:", e);
-      pc[0](pc[2]);
-    });
-  } else {
-    // Handle single-transaction update
-    process_complete_update(json, from, active).then(ops => {
-      if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-      store.batch(ops, pc);
-    }).catch(e => {
-      console.log("Error processing single update:", e);
-      pc[0](pc[2]);
-    });
+      }).catch(e => {
+        console.log("Error processing single update:", e);
+        pc[0](pc[2]);
+      });
+    }
   }
-}
 }
 
 function process_complete_update(json, from, active) {
@@ -756,7 +756,7 @@ function process_complete_update(json, from, active) {
 }
 
 exports.extend = (json, from, active, pc) => {
-  console.log('extend', active , json.broca , json.id , json.file_owner)
+  console.log('extend', active, json.broca, json.id, json.file_owner)
   if (active && json.broca && json.id && json.file_owner) {
     var Pbroca = getPathObj(["broca", from]);
     var Ppow = getPathObj(["spow", from])
@@ -777,10 +777,10 @@ exports.extend = (json, from, active, pc) => {
         if (json.from == contract.t && parseInt(json.power) > 0) {
           const broca_per_old_term = parseInt((contract.u * contract.p) / (stats.channel_bytes * 3)) || 1
           contract.p++
-          const payUp = exp_block - json.block_num 
+          const payUp = exp_block - json.block_num
           const broca_per_new_term = parseInt((contract.u * contract.p) / (stats.channel_bytes * 3)) || 1
           const debt = parseInt((broca_per_new_term - broca_per_old_term) * payUp)
-          if(debt > json.broca){
+          if (debt > json.broca) {
             const msg = `@${from} | Failed to increase decentralizition of ${json.id} due to lack of BROCA`
             ops.push({
               type: "put",
@@ -812,6 +812,13 @@ exports.extend = (json, from, active, pc) => {
             path: ['chrono', contract.e]
           })
           contract.ex = contract.ex ? contract.ex + `,${from}:${json.broca}:${exp_block}-${exp_block + blocks_additional}` : `${from}:${exp_block}-${exp_block + blocks_additional}`
+          // clean extentions
+          var extentions = contract.ex.split(',')
+          var valid_exts = []
+          for (var i = 0; i < extentions.length; i++) {
+            if (extentions[i].split('-')[1] > json.block_num) valid_exts.push(extentions[i])
+          }
+          contract.ex = valid_exts.join(',')
           contract.e = exe_path
           ops.push({
             type: 'put',
@@ -859,7 +866,7 @@ exports.store = (json, from, active, pc) => {
       const PubKey = contractPointers[json.items.length + 1]
       console.log(PubKey, Object.keys(services).length)
       console.log(contractPointers)
-      if(typeof PubKey == 'string' && Object.keys(services).length){ //ensure user has valid registered node to prevent spam
+      if (typeof PubKey == 'string' && Object.keys(services).length) { //ensure user has valid registered node to prevent spam
         promises = []
         for (var i = 0; i < json.items.length; i++) {
           if (typeof contractPointers[i] == "string") {
@@ -872,7 +879,7 @@ exports.store = (json, from, active, pc) => {
           var msg = `@${from} Stored|`
           for (var i = 0; i < contracts.length; i++) {
             const contract = contracts[i]
-            if (contract.nt && Object.values(contract.n).indexOf(from) == -1){
+            if (contract.nt && Object.values(contract.n).indexOf(from) == -1) {
               const nt = Base64.fromNumber(Base64.toNumber(contract.nt) + 1)
               contract.n[nt] = from
               contract.nt = nt
@@ -884,7 +891,7 @@ exports.store = (json, from, active, pc) => {
               msg += `${contract.i},`
             }
           }
-          if(msg.charAt(msg.length - 1) != '|'){
+          if (msg.charAt(msg.length - 1) != '|') {
             msg = msg.substring(0, msg.length - 1)
             ops.push({
               type: "put",
@@ -928,23 +935,23 @@ exports.remove = (json, from, active, pc) => { //inform stop storing items
           var dec = false
           var j
           for (j = 1; j < keys.length + 1; j++) {
-            if(dec){
-              contract.n[`${Base64.fromNumber(j-1)}`] = contract.n[`${Base64.fromNumber(j)}`]
+            if (dec) {
+              contract.n[`${Base64.fromNumber(j - 1)}`] = contract.n[`${Base64.fromNumber(j)}`]
               delete contract.n[`${Base64.fromNumber(j)}`]
             }
             if (contract.n[`${Base64.fromNumber(j)}`] == from) {
               delete contract.n[`${Base64.fromNumber(j)}`]
               dec = true
             }
-            if(j == keys.length && dec){
+            if (j == keys.length && dec) {
               ops.push({
                 type: 'del',
                 path: ["contract", contract.t, contract.i, 'n', `${Base64.fromNumber(j)}`]
               })
             }
           }
-          if(dec){
-            contract.nt = Base64.fromNumber(j-2)
+          if (dec) {
+            contract.nt = Base64.fromNumber(j - 2)
             console.log(contract)
             ops.push({
               type: "put",
@@ -954,7 +961,7 @@ exports.remove = (json, from, active, pc) => { //inform stop storing items
             msg += `${contract.i},`
           }
         }
-        if(msg.charAt(msg.length - 1) != '|'){
+        if (msg.charAt(msg.length - 1) != '|') {
           msg = msg.substring(0, msg.length - 1)
           ops.push({
             type: "put",
@@ -978,7 +985,7 @@ Contract close allows the file owner to remove the files from the incentivized s
 */
 
 exports.contract_close = (json, from, active, pc) => {
-  if (active && json?.id.indexOf(':') > 0){
+  if (active && json?.id.indexOf(':') > 0) {
     var Pstats = getPathObj(["stats"])
     var Pcontract = getPathObj(["contract", from, json.id])
     var Pproffer = getPathObj(['proffer', from, json.id.split(":")[0]])
@@ -989,133 +996,135 @@ exports.contract_close = (json, from, active, pc) => {
         ops = [],
         err = '', //no log no broca?
         type = "1"
-        Object.keys(proffer).forEach(item => {
-          if (proffer[item].i == json.id){
-            type = item
-            proffer = proffer[item]
-          }
-        })
-        if(contract.e){
-            var extentions = []
-            try{extentions = contract.ex.split(',')} catch(e){}
-            var promises = [], original = 0
-            if(json.block_num < parseInt(json.id.split(':')[2]) + (28800 * 30)){
-              original = parseInt(contract.r * ((parseInt(json.id.split(':')[2]) + (28800 * 30) - json.block_num)/(28800 * 30)))
-              promises.push(getPathObj(["broca", contract.f]))
-              promises.push(getPathObj(["spow", contract.f]))
-            }
-            for (var i =0; i < extentions.length; i++){
-              promises.push(getPathObj(["broca", extentions[i].split(':')[0]]))
-              promises.push(getPathObj(["spow", extentions[i].split(':')[0]]))
-            }
-            Promise.all(promises).then(exts =>{
-              console.log(exts, contract.ex.split(','))
-              var refunds = {}, promises = []
-              for(var i = 0; i < extentions.length; i++){
-                if (extentions[i].split(':')[2] && parseInt(extentions[i].split(':')[2].split('-')[1]) > json.block_num ){
-                  if(parseInt(extentions[i].split(':')[2].split('-')[0]) > json.block_num){
-                    if(refunds[extentions[i].split(':')[0]])refunds[extentions[i].split(':')[0]].a += parseInt(extentions[i].split(':')[1])
-                    else refunds[extentions[i].split(':')[0]] = {
-                      a:parseInt(extentions[i].split(':')[1]),
-                      i
-                    }
-                  } else {
-                    if(refunds[extentions[i].split(':')[0]])refunds[extentions[i].split(':')[0]].a += parseInt(parseInt(extentions[i].split(':')[1]) * ((parseInt(extentions[i].split(':')[2].split('-')[1]) - json.block_num)/(parseInt(extentions[i].split(':')[2].split('-')[1]) - parseInt(extentions[i].split(':')[2].split('-')[0]))))
-                    else refunds[extentions[i].split(':')[0]] = {
-                      a:parseInt(parseInt(extentions[i].split(':')[1]) * ((parseInt(extentions[i].split(':')[2].split('-')[1]) - json.block_num)/(parseInt(extentions[i].split(':')[2].split('-')[1]) - parseInt(extentions[i].split(':')[2].split('-')[0])))),
-                      i
-                    }
-                  }
-                }
-              }
-              var offset = 0
-              console.log('refund calc:', exts[0], exts[1], stats, json.block_num, original)
-              if(original) {
-                offset = 2
-                ops.push({
-                  type: 'put',
-                  path: ['broca', contract.f],
-                  data: broca_calc(exts[0], exts[1], stats, json.block_num, original)
-                })
-              }
-              for(var account in refunds){
-                ops.push({
-                  type: 'put',
-                  path: ['broca', account],
-                  data: broca_calc(exts[refunds[account].i + offset], exts[refunds[account].i + offset + 1], stats, json.block_num, refunds[account].a)
-                })
-              }
-              var items = Object.keys(contract.df)//goods
-              var bytes = 0
-              var files = 0
-              for (var i = 0; i < items.length; i++) {
-                bytes += contract.df[items[i]]
-                ops.push({ type: "del", path: ['IPFS', items[i].split("").reverse().join("")] });
-              }
-              files = items.length
-              stats.total_bytes -= bytes
-              stats.total_files -= files
-              ops.push({
-                type: "put",
-                path: ["stats"],
-                data: stats
-              });
-              ops.push({
-                type: "del",
-                path: ['ben', from, json.id.split(":")[0]]
-              });
-              ops.push({ type: "del", path: ['contract', contract.t, json.id] });
-              ops.push({ type: "del", path: ['cPointers', json.id] });
-              ops.push({
-                type: "put",
-                path: ["feed", `${json.block_num}:${json.transaction_id}`],
-                data: `${json.id} canceled by file owner.`,
-              });
-
-              ops.push({
-                type: "del",
-                path: ['proffer', from, json.id.split(":")[0]]
-              });
-              ops.push({ type: "del", path: ["chrono", contract.e] });
-              if (config.hookurl || config.status)postToDiscord(`${contract.i} canceled by file owner.`, `${json.block_num}:${json.transaction_id}`);
-              if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-              store.batch(ops, pc);
-            })
-        } else if(proffer.e){
-          var promises = []
-          promises.push(getPathObj(["broca", proffer.f]))
-          promises.push(getPathObj(["spow", proffer.f]))
-          Promise.all(promises).then(exts =>{
-              ops.push({
-                type: 'put',
-                path: ['broca', proffer.f],
-                data: broca_calc(exts[0], exts[1], stats, json.block_num, proffer.r)
-              })
-              ops.push({
-                type: "del",
-                path: ['proffer', from, json.id.split(":")[0]]
-              });
-              ops.push({
-                type: "del",
-                path: ['ben', from, json.id.split(":")[0]]
-              });
-              ops.push({
-                type: "put",
-                path: ["feed", `${json.block_num}:${json.transaction_id}`],
-                data: `${json.id} canceled by channel owner.`,
-              });
-              ops.push({ type: "del", path: ["chrono", proffer.e] });
-              if (config.hookurl || config.status)postToDiscord(`${json.id} canceled by channel owner.`, `${json.block_num}:${json.transaction_id}`);
-              if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-              store.batch(ops, pc);
-            })
-        } else {
-          pc[0](pc[2]);
+      Object.keys(proffer).forEach(item => {
+        if (proffer[item].i == json.id) {
+          type = item
+          proffer = proffer[item]
         }
-    })
-  } else {
-    pc[0](pc[2]);
-  }
+      })
+      if (contract.e) {
+        var extentions = []
+        try { extentions = contract.ex.split(',') } catch (e) { }
+        var promises = [], original = 0
+        if (json.block_num < parseInt(json.id.split(':')[2]) + (28800 * 30)) {
+          original = parseInt(contract.r * ((parseInt(json.id.split(':')[2]) + (28800 * 30) - json.block_num) / (28800 * 30)))
+          promises.push(getPathObj(["broca", contract.f]))
+          promises.push(getPathObj(["spow", contract.f]))
+        }
+        for (var i = 0; i < extentions.length; i++) {
+          if (json.block_num < parseInt(extentions[i].split('-')[1])) { }
+          promises.push(getPathObj(["broca", extentions[i].split(':')[0]]))
+          promises.push(getPathObj(["spow", extentions[i].split(':')[0]]))
+        }
+      }
+      Promise.all(promises).then(exts => {
+        console.log(exts, contract.ex.split(','))
+        var refunds = {}, promises = []
+        for (var i = 0; i < extentions.length; i++) {
+          if (extentions[i].split(':')[2] && parseInt(extentions[i].split(':')[2].split('-')[1]) > json.block_num) {
+            if (parseInt(extentions[i].split(':')[2].split('-')[0]) > json.block_num) {
+              if (refunds[extentions[i].split(':')[0]]) refunds[extentions[i].split(':')[0]].a += parseInt(extentions[i].split(':')[1])
+              else refunds[extentions[i].split(':')[0]] = {
+                a: parseInt(extentions[i].split(':')[1]),
+                i
+              }
+            } else {
+              if (refunds[extentions[i].split(':')[0]]) refunds[extentions[i].split(':')[0]].a += parseInt(parseInt(extentions[i].split(':')[1]) * ((parseInt(extentions[i].split(':')[2].split('-')[1]) - json.block_num) / (parseInt(extentions[i].split(':')[2].split('-')[1]) - parseInt(extentions[i].split(':')[2].split('-')[0]))))
+              else refunds[extentions[i].split(':')[0]] = {
+                a: parseInt(parseInt(extentions[i].split(':')[1]) * ((parseInt(extentions[i].split(':')[2].split('-')[1]) - json.block_num) / (parseInt(extentions[i].split(':')[2].split('-')[1]) - parseInt(extentions[i].split(':')[2].split('-')[0])))),
+                i
+              }
+            }
+          }
+        }
+        var offset = 0
+        console.log('refund calc:', exts[0], exts[1], stats, json.block_num, original)
+        if (original) {
+          offset = 2
+          ops.push({
+            type: 'put',
+            path: ['broca', contract.f],
+            data: broca_calc(exts[0], exts[1], stats, json.block_num, original)
+          })
+        }
+        for (var account in refunds) {
+          ops.push({
+            type: 'put',
+            path: ['broca', account],
+            data: broca_calc(exts[refunds[account].i + offset], exts[refunds[account].i + offset + 1], stats, json.block_num, refunds[account].a)
+          })
+        }
+        var items = Object.keys(contract.df)//goods
+        var bytes = 0
+        var files = 0
+        for (var i = 0; i < items.length; i++) {
+          bytes += contract.df[items[i]]
+          ops.push({ type: "del", path: ['IPFS', items[i].split("").reverse().join("")] });
+        }
+        files = items.length
+        stats.total_bytes -= bytes
+        stats.total_files -= files
+        ops.push({
+          type: "put",
+          path: ["stats"],
+          data: stats
+        });
+        ops.push({
+          type: "del",
+          path: ['ben', from, json.id.split(":")[0]]
+        });
+        ops.push({ type: "del", path: ['contract', contract.t, json.id] });
+        ops.push({ type: "del", path: ['cPointers', json.id] });
+        ops.push({
+          type: "put",
+          path: ["feed", `${json.block_num}:${json.transaction_id}`],
+          data: `${json.id} canceled by file owner.`,
+        });
+
+        ops.push({
+          type: "del",
+          path: ['proffer', from, json.id.split(":")[0]]
+        });
+        ops.push({ type: "del", path: ["chrono", contract.e] });
+        if (config.hookurl || config.status) postToDiscord(`${contract.i} canceled by file owner.`, `${json.block_num}:${json.transaction_id}`);
+        if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+        store.batch(ops, pc);
+      })
+    } else if (proffer.e) {
+      var promises = []
+      promises.push(getPathObj(["broca", proffer.f]))
+      promises.push(getPathObj(["spow", proffer.f]))
+      Promise.all(promises).then(exts => {
+        ops.push({
+          type: 'put',
+          path: ['broca', proffer.f],
+          data: broca_calc(exts[0], exts[1], stats, json.block_num, proffer.r)
+        })
+        ops.push({
+          type: "del",
+          path: ['proffer', from, json.id.split(":")[0]]
+        });
+        ops.push({
+          type: "del",
+          path: ['ben', from, json.id.split(":")[0]]
+        });
+        ops.push({
+          type: "put",
+          path: ["feed", `${json.block_num}:${json.transaction_id}`],
+          data: `${json.id} canceled by channel owner.`,
+        });
+        ops.push({ type: "del", path: ["chrono", proffer.e] });
+        if (config.hookurl || config.status) postToDiscord(`${json.id} canceled by channel owner.`, `${json.block_num}:${json.transaction_id}`);
+        if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+        store.batch(ops, pc);
+      })
+    } else {
+      pc[0](pc[2]);
+    }
+  })
+} else {
+  pc[0](pc[2]);
+}
 };
 
 /*
@@ -1131,21 +1140,21 @@ exports.update_metadata = (json, from, active, pc) => {
       var contract = mem[0],
         ops = [],
         err = '' //no log no broca?
-        if(contract.e){
-            contract.m = json.m
-            //replace all non-allows chars with -
-            contract.m = stringify(contract.m)
-            ops.push({
-              type: "put",
-              path: ["contract", from, json.id],
-              data: contract,
-            });
-            if (config.hookurl || config.status)postToDiscord(`${from} updated metadata for ${json.id}`, `${json.block_num}:${json.transaction_id}`);
-            if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-            store.batch(ops, pc);
-        } else {
-          pc[0](pc[2]);
-        }
+      if (contract.e) {
+        contract.m = json.m
+        //replace all non-allows chars with -
+        contract.m = stringify(contract.m)
+        ops.push({
+          type: "put",
+          path: ["contract", from, json.id],
+          data: contract,
+        });
+        if (config.hookurl || config.status) postToDiscord(`${from} updated metadata for ${json.id}`, `${json.block_num}:${json.transaction_id}`);
+        if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+        store.batch(ops, pc);
+      } else {
+        pc[0](pc[2]);
+      }
     })
   } else {
     pc[0](pc[2]);
