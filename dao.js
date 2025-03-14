@@ -144,7 +144,7 @@ function dao(num) {
             stats.marketingRate = parseInt(b / i);
             stats.nodeRate = parseInt(j / i);
             post = `![${config.TOKEN} Banner](${config.adverts[bals.ra % (config.adverts.length - 1)]})\n#### Daily Accounting\n`;
-            post = post + `Total Supply: ${parseFloat(parseInt(stats.tokenSupply) / 1000).toFixed(3)} ${config.TOKEN}\n* ${parseFloat(parseInt(stats.tokenSupply - powBal - (bals.ra + bals.rc + bals.rd + bals.ri + bals.rn + bals.rm)) / 1000).toFixed(3)} ${config.TOKEN} liquid\n`;
+            post = post + `Total Supply: ${parseFloat(parseInt(stats.larynxSupply) / 1000).toFixed(3)} ${config.TOKEN}\n* ${parseFloat(parseInt(stats.larynxSupply - powBal - (bals.ra + bals.rc + bals.rd + bals.ri + bals.rn + bals.rm)) / 1000).toFixed(3)} ${config.TOKEN} liquid\n`;
             post = post + `* ${parseFloat(parseInt(powBal) / 1000).toFixed(3)} ${config.TOKEN} Locked to Govern\n`;
             post = post + `* ${parseFloat(parseInt(bals.ra + bals.rc + bals.rd + bals.ri + bals.rn + bals.rm) / 1000).toFixed(3)} ${config.TOKEN} in distribution accounts\n`;
             if(config.features.inflation)post = post + `${parseFloat(parseInt(t) / 1000).toFixed(3)} ${config.TOKEN} has been generated today. 5% APY.\n${parseFloat(stats.marketingRate / 10000).toFixed(4)} is the marketing rate.\n${parseFloat(stats.nodeRate / 10000).toFixed(4)} is the node rate.\n`;
@@ -152,8 +152,8 @@ function dao(num) {
     // if collateral providers have less a penalty
     // this can also take in to account dex fees   
             const fees_collected = bals.rn
-            bals.rn += parseInt(t * parseInt(stats.multiSigCollateral) / parseInt(stats.tokenSupply));
-            bals.ra = parseInt(bals.ra) - parseInt(t * parseInt(stats.multiSigCollateral) / parseInt(stats.tokenSupply));
+            bals.rn += parseInt(t * parseInt(stats.multiSigCollateral) / parseInt(stats.larynxSupply));
+            bals.ra = parseInt(bals.ra) - parseInt(t * parseInt(stats.multiSigCollateral) / parseInt(stats.larynxSupply));
             //bals.rm += parseInt(t * stats.marketingRate / 10000);
             //if(stats.marketingRate)post = post + `${parseFloat(parseInt(t * stats.marketingRate / 10000) / 1000).toFixed(3)} ${config.TOKEN} moved to Marketing Allocation.\n`;
             // if (bals.rm > 1000000000) {
@@ -358,12 +358,13 @@ function dao(num) {
                         bals.rm -= thisd;
                     }
                 }
+                //calculates to integer values for distributions, remainder is carried to next day to be distributed
                 delete dex.liq
                 daops.push({type: 'del', path: ['dex', 'liq']})
                 post = post + `*****\n### DEX Report\n#### Prices:\n* ${parseFloat(dex.hive.tick).toFixed(3)} HIVE per ${config.TOKEN}\n* ${parseFloat(dex.hbd.tick).toFixed(3)} HBD per ${config.TOKEN}\n#### Daily Volume:\n* ${parseFloat(vol / 1000).toFixed(3)} ${config.TOKEN}\n* ${parseFloat(vols / 1000).toFixed(3)} HIVE\n* ${parseFloat(parseInt(volhbd) / 1000).toFixed(3)} HBD\n*****\n`;
             }
             stats.movingWeight.dailyPool = bals.ra
-            const inflationHedge = parseInt(( bals.ra * (gov.t / stats.tokenSupply))) // reward gov holders with inflation to balance inflationary forces
+            const inflationHedge = parseInt(( bals.ra * (gov.t / stats.larynxSupply))) // reward gov holders with inflation to balance inflationary forces
             bals.rn = bals.rn + inflationHedge
             bals.ra -= inflationHedge
             bals.rb += bals.ra

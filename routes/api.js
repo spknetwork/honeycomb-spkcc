@@ -1318,7 +1318,7 @@ exports.detail = (req, res, next) => {
     .then(function (v) {
       console.log(RAM.hiveDyn);
       var TOKEN = config.detail;
-      TOKEN.incirc = parseFloat(v[0].tokenSupply / 1000).toFixed(3);
+      TOKEN.incirc = parseFloat(v[0].larynxSupply / 1000).toFixed(3);
       const HIVE = {
           name: "HIVE",
           symbol: "HIVE",
@@ -2758,9 +2758,9 @@ exports.coincheck = (state) => {
 
   let info = {};
   let check = `supply check:state:${
-    state.stats.tokenSupply
-  } vs check: ${supply}: ${state.stats.tokenSupply - supply}`;
-  if (state.stats.tokenSupply != supply) {
+    state.stats.larynxSupply
+  } vs check: ${supply}: ${state.stats.larynxSupply - supply}`;
+  if (state.stats.larynxSupply != supply) {
     info = { lbal, gov, govt, pow, powt, con, ah, am, bond, div };
   } else {
     info = {

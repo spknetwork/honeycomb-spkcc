@@ -90,6 +90,6 @@ module.exports = {
         "nodeRate": 2000,
         "outOnBlock": 0, //amm ICO pricing
         "savingsRate": 1000,
-        "tokenSupply": 1 //your starting token supply
+        "larynxSupply": 1 //your starting token supply
     }
 }

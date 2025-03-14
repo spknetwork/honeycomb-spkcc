@@ -268,192 +268,489 @@ exports.channel_open = (json, from, active, pc) => {
 // ensure no IPFS cid collisions
 
 
+// exports.channel_update = (json, from, active, pc) => {
+//   console.log(json)
+//   if (active && json.fo && json.f && json.id && json.co == from) {
+//     var Pbroca = getPathObj(["broca", json.f]);
+//     var Ppow = getPathObj(["spow", json.f]);
+//     var Pproffer = getPathObj(['proffer', json.fo, json.f, json.id.split(':')[1]])
+//     var Pstats = getPathObj(["stats"])
+//     var PauthB = getPathObj(["authorities", json.co])
+//     var PauthT = getPathObj(["authorities", json.fo]);
+//     var PauthF = getPathObj(["authorities", json.f]);
+//     var Ptemplate = getPathObj(["template", json.id.split(':')[1]]);
+//     Promise.all([Pbroca, Pproffer, Pstats, PauthF, PauthT, PauthB, Ptemplate, Ppow]).then(mem => {
+//       var broca = mem[0],
+//         proffer = mem[1],
+//         stats = mem[2],
+//         authF = mem[3],
+//         authT = mem[4],
+//         authB = mem[5],
+//         template = mem[6],
+//         spow = mem[7],
+//         ops = [],
+//         err = '' //no log no broca?
+//       console.log({ proffer })
+//       if (proffer.b != json.co) err += `Query with incorect broker. `
+//       if (typeof authF != 'string') err += `Misplaced AuthorityF. `
+//       if (typeof authT != "string") err += `Misplaced AuthorityT. `;
+//       if (typeof authB != "string") err += `Unauthorized. `;
+//       if (!proffer.c) err += `This channel doesn't exists. `
+//       if (!verifySig(`${json.fo}:${json.id},${json.c}`, json.sig, authT)) err += 'Unsigned.'
+//       if (!err) {
+//         var total = 0
+//         proffer.c++
+//         proffer.n = { // nodes to store
+//           [`1`]: from
+//         }
+//         if (json.m && typeof json.m == 'string'){
+//           proffer.m = json.m //memo
+//           proffer.m = stringify(proffer.m)
+//         }
+//         proffer.nt = "1"
+//         var cids = json.c.split(',')
+//         var proms = []
+//         proffer.df = {} //distributed files
+//         for (var i = 0; i < cids.length; i++) {
+//           if (cids[i]) {
+//             const rev = cids[i].split("").reverse().join("")
+//             ops.push({
+//               type: "put",
+//               path: ["IPFS", `${rev}`],
+//               data: `${json.fo},${json.id}`,
+//             })
+//             proms.push(getPathObj(["IPFS", `${rev}`]))
+//             proffer.df[cids[i]] = parseInt(json.s.split(',')[i])
+//           }
+//         }
+//         ops.push({
+//           type: "del",
+//           path: ["chrono", `${proffer.e}`]
+//         });
+//         Promise.all(proms).then(ips => {
+//           var num = 0
+//           for (var i = 0; i < ips.length; i++) {
+//             if (typeof ips[i] == "string") {
+//               coll = true
+//               delete proffer.df[cids[i]]
+//             } else {
+//               num++
+//               console.log(parseInt(json.s.split(',')[i]), json.s.split(',')[i])
+//               if (json.s.split(',')[i] == 'undefined') { pc[0](pc[2]); return } //files must have sizes
+//               total += parseInt(json.s.split(',')[i] == 'undefined' ? 0 : json.s.split(',')[i])
+//             }
+//           }
+//           const broca_refund = proffer.r - parseInt((total / proffer.a) * proffer.r)
+//           proffer.r -= broca_refund
+//           proffer.u = total
+//           if (!num) {
+//             err = `${json.id}-No Files`
+//             ops = [{
+//               type: "put",
+//               path: ["feed", `${json.block_num}:${json.transaction_id}`],
+//               data: err,
+//             }]
+//             if (config.hookurl || config.status)
+//               postToDiscord(err, `${json.block_num}:${json.transaction_id}`);
+//             if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+//             store.batch(ops, pc);
+//           } else {
+//             stats.total_bytes += total
+//             stats.total_files += num
+//             ops.push({
+//               type: "put",
+//               path: ["stats"],
+//               data: stats
+//             });
+//             ops.push({
+//               type: "put",
+//               path: ["broca", json.f],
+//               data: broca_calc(broca, spow, stats, json.block_num, broca_refund)
+//             });
+//             ops.push({
+//               type: "put",
+//               path: ["feed", `${json.block_num}:${json.transaction_id}`],
+//               data: json.id + " bundled",
+//             });
+//             if (template[`${proffer.c}`].a == 'BEN') {
+//               chronAssign(parseInt(json.block_num + template[`${proffer.c}`].t), {
+//                 block: parseInt(json.block_num + template[`${proffer.c}`].t),
+//                 op: 'channel_check',
+//                 from: json.f,
+//                 to: json.fo,
+//                 c: json.id.split(':')[1],
+//                 e: proffer.c
+//               }).then(exe_path => {
+//                 proffer.e = exe_path
+//                 proffer.exp = json.block_num + template[`${proffer.c}`].t
+//                 ops.push({
+//                   type: "put",
+//                   path: ['proffer', json.fo, json.f, json.id.split(':')[1]],
+//                   data: proffer
+//                 });
+//                 ops.push({
+//                   type: "put",
+//                   path: ['ben', json.fo, proffer.s.split(',')[0]],
+//                   data: proffer.i
+//                 });
+//                 ops.push({
+//                   type: "put",
+//                   path: ["contract", json.fo, json.id],
+//                   data: proffer,
+//                 })
+//                 ops.push({
+//                   type: "put",
+//                   path: ["cPointers", json.id],
+//                   data: json.fo
+//                 })
+//                 if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+//                 console.log(ops)
+//                 store.batch(ops, pc);
+//               })
+//             } else {
+//               chronAssign(parseInt(json.block_num + template[`${proffer.c}`].t), {
+//                 block: parseInt(json.block_num + template[`${proffer.c}`].t),
+//                 op: 'contract_close',
+//                 fo: json.fo,
+//                 id: json.id
+//               }).then(exe_path => {
+//                 proffer.e = exe_path
+//                 proffer.c = 3
+//                 ops.push({
+//                   type: "del",
+//                   path: ['proffer', json.fo, json.f, json.id.split(':')[1]]
+//                 });
+//                 ops.push({
+//                   type: "put",
+//                   path: ["contract", json.fo, json.id],
+//                   data: proffer,
+//                 })
+//                 ops.push({
+//                   type: "put",
+//                   path: ["cPointers", json.id],
+//                   data: json.fo
+//                 })
+//                 if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+//                 console.log(ops)
+//                 store.batch(ops, pc);
+//               })
+//             }
+//           }
+//         })
+//       } else {
+//         ops.push({
+//           type: "put",
+//           path: ["feed", `${json.block_num}:${json.transaction_id}`],
+//           data: !proffer.s ? '404' : err,
+//         });
+//         if (config.hookurl || config.status)
+//           postToDiscord(err, `${json.block_num}:${json.transaction_id}`);
+//         if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+//         store.batch(ops, pc);
+//       }
+//     })
+//       .catch(e => console.log(e))
+//   } else {
+//     pc[0](pc[2]);
+//   }
+// };
+
 exports.channel_update = (json, from, active, pc) => {
-  console.log(json)
-  if (active && json.fo && json.f && json.id && json.co == from) {
-    var Pbroca = getPathObj(["broca", json.f]);
-    var Ppow = getPathObj(["spow", json.f]);
-    var Pproffer = getPathObj(['proffer', json.fo, json.f, json.id.split(':')[1]])
-    var Pstats = getPathObj(["stats"])
-    var PauthB = getPathObj(["authorities", json.co])
-    var PauthT = getPathObj(["authorities", json.fo]);
-    var PauthF = getPathObj(["authorities", json.f]);
-    var Ptemplate = getPathObj(["template", json.id.split(':')[1]]);
-    Promise.all([Pbroca, Pproffer, Pstats, PauthF, PauthT, PauthB, Ptemplate, Ppow]).then(mem => {
-      var broca = mem[0],
-        proffer = mem[1],
-        stats = mem[2],
-        authF = mem[3],
-        authT = mem[4],
-        authB = mem[5],
-        template = mem[6],
-        spow = mem[7],
-        ops = [],
-        err = '' //no log no broca?
-      console.log({ proffer })
-      if (proffer.b != json.co) err += `Query with incorect broker. `
-      if (typeof authF != 'string') err += `Misplaced AuthorityF. `
-      if (typeof authT != "string") err += `Misplaced AuthorityT. `;
-      if (typeof authB != "string") err += `Unauthorized. `;
-      if (!proffer.c) err += `This channel doesn't exists. `
-      if (!verifySig(`${json.fo}:${json.id},${json.c}`, json.sig, authT)) err += 'Unsigned.'
-      if (!err) {
-        var total = 0
-        proffer.c++
-        proffer.n = { // nodes to store
-          [`1`]: from
-        }
-        if (json.m && typeof json.m == 'string'){
-          proffer.m = json.m //memo
-          proffer.m = stringify(proffer.m)
-        }
-        proffer.nt = "1"
-        var cids = json.c.split(',')
-        var proms = []
-        proffer.df = {} //distributed files
-        for (var i = 0; i < cids.length; i++) {
-          if (cids[i]) {
-            const rev = cids[i].split("").reverse().join("")
-            ops.push({
-              type: "put",
-              path: ["IPFS", `${rev}`],
-              data: `${json.fo},${json.id}`,
-            })
-            proms.push(getPathObj(["IPFS", `${rev}`]))
-            proffer.df[cids[i]] = parseInt(json.s.split(',')[i])
-          }
-        }
-        ops.push({
-          type: "del",
-          path: ["chrono", `${proffer.e}`]
-        });
-        Promise.all(proms).then(ips => {
-          var num = 0
-          for (var i = 0; i < ips.length; i++) {
-            if (typeof ips[i] == "string") {
-              coll = true
-              delete proffer.df[cids[i]]
-            } else {
-              num++
-              console.log(parseInt(json.s.split(',')[i]), json.s.split(',')[i])
-              if (json.s.split(',')[i] == 'undefined') { pc[0](pc[2]); return } //files must have sizes
-              total += parseInt(json.s.split(',')[i] == 'undefined' ? 0 : json.s.split(',')[i])
-            }
-          }
-          const broca_refund = proffer.r - parseInt((total / proffer.a) * proffer.r)
-          proffer.r -= broca_refund
-          proffer.u = total
-          if (!num) {
-            err = `${json.id}-No Files`
-            ops = [{
-              type: "put",
-              path: ["feed", `${json.block_num}:${json.transaction_id}`],
-              data: err,
-            }]
-            if (config.hookurl || config.status)
-              postToDiscord(err, `${json.block_num}:${json.transaction_id}`);
-            if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-            store.batch(ops, pc);
-          } else {
-            stats.total_bytes += total
-            stats.total_files += num
-            ops.push({
-              type: "put",
-              path: ["stats"],
-              data: stats
-            });
-            ops.push({
-              type: "put",
-              path: ["broca", json.f],
-              data: broca_calc(broca, spow, stats, json.block_num, broca_refund)
-            });
-            ops.push({
-              type: "put",
-              path: ["feed", `${json.block_num}:${json.transaction_id}`],
-              data: json.id + " bundled",
-            });
-            if (template[`${proffer.c}`].a == 'BEN') {
-              chronAssign(parseInt(json.block_num + template[`${proffer.c}`].t), {
-                block: parseInt(json.block_num + template[`${proffer.c}`].t),
-                op: 'channel_check',
-                from: json.f,
-                to: json.fo,
-                c: json.id.split(':')[1],
-                e: proffer.c
-              }).then(exe_path => {
-                proffer.e = exe_path
-                proffer.exp = json.block_num + template[`${proffer.c}`].t
-                ops.push({
-                  type: "put",
-                  path: ['proffer', json.fo, json.f, json.id.split(':')[1]],
-                  data: proffer
-                });
-                ops.push({
-                  type: "put",
-                  path: ['ben', json.fo, proffer.s.split(',')[0]],
-                  data: proffer.i
-                });
-                ops.push({
-                  type: "put",
-                  path: ["contract", json.fo, json.id],
-                  data: proffer,
-                })
-                ops.push({
-                  type: "put",
-                  path: ["cPointers", json.id],
-                  data: json.fo
-                })
-                if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-                console.log(ops)
-                store.batch(ops, pc);
-              })
-            } else {
-              chronAssign(parseInt(json.block_num + template[`${proffer.c}`].t), {
-                block: parseInt(json.block_num + template[`${proffer.c}`].t),
-                op: 'contract_close',
-                fo: json.fo,
-                id: json.id
-              }).then(exe_path => {
-                proffer.e = exe_path
-                proffer.c = 3
-                ops.push({
-                  type: "del",
-                  path: ['proffer', json.fo, json.f, json.id.split(':')[1]]
-                });
-                ops.push({
-                  type: "put",
-                  path: ["contract", json.fo, json.id],
-                  data: proffer,
-                })
-                ops.push({
-                  type: "put",
-                  path: ["cPointers", json.id],
-                  data: json.fo
-                })
-                if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-                console.log(ops)
-                store.batch(ops, pc);
-              })
-            }
-          }
-        })
+  console.log(json);
+
+  // Check if the JSON indicates a chunked update
+  if (active && json.fo && json.f && json.id && json.co === from) {
+    if(json.chunk_data) {
+    Pproffer = getPathObj(['proffer', json.fo, json.f, json.id.split(':')[1]]);
+
+    // Handle chunked update
+    const chunk_id = json.chunk_id;
+    const total_chunks = json.total_chunks;
+    const chunk_data = json.chunk_data;
+
+    // Retrieve or initialize partial update storage
+    var Ppartial = getPathObj(["partial_updates", json.id.split(':')[2]]);
+
+    Promise.all([Pproffer,Ppartial ]).then(mem => {
+      let proffer = mem[0];
+      let partial = mem[1];
+      let ops = [];
+
+      // If no partial update exists, initialize it
+      if (!partial) {
+        partial = {
+          total_chunks: total_chunks,
+          from: from,
+          active: active,
+          chunks: {}
+        };
       } else {
+        // Validate permission
+        if(!proffer || proffer.b !== json.co) {
+          console.log("Error: Update with incorrect broker");
+          pc[0](pc[2]);
+          return;
+        }
+        // Validate consistency
+        if (partial.total_chunks !== total_chunks) {
+          console.log("Error: Inconsistent total_chunks");
+          pc[0](pc[2]);
+          return;
+        }
+      }
+
+      // Store the current chunk
+      partial.chunks[chunk_id] = chunk_data;
+
+      // Check if all chunks are received
+      const received_chunks = Object.keys(partial.chunks).length;
+      if (received_chunks === total_chunks) {
+        // Assemble the complete JSON string
+        let complete_data = "";
+        for (let i = 1; i <= total_chunks; i++) {
+          if (!partial.chunks[i]) {
+            console.log(`Error: Missing chunk ${i}`);
+            pc[0](pc[2]);
+            return;
+          }
+          complete_data += partial.chunks[i];
+        }
+
+        // Parse the assembled JSON
+        let complete_json;
+        try {
+          complete_json = JSON.parse(complete_data);
+        } catch (e) {
+          console.log("Error parsing complete JSON:", e);
+          pc[0](pc[2]);
+          return;
+        }
+
+        // Process the complete update and clean up
+        process_complete_update(complete_json, from, active).then(additional_ops => {
+          ops = additional_ops.concat({
+            type: "del",
+            path: ["partial_updates", json.id.split(':')[2]]
+          });
+          if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+          store.batch(ops, pc);
+        }).catch(e => {
+          console.log("Error processing update:", e);
+          pc[0](pc[2]);
+        });
+      } else {
+        // Store the partial update and wait for more chunks
         ops.push({
           type: "put",
-          path: ["feed", `${json.block_num}:${json.transaction_id}`],
-          data: !proffer.s ? '404' : err,
+          path: ["partial_updates", json.id.split(':')[2]],
+          data: partial
         });
-        if (config.hookurl || config.status)
-          postToDiscord(err, `${json.block_num}:${json.transaction_id}`);
         if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
         store.batch(ops, pc);
       }
-    })
-      .catch(e => console.log(e))
+    }).catch(e => {
+      console.log("Error accessing partial update:", e);
+      pc[0](pc[2]);
+    });
   } else {
-    pc[0](pc[2]);
+    // Handle single-transaction update
+    process_complete_update(json, from, active).then(ops => {
+      if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+      store.batch(ops, pc);
+    }).catch(e => {
+      console.log("Error processing single update:", e);
+      pc[0](pc[2]);
+    });
   }
 };
+
+function process_complete_update(json, from, active) {
+  return new Promise((resolve, reject) => {
+    if (active && json.fo && json.f && json.id && json.co === from) {
+      var Pbroca = getPathObj(["broca", json.f]);
+      var Ppow = getPathObj(["spow", json.f]);
+      var Pproffer = getPathObj(['proffer', json.fo, json.f, json.id.split(':')[1]]);
+      var Pstats = getPathObj(["stats"]);
+      var PauthB = getPathObj(["authorities", json.co]);
+      var PauthT = getPathObj(["authorities", json.fo]);
+      var PauthF = getPathObj(["authorities", json.f]);
+      var Ptemplate = getPathObj(["template", json.id.split(':')[1]]);
+
+      Promise.all([Pbroca, Pproffer, Pstats, PauthF, PauthT, PauthB, Ptemplate, Ppow]).then(mem => {
+        var broca = mem[0],
+          proffer = mem[1],
+          stats = mem[2],
+          authF = mem[3],
+          authT = mem[4],
+          authB = mem[5],
+          template = mem[6],
+          spow = mem[7],
+          ops = [],
+          err = '';
+
+        console.log({ proffer });
+        if (proffer.b !== json.co) err += `Query with incorrect broker. `;
+        if (typeof authF !== 'string') err += `Misplaced AuthorityF. `;
+        if (typeof authT !== "string") err += `Misplaced AuthorityT. `;
+        if (typeof authB !== "string") err += `Unauthorized. `;
+        if (!proffer.c) err += `This channel doesn't exist. `;
+        if (!verifySig(`${json.fo}:${json.id},${json.c}`, json.sig, authT)) err += 'Unsigned.';
+
+        if (!err) {
+          var total = 0;
+          proffer.c++;
+          proffer.n = { "1": from };
+          if (json.m && typeof json.m === 'string') {
+            proffer.m = json.m;
+            proffer.m = stringify(proffer.m);
+          }
+          proffer.nt = "1";
+          var cids = json.c.split(',');
+          var proms = [];
+          proffer.df = {};
+          for (var i = 0; i < cids.length; i++) {
+            if (cids[i]) {
+              const rev = cids[i].split("").reverse().join("");
+              ops.push({
+                type: "put",
+                path: ["IPFS", `${rev}`],
+                data: `${json.fo},${json.id}`
+              });
+              proms.push(getPathObj(["IPFS", `${rev}`]));
+              proffer.df[cids[i]] = parseInt(json.s.split(',')[i]);
+            }
+          }
+          ops.push({
+            type: "del",
+            path: ["chrono", `${proffer.e}`]
+          });
+
+          Promise.all(proms).then(ips => {
+            var num = 0;
+            for (var i = 0; i < ips.length; i++) {
+              if (typeof ips[i] === "string") {
+                delete proffer.df[cids[i]];
+              } else {
+                num++;
+                if (json.s.split(',')[i] === 'undefined') {
+                  reject("Files must have sizes");
+                  return;
+                }
+                total += parseInt(json.s.split(',')[i] || 0);
+              }
+            }
+            const broca_refund = proffer.r - parseInt((total / proffer.a) * proffer.r);
+            proffer.r -= broca_refund;
+            proffer.u = total;
+
+            if (!num) {
+              err = `${json.id}-No Files`;
+              ops = [{
+                type: "put",
+                path: ["feed", `${json.block_num}:${json.transaction_id}`],
+                data: err
+              }];
+              if (config.hookurl || config.status) {
+                postToDiscord(err, `${json.block_num}:${json.transaction_id}`);
+              }
+              resolve(ops);
+            } else {
+              stats.total_bytes += total;
+              stats.total_files += num;
+              ops.push({
+                type: "put",
+                path: ["stats"],
+                data: stats
+              });
+              ops.push({
+                type: "put",
+                path: ["broca", json.f],
+                data: broca_calc(broca, spow, stats, json.block_num, broca_refund)
+              });
+              ops.push({
+                type: "put",
+                path: ["feed", `${json.block_num}:${json.transaction_id}`],
+                data: json.id + " bundled"
+              });
+
+              if (template[`${proffer.c}`].a === 'BEN') {
+                chronAssign(parseInt(json.block_num + template[`${proffer.c}`].t), {
+                  block: parseInt(json.block_num + template[`${proffer.c}`].t),
+                  op: 'channel_check',
+                  from: json.f,
+                  to: json.fo,
+                  c: json.id.split(':')[1],
+                  e: proffer.c
+                }).then(exe_path => {
+                  proffer.e = exe_path;
+                  proffer.exp = json.block_num + template[`${proffer.c}`].t;
+                  ops.push({
+                    type: "put",
+                    path: ['proffer', json.fo, json.f, json.id.split(':')[1]],
+                    data: proffer
+                  });
+                  ops.push({
+                    type: "put",
+                    path: ['ben', json.fo, proffer.s.split(',')[0]],
+                    data: proffer.i
+                  });
+                  ops.push({
+                    type: "put",
+                    path: ["contract", json.fo, json.id],
+                    data: proffer
+                  });
+                  ops.push({
+                    type: "put",
+                    path: ["cPointers", json.id],
+                    data: json.fo
+                  });
+                  resolve(ops);
+                }).catch(reject);
+              } else {
+                chronAssign(parseInt(json.block_num + template[`${proffer.c}`].t), {
+                  block: parseInt(json.block_num + template[`${proffer.c}`].t),
+                  op: 'contract_close',
+                  fo: json.fo,
+                  id: json.id
+                }).then(exe_path => {
+                  proffer.e = exe_path;
+                  proffer.c = 3;
+                  ops.push({
+                    type: "del",
+                    path: ['proffer', json.fo, json.f, json.id.split(':')[1]]
+                  });
+                  ops.push({
+                    type: "put",
+                    path: ["contract", json.fo, json.id],
+                    data: proffer
+                  });
+                  ops.push({
+                    type: "put",
+                    path: ["cPointers", json.id],
+                    data: json.fo
+                  });
+                  resolve(ops);
+                }).catch(reject);
+              }
+            }
+          }).catch(reject);
+        } else {
+          ops.push({
+            type: "put",
+            path: ["feed", `${json.block_num}:${json.transaction_id}`],
+            data: !proffer.s ? '404' : err
+          });
+          if (config.hookurl || config.status) {
+            postToDiscord(err, `${json.block_num}:${json.transaction_id}`);
+          }
+          resolve(ops);
+        }
+      }).catch(reject);
+    } else {
+      resolve([]);
+    }
+  });
+}
 
 exports.extend = (json, from, active, pc) => {
   console.log('extend', active , json.broca , json.id , json.file_owner)

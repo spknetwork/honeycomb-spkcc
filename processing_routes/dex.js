@@ -21,6 +21,7 @@ const stringify = require("json-stable-stringify");
 const fetch = require("node-fetch");
 
 exports.dex_sell = (json, from, active, pc) => {
+  console.log(pc)
   let PfromBal = getPathNum(["balances", from]),
     PStats = getPathObj(["stats"]),
     PSB = getPathObj(["dex", "hive"]),
@@ -180,7 +181,7 @@ exports.dex_sell = (json, from, active, pc) => {
                 ops.push({ type: "del", path: ["chrono", next.expire_path] }); //remove the chrono
               }
             } else {
-              const thisfee = parseInt((remaining / next.amount) * next.fee);
+              const thisfee = Math.max(0, Math.round((remaining / next.amount) * next.fee));
               const thistarget = parseInt(
                 (remaining / next.amount) * next[order.pair]
               );
@@ -262,7 +263,7 @@ exports.dex_sell = (json, from, active, pc) => {
               }
             }
           } else {
-            let txid = config.TOKEN + hashThis(from + json.transaction_id),
+            let txid = config.TOKEN + hashThis(from + json.transaction_id + pc[1].length),
               crate =
                 typeof parseFloat(order.rate) == "number"
                   ? parseFloat(order.rate).toFixed(6)
@@ -1150,7 +1151,7 @@ exports.transfer = (json, pc) => {
                   if(order.token == 'BROCA' && stats.broca_clawback){
                     newClawback = parseInt((remaining / next.amount) * stats.broca_clawback / 10000)
                     clawback += newClawback
-                    next.amount -= newClawback
+                    next.amount = Math.max(0, next.amount - newClawback);
                   }
                   filled += next.amount - next.fee;
                   bal += next.amount - next.fee; //update the balance

@@ -67,6 +67,6 @@ module.exports = {
         "outOnBlock": 0, //amm ICO pricing
         "reblogReward": 10000, //unused
         "savingsRate": 1000,
-        "tokenSupply": 203000000 //your starting token supply
+        "larynxSupply": 203000000 //your starting token supply
     }
 }

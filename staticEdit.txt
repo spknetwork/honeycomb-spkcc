@@ -1109,7 +1109,7 @@
       "outOnBlock": 0,
       "safetyLimit": 0,
       "savingsRate": 1000,
-      "tokenSupply": 12958070
+      "larynxSupply": 12958070
     }
   }
 ]

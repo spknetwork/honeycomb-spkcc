@@ -358,7 +358,7 @@ describe('State', function() {
                     assert.equal(ops.new_queue['node-opb'].t, 8000)
                     assert.equal(ops.still_running.leader.t, 800000)
                     assert.equal(ops.still_running['node-opa'].t, 80000)
-                    assert.equal(ops.stats.tokenSupply, 203000096)
+                    assert.equal(ops.stats.larynxSupply, 203000096)
                     assert.equal(ops.stats.multiSigCollateral, 80000)
                     store.get(['markets', 'node', 'leader'], function(e, r) {
                         console.log(r)

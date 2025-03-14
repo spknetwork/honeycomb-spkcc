@@ -22,6 +22,7 @@ exports.tally = (num, plasma, isStreaming) => {
             Prqueue = getPathObj(["queue"]),
             Ppending = getPathObj(["pendingpayment"]),
             Pmss = getPathObj(["mss"]),
+            Pspk = getPathObj(["spk"]),
             Pbroca = getPathObj(["rb"])
         Promise.all([
             Prunners,
@@ -33,7 +34,8 @@ exports.tally = (num, plasma, isStreaming) => {
             Prqueue,
             Ppending,
             Pmss,
-            Pbroca
+            Pbroca,
+            Pspk
         ]).then(function (v) {
             deleteObjs([["runners"], ["queue"], ["pendingpayment"]])
                 .then((empty) => {
@@ -46,7 +48,8 @@ exports.tally = (num, plasma, isStreaming) => {
                         pending = v[7],
                         mssp = v[8],
                         ms = v[9],
-                        broca = v[10], 
+                        broca = v[10],
+                        spk = v[11],
                         signatures = [],
                         tally = {
                             agreements: {
@@ -323,12 +326,19 @@ exports.tally = (num, plasma, isStreaming) => {
                     }
                     Promise.all(promises).then((change) => {
                         const mint = config.features.inflation
-                            ? parseInt(stats.tokenSupply / stats.interestRate)
+                            ? parseInt(stats.larynxSupply / stats.interestRate)
                             : 0;
-                        stats.tokenSupply += mint;
+                        stats.larynxSupply += mint;
                         rbal.ra += mint;
+                        const mintSPK = config.features.inflation
+                            ? parseInt(stats.spkSupply / stats.spk_interest_rate)
+                            : 0;
+                        spk.ra += mintSPK;
+                        spk.t += mintSPK
+                        stats.spkSupply += spk.t
                         let ops = [
                             { type: "put", path: ["stats"], data: stats },
+                            { type: "put", path: ["spk"], data: spk },
                             { type: "put", path: ["markets", "node"], data: nodes },
                             { type: "put", path: ["balances", "ra"], data: rbal.ra },
                         ];

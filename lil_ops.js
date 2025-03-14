@@ -9,9 +9,9 @@ const config = require('./config');
 
 const burn = (amount) => {
     return new Promise((resolve, reject) => {
-        getPathNum(['stats', 'tokenSupply'])
+        getPathNum(['stats', 'larynxSupply'])
             .then(sup => {
-                store.batch([{ type: 'put', path: ['stats', 'tokenSupply'], data: sup - amount }], [resolve, reject, 1])
+                store.batch([{ type: 'put', path: ['stats', 'larynxSupply'], data: sup - amount }], [resolve, reject, 1])
             })
     })
 }

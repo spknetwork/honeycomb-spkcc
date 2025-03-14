@@ -1196,7 +1196,7 @@ function startWith(hash, second) {
                                     let info = API.coincheck(cleanState);
                                     console.log("check", info.check);
                                     if (
-                                      cleanState.stats.tokenSupply !=
+                                      cleanState.stats.larynxSupply !=
                                       info.supply
                                     ) {
                                       console.log("check", info.info);
