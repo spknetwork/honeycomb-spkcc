@@ -468,6 +468,40 @@ const Chron = {
         });
     });
   },
+  bPowerDownOp: function (promies, from, delkey, num, id, b) {
+    return new Promise((resolve, reject) => {
+      Promise.all(promies)
+        .then((bals) => {
+          let lbal = bals[0],
+            tpow = bals[1],
+            pbal = bals[2],
+            ops = [];
+          if (pbal - b.amount < 0) {
+            b.amount = pbal;
+          }
+          ops.push({
+            type: "put",
+            path: ["lboca", from],
+            data: lbal + b.amount,
+          });
+          ops.push({ type: "put", path: ["bpow", from], data: pbal - b.amount });
+          ops.push({ type: "put", path: ["bpow", "t"], data: tpow - b.amount });
+          ops.push({
+            type: "put",
+            path: ["feed", `${num}:vop_${id}`],
+            data: `@${b.by}| powered down ${parseFloat(b.amount / 1000).toFixed(
+              3
+            )} BROCA`,
+          });
+          ops.push({ type: "del", path: ["chrono", delkey] });
+          ops.push({ type: "del", path: ["bpowd", b.by, delkey] });
+          store.batch(ops, [resolve, reject]);
+        })
+        .catch((e) => {
+          console.log(e);
+        });
+    });
+  },
   channelCheckOp: function (promies, delkey, num, id, b) {
     return new Promise((resolve, reject) => {
       Promise.all(promies)
@@ -476,7 +510,7 @@ const Chron = {
             template = mem[1],
             stats = mem[2],
             broca = mem[3],
-            spow = mem[4],
+            bpow = mem[4],
             ops = [];
           if (contract.c == b.e) {
             var bytes = 0, items = []
@@ -506,7 +540,7 @@ const Chron = {
             ops.push({
               type: "put",
               path: ["broca", b.from],
-              data: broca_calc(broca, spow, stats, num, contract.r)
+              data: broca_calc(broca, bpow, stats, num, contract.r)
             });
           }
           ops.push({ type: "del", path: ["chrono", delkey] });

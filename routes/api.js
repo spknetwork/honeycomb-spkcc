@@ -54,18 +54,45 @@ exports.root = (req, res, next) => {
   });
 };
 
-exports.cid_contract = (req, res, next) =>{
+exports.cid_contract = (req, res, next) => {
   let id = req.params.id
   id = id.split("").reverse().join("")
   let cpp = getPathObj(["IPFS", id]),
     statsp = getPathObj(["stats"]);
-    Promise.all([cpp, statsp])
-      .then((mem) => {
-        if(typeof mem[0] != 'string'){
+  Promise.all([cpp, statsp])
+    .then((mem) => {
+      if (typeof mem[0] != 'string') {
+        return res.send(
+          JSON.stringify(
+            {
+              result: 'Not found',
+              head_block: RAM.head,
+              behind: RAM.behind,
+              node: config.username,
+              VERSION,
+              realtime: mem[1].realtime,
+            },
+            null,
+            3
+          )
+        )
+      }
+      let stats = mem[1], party1, contract
+      try {
+        party1 = mem[0].split(',')[0]
+        contract = mem[0].split(',')[1]
+      } catch (error) {
+        console.log(error)
+        party1 = 'n'
+        contract = 'n'
+      }
+      let contractp = getPathObj(["contract", party1, contract])
+      Promise.all([contractp])
+        .then((contract) => {
           return res.send(
             JSON.stringify(
               {
-                result: 'Not found',
+                result: contract[0],
                 head_block: RAM.head,
                 behind: RAM.behind,
                 node: config.username,
@@ -76,49 +103,41 @@ exports.cid_contract = (req, res, next) =>{
               3
             )
           )
-        }
-        let stats = mem[1], party1, contract
-        try {
-          party1 = mem[0].split(',')[0]
-          contract = mem[0].split(',')[1]
-        } catch (error) {
-          console.log(error)
-          party1 = 'n'
-          contract = 'n'
-        }
-        let contractp = getPathObj(["contract", party1, contract])
-        Promise.all([contractp])
-          .then((contract) => {
-            return res.send(
-              JSON.stringify(
-                {
-                  result: contract[0],
-                  head_block: RAM.head,
-                  behind: RAM.behind,
-                  node: config.username,
-                  VERSION,
-                  realtime: mem[1].realtime,
-                },
-                null,
-                3
-              )
-            )
-          })
-      })
+        })
+    })
 }
 
-exports.contract_id = (req, res, next) =>{
+exports.contract_id = (req, res, next) => {
   let id = req.params.id,
     cpp = getPathObj(["cPointers", id]),
     statsp = getPathObj(["stats"]);
-    Promise.all([cpp, statsp])
-      .then((mem) => {
-        let stats = mem[1]
-        if(typeof mem[0] != "string"){
+  Promise.all([cpp, statsp])
+    .then((mem) => {
+      let stats = mem[1]
+      if (typeof mem[0] != "string") {
+        res.send(
+          JSON.stringify(
+            {
+              result: 'Contract Not Found',
+              head_block: RAM.head,
+              behind: RAM.behind,
+              node: config.username,
+              VERSION,
+              realtime: stats.realtime,
+            },
+            null,
+            3
+          )
+        )
+        return
+      }
+      let contractp = getPathObj(["contract", mem[0], id])
+      Promise.all([contractp])
+        .then((contract) => {
           res.send(
             JSON.stringify(
               {
-                result: 'Contract Not Found',
+                result: contract[0],
                 head_block: RAM.head,
                 behind: RAM.behind,
                 node: config.username,
@@ -129,27 +148,8 @@ exports.contract_id = (req, res, next) =>{
               3
             )
           )
-          return
-        }
-        let contractp = getPathObj(["contract", mem[0], id])
-        Promise.all([contractp])
-          .then((contract) => {
-            res.send(
-              JSON.stringify(
-                {
-                  result: contract[0],
-                  head_block: RAM.head,
-                  behind: RAM.behind,
-                  node: config.username,
-                  VERSION,
-                  realtime: stats.realtime,
-                },
-                null,
-                3
-              )
-            )
-          })
-      })
+        })
+    })
 }
 
 exports.pairs = (req, res, next) => {
@@ -227,7 +227,7 @@ exports.tickers = (req, res, next) => {
           info.hive.tv += parseFloat(v[0].hive.his[item].amount);
           info.hive.bv += parseFloat(
             parseFloat(v[0].hive.his[item].amount) *
-              parseFloat(v[0].hive.his[item].rate)
+            parseFloat(v[0].hive.his[item].rate)
           ).toFixed(3);
         }
       }
@@ -242,7 +242,7 @@ exports.tickers = (req, res, next) => {
           info.hbd.tv += parseFloat(v[0].hbd.his[item].amount);
           info.hbd.bv += parseFloat(
             parseFloat(v[0].hbd.his[item].amount) *
-              parseFloat(v[0].hbd.his[item].rate)
+            parseFloat(v[0].hbd.his[item].rate)
           ).toFixed(3);
         }
       }
@@ -267,17 +267,17 @@ exports.tickers = (req, res, next) => {
         }
       }
       var hive = {
-          ticker_id: `HIVE_${config.TOKEN}`,
-          base_currency: "HIVE",
-          target_currency: config.TOKEN,
-          last_price: v[0].hive.tick,
-          base_volume: parseFloat(parseFloat(info.hive.bv) / 1000).toFixed(3),
-          target_volume: parseFloat(parseFloat(info.hive.tv) / 1000).toFixed(3),
-          bid: info.hive.bid,
-          ask: info.hive.ask,
-          high: info.hive.high,
-          low: info.hive.low,
-        },
+        ticker_id: `HIVE_${config.TOKEN}`,
+        base_currency: "HIVE",
+        target_currency: config.TOKEN,
+        last_price: v[0].hive.tick,
+        base_volume: parseFloat(parseFloat(info.hive.bv) / 1000).toFixed(3),
+        target_volume: parseFloat(parseFloat(info.hive.tv) / 1000).toFixed(3),
+        bid: info.hive.bid,
+        ask: info.hive.ask,
+        high: info.hive.high,
+        low: info.hive.low,
+      },
         hbd = {
           ticker_id: `HBD_${config.TOKEN}`,
           base_currency: "HBD",
@@ -338,7 +338,7 @@ exports.tickers_spk = (req, res, next) => {
           info.hive.tv += parseFloat(v[0].hive.his[item].amount);
           info.hive.bv += parseFloat(
             parseFloat(v[0].hive.his[item].amount) *
-              parseFloat(v[0].hive.his[item].rate)
+            parseFloat(v[0].hive.his[item].rate)
           ).toFixed(3);
         }
       }
@@ -353,7 +353,7 @@ exports.tickers_spk = (req, res, next) => {
           info.hbd.tv += parseFloat(v[0].hbd.his[item].amount);
           info.hbd.bv += parseFloat(
             parseFloat(v[0].hbd.his[item].amount) *
-              parseFloat(v[0].hbd.his[item].rate)
+            parseFloat(v[0].hbd.his[item].rate)
           ).toFixed(3);
         }
       }
@@ -378,17 +378,17 @@ exports.tickers_spk = (req, res, next) => {
         }
       }
       var hive = {
-          ticker_id: `HIVE_SPK`,
-          base_currency: "HIVE",
-          target_currency: 'SPK',
-          last_price: v[0].hive.tick,
-          base_volume: parseFloat(parseFloat(info.hive.bv) / 1000).toFixed(3),
-          target_volume: parseFloat(parseFloat(info.hive.tv) / 1000).toFixed(3),
-          bid: info.hive.bid,
-          ask: info.hive.ask,
-          high: info.hive.high,
-          low: info.hive.low,
-        },
+        ticker_id: `HIVE_SPK`,
+        base_currency: "HIVE",
+        target_currency: 'SPK',
+        last_price: v[0].hive.tick,
+        base_volume: parseFloat(parseFloat(info.hive.bv) / 1000).toFixed(3),
+        target_volume: parseFloat(parseFloat(info.hive.tv) / 1000).toFixed(3),
+        bid: info.hive.bid,
+        ask: info.hive.ask,
+        high: info.hive.high,
+        low: info.hive.low,
+      },
         hbd = {
           ticker_id: `HBD_SPK`,
           base_currency: "HBD",
@@ -1320,16 +1320,16 @@ exports.detail = (req, res, next) => {
       var TOKEN = config.detail;
       TOKEN.incirc = parseFloat(v[0].larynxSupply / 1000).toFixed(3);
       const HIVE = {
-          name: "HIVE",
-          symbol: "HIVE",
-          icon: "https://www.dlux.io/img/hextacular.svg",
-          supply: RAM.hiveDyn.virtual_supply,
-          incirc: RAM.hiveDyn.current_supply,
-          wp: `https://hive.io/whitepaper.pdf`,
-          ws: `https://hive.io`,
-          be: `https://hiveblockexplorer.com/`,
-          text: `HIVE is a DPoS blockchain with free transactions and a method to post and rate content.`,
-        },
+        name: "HIVE",
+        symbol: "HIVE",
+        icon: "https://www.dlux.io/img/hextacular.svg",
+        supply: RAM.hiveDyn.virtual_supply,
+        incirc: RAM.hiveDyn.current_supply,
+        wp: `https://hive.io/whitepaper.pdf`,
+        ws: `https://hive.io`,
+        be: `https://hiveblockexplorer.com/`,
+        text: `HIVE is a DPoS blockchain with free transactions and a method to post and rate content.`,
+      },
         HBD = {
           name: "Hive Backed Dollars",
           symbol: "HBD",
@@ -1472,10 +1472,10 @@ exports.queue = (req, res, next) => {
 
 exports.feed = (req, res, next) => {
   res.setHeader("Content-Type", "application/json");
-  if(req.params.from){
+  if (req.params.from) {
     store.getRange(["feed"], {
       gte: "" + req.params.from,
-      lte: "" + (parseInt(req.params.from) + 28800) 
+      lte: "" + (parseInt(req.params.from) + 28800)
     }, function (err, feed) {
       res.send(
         JSON.stringify(
@@ -1627,8 +1627,7 @@ exports.status = (req, res, next) => {
         txid,
         status:
           status[txid] ||
-          `This TransactionID either has not yet been processed, or was missed by the system due to formatting errors. Wait 70 seconds and try again. This API only keeps these records for a maximum of ${
-            config.history * 3
+          `This TransactionID either has not yet been processed, or was missed by the system due to formatting errors. Wait 70 seconds and try again. This API only keeps these records for a maximum of ${config.history * 3
           } seconds`,
         node: config.username,
         head_block: RAM.head,
@@ -2489,7 +2488,7 @@ exports.proffer = (req, res, next) => {
   let from = req.params.from || ''
   let id = req.params.id || ''
   res.setHeader("Content-Type", "application/json");
-  if(from && to && id){
+  if (from && to && id) {
     const proffer = getPathObj(["proffer", to, from, id])
     const partial = getPathObj(["partial_updates", id.split(':')[2]])
     Promise.all([proffer, partial]).then((mem) => {
@@ -2719,7 +2718,7 @@ exports.coincheck = (state) => {
   }
   try {
     govt = state.gov.t - coll;
-  } catch (e) {}
+  } catch (e) { }
   for (bal in state.gov) {
     if (bal != "t") {
       supply += state.gov[bal];
@@ -2757,9 +2756,8 @@ exports.coincheck = (state) => {
   }
 
   let info = {};
-  let check = `supply check:state:${
-    state.stats.larynxSupply
-  } vs check: ${supply}: ${state.stats.larynxSupply - supply}`;
+  let check = `supply check:state:${state.stats.larynxSupply
+    } vs check: ${supply}: ${state.stats.larynxSupply - supply}`;
   if (state.stats.larynxSupply != supply) {
     info = { lbal, gov, govt, pow, powt, con, ah, am, bond, div };
   } else {
@@ -2871,354 +2869,374 @@ exports.servicesByType = (req, res, next) => {
 };
 
 exports.servicesByUser = (req, res, next) => {
-    let user = req.params.un;
-    let services = getPathObj(["services", user]);
-    Promise.all([services]).then(mem =>{
-        res.send(
-          JSON.stringify(
-            {
-              services: mem[0],
-              node: config.username,
-              head_block: RAM.head,
-              behind: RAM.behind,
-              VERSION,
-            },
-            null,
-            3
-          )
-        );
-    })
+  let user = req.params.un;
+  let services = getPathObj(["services", user]);
+  Promise.all([services]).then(mem => {
+    res.send(
+      JSON.stringify(
+        {
+          services: mem[0],
+          node: config.username,
+          head_block: RAM.head,
+          behind: RAM.behind,
+          VERSION,
+        },
+        null,
+        3
+      )
+    );
+  })
 }
 
 exports.servicesByType = (req, res, next) => {
   let type = req.params.type;
   let services = getPathObj(["service", type]);
   Promise.all([services]).then((mem) => {
-      let s = Object.keys(mem[0]), t = []
-      for(var i = 0; i < s.length; i++){
-        t.push(getPathObj(["services", s[i], type]))
-      }
-      Promise.all(t).then(all => {
-        res.send(
-          JSON.stringify(
-            {
-              providers: mem[0],
-              services: all,
-              node: config.username,
-              head_block: RAM.head,
-              behind: RAM.behind,
-              VERSION,
-            },
-            null,
-            3
-          )
-        );
-      })
+    let s = Object.keys(mem[0]), t = []
+    for (var i = 0; i < s.length; i++) {
+      t.push(getPathObj(["services", s[i], type]))
+    }
+    Promise.all(t).then(all => {
+      res.send(
+        JSON.stringify(
+          {
+            providers: mem[0],
+            services: all,
+            node: config.username,
+            head_block: RAM.head,
+            behind: RAM.behind,
+            VERSION,
+          },
+          null,
+          3
+        )
+      );
+    })
   });
 };
 
 exports.user = (req, res, next) => {
-    let un = req.params.un,
-        bal = getPathNum(['balances', un]),
-        cbal = getPathNum(['cbalances', un]),
-        claims = getPathObj(['snap', un]),
-        pb = getPathNum(['pow', un]),
-        lp = getPathObj(['granted', un]),
-        lg = getPathObj(['granting', un]),
-        contracts = getPathObj(['contracts', un]),
-        incol = getPathNum(['col', un]), //collateral
-        gp = getPathNum(['gov', un]),
-        pup = getPathObj(['up', un]),
-        pdown = getPathObj(['down', un]),
-        pspk = getPathNum(['spk', un]),
-        pspkb = getPathNum(['spkb', un]),
-        tick = getPathObj(['dex', 'hive', 'tick']),
-        powdown = getPathObj(['powd', un]),
-        govdown = getPathObj(['govd', un]),
-        chron = getPathObj(['chrono']),
-        ppubKey = getPathObj(['authorities', un]),
-        pspow = getPathNum(['spow', un]),
-        pbroca = getPathObj(["broca", un]),
-        pChannels = getPathObj(["proffer", un]),
-        pContract = getPathObj(["contract", un]),
-        pspkVote = getPathObj(["spkVote", un]),
-        pNode = getPathObj(["markets", "node", un]),
-        pStorage = getPathObj(["service", "IPFS", un]),
-        pcspk = getPathNum(['cspk', un])
-    res.setHeader('Content-Type', 'application/json');
-    Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims, pspk, pspkb, tick, powdown, govdown, chron, ppubKey, pspow, pbroca, pChannels, pspkVote, pContract, pStorage, pNode, pcspk])
-        .then(function(v) {
-            var arr = []
-            for (var i in v[3]) {
-                var c = v[3][i]
-                if(c.partial){
-                    c.partials = []
-                    for(var p in c.partial){
-                        var j = c.partial[p]
-                        j.txid = p
-                        c.partials.push(j)
-                    }
-                }
-                arr.push(c)
-            }
-            const pubKey = typeof v[17] == 'string' ? v[17] : 'NA'
-            var power_downs = v[14]
-            if (power_downs){
-                for(var pd in power_downs){
-                    power_downs[pd] = v[16][pd]
-                }
-            }
-            var granted = v[2]
-            var granting = v[8]
-            if(!granted.t)granted.t = 0
-            if(!granting.t)granting.t = 0
-                res.send(
-                  JSON.stringify(
-                    {
-                      name: un,
-                      balance: v[0],
-                      claim: v[9],
-                      claim_spk: v[25],
-                      drop: {
-                        availible: {
-                          amount: 0,
-                          precision: 3,
-                          token: "LARYNX",
-                        },
-                        last_claim: v[10].l || 0,
-                        total_claims: v[10].t || 0,
-                      }, //v[10],
-                      poweredUp: v[1],
-                      granted,
-                      granting,
-                      heldCollateral: v[4],
-                      contracts: arr,
-                      channels: v[20],
-                      file_contracts: v[22],
-                      storage: v[23],
-                      spknode: v[24],
-                      pubKey,
-                      up: v[6],
-                      down: v[7],
-                      power_downs,
-                      gov_downs: v[15],
-                      gov: v[5],
-                      spk: v[11],
-                      spk_block: v[12],
-                      spk_power: v[18],
-                      spk_vote: v[21],
-                      broca: typeof v[19] == 'string' ? v[19] : '0,0',
-                      tick: v[13],
-                      node: config.username,
-                      head_block: RAM.head,
-                      behind: RAM.behind,
-                      VERSION,
-                    },
-                    null,
-                    3
-                  )
-                );
-        })
-        .catch(function(err) {
-            console.log(err)
-        })
+  let un = req.params.un,
+    bal = getPathNum(['balances', un]),
+    cbal = getPathNum(['cbalances', un]),
+    claims = getPathObj(['snap', un]),
+    pb = getPathNum(['pow', un]),
+    lp = getPathObj(['granted', un]),
+    lg = getPathObj(['granting', un]),
+    contracts = getPathObj(['contracts', un]),
+    incol = getPathNum(['col', un]), //collateral
+    gp = getPathNum(['gov', un]),
+    pup = getPathObj(['up', un]),
+    pdown = getPathObj(['down', un]),
+    pspk = getPathNum(['spk', un]),
+    pspkb = getPathNum(['spkb', un]),
+    tick = getPathObj(['dex', 'hive', 'tick']),
+    powdown = getPathObj(['powd', un]),
+    govdown = getPathObj(['govd', un]),
+    pspowdown = getPathObj(['spowd', un]),
+    pbpowdown = getPathObj(['bpowd', un]),
+    chron = getPathObj(['chrono']),
+    ppubKey = getPathObj(['authorities', un]),
+    pspow = getPathNum(['spow', un]),
+    pbroca = getPathObj(["broca", un]),
+    pChannels = getPathObj(["proffer", un]),
+    pContract = getPathObj(["contract", un]),
+    pspkVote = getPathObj(["spkVote", un]),
+    pNode = getPathObj(["markets", "node", un]),
+    pStorage = getPathObj(["service", "IPFS", un]),
+    pcspk = getPathNum(['cspk', un]),
+    pbpow = getPathNum(['bpow', un]),
+    plbroca = getPathNum(["lbroca", un])
+  res.setHeader('Content-Type', 'application/json');
+  Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims, pspk, pspkb, tick, powdown, govdown, chron, ppubKey, pspow, pbroca, pChannels, pspkVote, pContract, pStorage, pNode, pcspk, pspowdown, pbpowdown, pbpow, plbroca])
+    .then(function (v) {
+      var arr = []
+      for (var i in v[3]) {
+        var c = v[3][i]
+        if (c.partial) {
+          c.partials = []
+          for (var p in c.partial) {
+            var j = c.partial[p]
+            j.txid = p
+            c.partials.push(j)
+          }
+        }
+        arr.push(c)
+      }
+      const pubKey = typeof v[17] == 'string' ? v[17] : 'NA'
+      var power_downs = v[14]
+      if (power_downs) {
+        for (var pd in power_downs) {
+          power_downs[pd] = v[16][pd]
+        }
+      }
+      var spower_downs = v[26]
+      if (spower_downs) {
+        for (var pd in power_downs) {
+          spower_downs[pd] = v[16][pd]
+        }
+      }
+      var bpower_downs = v[27]
+      if (bpower_downs) {
+        for (var pd in power_downs) {
+          bpower_downs[pd] = v[16][pd]
+        }
+      }
+      var granted = v[2]
+      var granting = v[8]
+      if (!granted.t) granted.t = 0
+      if (!granting.t) granting.t = 0
+      res.send(
+        JSON.stringify(
+          {
+            name: un,
+            balance: v[0],
+            claim: v[9],
+            claim_spk: v[25],
+            drop: {
+              availible: {
+                amount: 0,
+                precision: 3,
+                token: "LARYNX",
+              },
+              last_claim: v[10].l || 0,
+              total_claims: v[10].t || 0,
+            }, //v[10],
+            poweredUp: v[1],
+            granted,
+            granting,
+            heldCollateral: v[4],
+            contracts: arr,
+            channels: v[20],
+            file_contracts: v[22],
+            storage: v[23],
+            spknode: v[24],
+            pubKey,
+            up: v[6],
+            down: v[7],
+            power_downs,
+            spower_downs,
+            bpower_downs,
+            gov_downs: v[15],
+            gov: v[5],
+            spk: v[11],
+            spk_block: v[12],
+            spk_power: v[18],
+            spk_vote: v[21],
+            broca: typeof v[19] == 'string' ? v[19] : '0,0',
+            liq_broca: v[29],
+            pow_broca: v[28],
+            tick: v[13],
+            node: config.username,
+            head_block: RAM.head,
+            behind: RAM.behind,
+            VERSION,
+          },
+          null,
+          3
+        )
+      );
+    })
+    .catch(function (err) {
+      console.log(err)
+    })
 }
 
 function reward_spk(head_block, spk_block, gov, pow, sstats, granted, granting) {
-      var r = 0,
-        a = 0,
-        b = 0,
-        c = 0,
-        t = 0,
-        diff = head_block - spk_block;
-      if (spk_block) {
-        return 0;
-      } else if (diff < 28800) {
-        return 0;
-      } else {
-        t = parseInt(diff / 28800);
-        a = gov
-          ? simpleInterest(gov, t, sstats.spk_rate_lgov)
-          : 0;
-        b = pow
-          ? simpleInterest(pow, t, sstats.spk_rate_lpow)
-          : 0;
-        c = simpleInterest(
-          parseInt(
-            granted?.t > 0 ? granted.t : 0
-          ) +
-            parseInt(
-              granting?.t > 0 ? granting.t : 0
-            ),
-          t,
-          sstats.spk_rate_ldel
-        );
-        const i = a + b + c;
-        if (i) {
-          return i;
-        } else {
-          return 0;
-        }
-      }
-      function simpleInterest(p, t, r) {
-        const amount = p * (1 + parseFloat(r) / 365);
-        const interest = amount - p;
-        return parseInt(interest * t);
-      }
+  var r = 0,
+    a = 0,
+    b = 0,
+    c = 0,
+    t = 0,
+    diff = head_block - spk_block;
+  if (spk_block) {
+    return 0;
+  } else if (diff < 28800) {
+    return 0;
+  } else {
+    t = parseInt(diff / 28800);
+    a = gov
+      ? simpleInterest(gov, t, sstats.spk_rate_lgov)
+      : 0;
+    b = pow
+      ? simpleInterest(pow, t, sstats.spk_rate_lpow)
+      : 0;
+    c = simpleInterest(
+      parseInt(
+        granted?.t > 0 ? granted.t : 0
+      ) +
+      parseInt(
+        granting?.t > 0 ? granting.t : 0
+      ),
+      t,
+      sstats.spk_rate_ldel
+    );
+    const i = a + b + c;
+    if (i) {
+      return i;
+    } else {
+      return 0;
     }
+  }
+  function simpleInterest(p, t, r) {
+    const amount = p * (1 + parseFloat(r) / 365);
+    const interest = amount - p;
+    return parseInt(interest * t);
+  }
+}
 
 exports.user_spk = (req, res, next) => {
-    let un = req.params.un,
-        stats = getPathNum(['stats']),
-        cbal = getPathNum(['cbalances', un]),
-        claims = getPathObj(['snap', un]),
-        pb = getPathNum(['spow', un]),
-        lp = getPathObj(['granted', un]),
-        lg = getPathObj(['granting', un]),
-        contracts = getPathObj(['contracts', un]),
-        incol = getPathNum(['col', un]), //collateral
-        gp = getPathNum(['gov', un]),
-        pup = getPathObj(['up', un]),
-        pdown = getPathObj(['down', un]),
-        pspk = getPathNum(['spk', un]),
-        pspkb = getPathNum(['spkb', un]),
-        tick = getPathObj(['dexs', 'hive', 'tick']),
-        powdown = getPathObj(['powd', un]),
-        govdown = getPathObj(['govd', un]),
-        chron = getPathObj(['chrono']),
-        ppubKey = getPathObj(['authorities', un]),
-        pspow = getPathNum(['spow', un]),
-        pbroca = getPathObj(["broca", un]),
-        pChannels = getPathObj(["proffer", un]),
-        pContract = getPathObj(["contract", un]),
-        pspkVote = getPathObj(["spkVote", un]),
-        pNode = getPathObj(["markets", "node", un]),
-        pStorage = getPathObj(["service", "IPFS", un]);
-    res.setHeader('Content-Type', 'application/json');
-    Promise.all([stats, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims, pspk, pspkb, tick, powdown, govdown, chron, ppubKey, pspow, pbroca, pChannels, pspkVote, pContract, pStorage, pNode])
-        .then(function(v) {
-            var arr = []
-            for (var i in v[3]) {
-                var c = v[3][i]
-                if(c.partial){
-                    c.partials = []
-                    for(var p in c.partial){
-                        var j = c.partial[p]
-                        j.txid = p
-                        c.partials.push(j)
-                    }
-                }
-                arr.push(c)
-            }
-            const pubKey = typeof v[17] == 'string' ? v[17] : 'NA'
-            var power_downs = v[14]
-            if (power_downs){
-                for(var pd in power_downs){
-                    power_downs[pd] = v[16][pd]
-                }
-            }
-            
-                res.send(
-                  JSON.stringify(
-                    {
-                      balance: v[11], // + reward_spk(RAM.head, v[12], v[5], v[1], v[0], v[2], v[8]),
-                      claim: v[9],
-                      poweredUp: v[18],
-                      granted: v[2],
-                      granting: v[8],
-                      heldCollateral: v[4],
-                      contracts: arr,
-                      channels: v[20],
-                      file_contracts: v[22],
-                      storage: v[23],
-                      spknode: v[24],
-                      pubKey,
-                      up: v[6],
-                      down: v[7],
-                      power_downs,
-                      gov_downs: v[15],  //spk power downs
-                      gov: v[5],
-                      spk: v[11],
-                      spk_block: v[12],
-                      spk_power: v[18],
-                      spk_vote: v[21],
-                      broca: typeof v[19] == 'string' ? v[19] : '0,0',
-                      tick: v[13],
-                      node: config.username,
-                      head_block: RAM.head,
-                      behind: RAM.behind,
-                      VERSION,
-                    },
-                    null,
-                    3
-                  )
-                );
-        })
-        .catch(function(err) {
-            console.log(err)
-        })
+  let un = req.params.un,
+    stats = getPathNum(['stats']),
+    cbal = getPathNum(['cbalances', un]),
+    claims = getPathObj(['snap', un]),
+    pb = getPathNum(['spow', un]),
+    lp = getPathObj(['granted', un]),
+    lg = getPathObj(['granting', un]),
+    contracts = getPathObj(['contracts', un]),
+    incol = getPathNum(['col', un]), //collateral
+    gp = getPathNum(['gov', un]),
+    pup = getPathObj(['up', un]),
+    pdown = getPathObj(['down', un]),
+    pspk = getPathNum(['spk', un]),
+    pspkb = getPathNum(['spkb', un]),
+    tick = getPathObj(['dexs', 'hive', 'tick']),
+    powdown = getPathObj(['powd', un]),
+    govdown = getPathObj(['govd', un]),
+    chron = getPathObj(['chrono']),
+    ppubKey = getPathObj(['authorities', un]),
+    pspow = getPathNum(['spow', un]),
+    pbroca = getPathObj(["broca", un]),
+    pChannels = getPathObj(["proffer", un]),
+    pContract = getPathObj(["contract", un]),
+    pspkVote = getPathObj(["spkVote", un]),
+    pNode = getPathObj(["markets", "node", un]),
+    pStorage = getPathObj(["service", "IPFS", un]);
+  res.setHeader('Content-Type', 'application/json');
+  Promise.all([stats, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims, pspk, pspkb, tick, powdown, govdown, chron, ppubKey, pspow, pbroca, pChannels, pspkVote, pContract, pStorage, pNode])
+    .then(function (v) {
+      var arr = []
+      for (var i in v[3]) {
+        var c = v[3][i]
+        if (c.partial) {
+          c.partials = []
+          for (var p in c.partial) {
+            var j = c.partial[p]
+            j.txid = p
+            c.partials.push(j)
+          }
+        }
+        arr.push(c)
+      }
+      const pubKey = typeof v[17] == 'string' ? v[17] : 'NA'
+      var power_downs = v[14]
+      if (power_downs) {
+        for (var pd in power_downs) {
+          power_downs[pd] = v[16][pd]
+        }
+      }
+
+      res.send(
+        JSON.stringify(
+          {
+            balance: v[11], // + reward_spk(RAM.head, v[12], v[5], v[1], v[0], v[2], v[8]),
+            claim: v[9],
+            poweredUp: v[18],
+            granted: v[2],
+            granting: v[8],
+            heldCollateral: v[4],
+            contracts: arr,
+            channels: v[20],
+            file_contracts: v[22],
+            storage: v[23],
+            spknode: v[24],
+            pubKey,
+            up: v[6],
+            down: v[7],
+            power_downs,
+            gov_downs: v[15],  //spk power downs
+            gov: v[5],
+            spk: v[11],
+            spk_block: v[12],
+            spk_power: v[18],
+            spk_vote: v[21],
+            broca: typeof v[19] == 'string' ? v[19] : '0,0',
+            tick: v[13],
+            node: config.username,
+            head_block: RAM.head,
+            behind: RAM.behind,
+            VERSION,
+          },
+          null,
+          3
+        )
+      );
+    })
+    .catch(function (err) {
+      console.log(err)
+    })
 }
 
 exports.blog = (req, res, next) => {
-    let un = req.params.un
-    res.setHeader('Content-Type', 'application/json')
-    let unn = alphabeticShift(un)
+  let un = req.params.un
+  res.setHeader('Content-Type', 'application/json')
+  let unn = alphabeticShift(un)
 
-    function alphabeticShift(inputString) {
-        var newString = []
-        for (var i = 0; i < inputString.length; i++) {
-            if (i == inputString.length - 1) newString.push(String.fromCharCode(inputString.charCodeAt(i) + 1))
-            else newString.push(String.fromCharCode(inputString.charCodeAt(i)))
-        }
-        return newString.join("")
+  function alphabeticShift(inputString) {
+    var newString = []
+    for (var i = 0; i < inputString.length; i++) {
+      if (i == inputString.length - 1) newString.push(String.fromCharCode(inputString.charCodeAt(i) + 1))
+      else newString.push(String.fromCharCode(inputString.charCodeAt(i)))
     }
-    store.someChildren(['posts'], {
-        gte: un,
-        lte: unn
-    }, function(e, a) {
-        let obj = {}
-        for (p in a) {
-            obj[a] = p[a]
-        }
-        res.send(
-          JSON.stringify(
-            {
-              balance: v[0],
-              claim: v[9],
-              drop: {
-                availible: {
-                  amount: v[10].s,
-                  precision: 3,
-                  token: "LARYNX",
-                },
-                last_claim: v[10].l,
-                total_claims: v[10].t,
-              }, //v[10],
-              poweredUp: v[1],
-              granted: v[2],
-              granting: v[8],
-              heldCollateral: v[4],
-              contracts: arr,
-              up: v[6],
-              down: v[7],
-              power_downs,
-              gov_downs: v[15],
-              gov: v[5],
-              spk: v[11],
-              spk_block: v[12],
-              tick: v[13],
-              node: config.username,
-              head_block: RAM.head,
-              behind: RAM.behind,
-              VERSION,
-            },
-            null,
-            3
-          )
-        );
-      }
-    )
+    return newString.join("")
   }
+  store.someChildren(['posts'], {
+    gte: un,
+    lte: unn
+  }, function (e, a) {
+    let obj = {}
+    for (p in a) {
+      obj[a] = p[a]
+    }
+    res.send(
+      JSON.stringify(
+        {
+          balance: v[0],
+          claim: v[9],
+          drop: {
+            availible: {
+              amount: v[10].s,
+              precision: 3,
+              token: "LARYNX",
+            },
+            last_claim: v[10].l,
+            total_claims: v[10].t,
+          }, //v[10],
+          poweredUp: v[1],
+          granted: v[2],
+          granting: v[8],
+          heldCollateral: v[4],
+          contracts: arr,
+          up: v[6],
+          down: v[7],
+          power_downs,
+          gov_downs: v[15],
+          gov: v[5],
+          spk: v[11],
+          spk_block: v[12],
+          tick: v[13],
+          node: config.username,
+          head_block: RAM.head,
+          behind: RAM.behind,
+          VERSION,
+        },
+        null,
+        3
+      )
+    );
+  }
+  )
+}
 
 exports.blog = (req, res, next) => {
   let un = req.params.un;
@@ -3263,25 +3281,25 @@ exports.blog = (req, res, next) => {
 };
 
 exports.list_storage = (req, res, next) => {
-    var contracts = {};
-    res.setHeader("Content-Type", "application/json");
-    store.get(["contract"], function (err, obj) {
-      (contracts = obj),
-        res.send(
-          JSON.stringify(
-            {
-              contracts,
-              node: config.username,
-              head_block: RAM.head,
-              behind: RAM.behind,
-              VERSION,
-            },
-            null,
-            3
-          )
-        );
-    });
-  
+  var contracts = {};
+  res.setHeader("Content-Type", "application/json");
+  store.get(["contract"], function (err, obj) {
+    (contracts = obj),
+      res.send(
+        JSON.stringify(
+          {
+            contracts,
+            node: config.username,
+            head_block: RAM.head,
+            behind: RAM.behind,
+            VERSION,
+          },
+          null,
+          3
+        )
+      );
+  });
+
 };
 
 exports.state = (req, res, next) => {

@@ -367,8 +367,8 @@ exports.spk_up = (json, from, active, pc) => {
           lbal = typeof lb != "number" ? 0 : lb,
           pbal = typeof pow != "number" ? 0 : pow,
           ops = [];
-        broca = broca_calc(typeof bals[3] == 'string' ? bals[3] : '0,0', pbal, bals[4], json.block_num)
-        const cur_broca = parseInt(broca.split(',')[0]) || 0
+        // broca = broca_calc(typeof bals[3] == 'string' ? bals[3] : '0,0', pbal, bals[4], json.block_num)
+        // const cur_broca = parseInt(broca.split(',')[0]) || 0
         if (amount <= lbal && active) {
           if (typeof daostring == "string") { //retime last vote so new power won't effect weight voting
             const dif = amount / (pow + amount),
@@ -385,11 +385,11 @@ exports.spk_up = (json, from, active, pc) => {
           } else {
             daostring = Base64.fromNumber(json.block_num) + ","
           }
-          ops.push({
-            type: "put",
-            path: ["broca", from],
-            data: `${cur_broca + (amount * 1000)},${require("./../helpers").Base64.fromNumber(json.block_num)}`,
-          });
+          // ops.push({
+          //   type: "put",
+          //   path: ["broca", from],
+          //   data: `${cur_broca + (amount * 1000)},${require("./../helpers").Base64.fromNumber(json.block_num)}`,
+          // });
           ops.push({
             type: "put",
             path: ["spk", from],
@@ -420,6 +420,88 @@ exports.spk_up = (json, from, active, pc) => {
             type: "put",
             path: ["feed", `${json.block_num}:${json.transaction_id}`],
             data: `@${from}| Invalid SPK power up`,
+          });
+        }
+        store.batch(ops, pc);
+      })
+      .catch((e) => {
+        console.log(e);
+      });
+  //});
+};
+
+exports.broca_up = (json, from, active, pc) => {
+  //reward_spk(from, json.block_num).then((interest) => {
+    var amount = parseInt(json.amount),
+      lpp = getPathNum(["lbroca", from]),
+      tpowp = getPathNum(["bpow", "t"]),
+      powp = getPathNum(["bpow", from]),
+      pbroca = getPathObj(["broca", from]),
+      pstats = getPathObj(["stats"])
+    Promise.all([lpp, tpowp, powp, pbroca, pstats, votebp, valtotp])
+      .then((bals) => {
+        let lb = bals[0],
+          tpow = bals[1],
+          pow = bals[2],
+          daostring = bals[5],
+          valVotes = bals[6],
+          vals = bals[7],
+          lbal = typeof lb != "number" ? 0 : lb,
+          pbal = typeof pow != "number" ? 0 : pow,
+          ops = [];
+        broca = broca_calc(typeof bals[3] == 'string' ? bals[3] : '0,0', pbal, bals[4], json.block_num)
+        const cur_broca = parseInt(broca.split(',')[0]) || 0
+        if (amount <= lbal && active) {
+          if (typeof daostring == "string") { //retime last vote so new power won't effect weight voting
+            const dif = amount / (pow + amount),
+              lastVote = Base64.toNumber(daostring.split(',')[0]),
+              ago = json.block_num - lastVote,
+              valStr = daostring.split(',')[1]
+            if (ago <= (stats.spk_cycle_length * 4)) lastVote = lastVote + parseInt(dif * stats.spk_cycle_length * 4)
+            else if (ago <= (stats.spk_cycle_length * 8)) lastVote = lastVote - parseInt(dif * ((stats.spk_cycle_length * 4) - ago))
+            else lastVote = lastVote + parseInt(dif * stats.spk_cycle_length * 4)
+            if (valStr) {
+              vals = Validator.addSPK(vals, valStr, amount)
+            }
+            daostring = Base64.fromNumber(lastVote) + ',' + valStr
+          } else {
+            daostring = Base64.fromNumber(json.block_num) + ","
+          }
+          ops.push({
+            type: "put",
+            path: ["broca", from],
+            data: `${cur_broca + (amount * 1000)},${require("./../helpers").Base64.fromNumber(json.block_num)}`,
+          });
+          ops.push({
+            type: "put",
+            path: ["lbroca", from],
+            data: lbal - amount,
+          });
+          ops.push({
+            type: "put",
+            path: ["bpow", from],
+            data: pbal + amount,
+          });
+          ops.push({
+            type: "put",
+            path: ["bpow", "t"],
+            data: tpow + amount,
+          });
+          const msg = `@${from}| Powered ${parseFloat(
+            json.amount / 1000
+          ).toFixed(3)} BROCA`;
+          if (config.hookurl || config.status)
+            postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
+          ops.push({
+            type: "put",
+            path: ["feed", `${json.block_num}:${json.transaction_id}`],
+            data: msg,
+          });
+        } else {
+          ops.push({
+            type: "put",
+            path: ["feed", `${json.block_num}:${json.transaction_id}`],
+            data: `@${from}| Invalid BROCA power up`,
           });
         }
         store.batch(ops, pc);
@@ -513,6 +595,90 @@ exports.spk_down = (json, from, active, pc) => {
       console.log(e);
     });
 };
+
+exports.broca_down = (json, from, active, pc) => {
+  var powp = getPathNum(["bpow", from]),
+    powd = getPathObj(["bpowd", from]),
+    pstats = getPathNum(['stats', 'spk_cycle_length'])
+  Promise.all([powp, powd, pstats])
+    .then((o) => {
+      let p = typeof o[0] != "number" ? 0 : o[0],
+        downs = o[1] || {},
+        spk_time = parseInt(o[2]),
+        ops = [],
+        assigns = [],
+        amount = parseInt(json.amount);
+      if (typeof amount == "number" && amount >= 0 && p >= amount && active) {
+        var odd = parseInt(amount % 4),
+          weekly = parseInt(amount / 4);
+        for (var i = 0; i < 4; i++) {
+          if (i == 3) {
+            weekly += odd;
+          }
+          assigns.push(
+            chronAssign(parseInt(json.block_num + (parseInt(spk_time / 4) * (i + 1))), {
+              block: parseInt(json.block_num + (parseInt(spk_time / 4) * (i + 1))),
+              op: "bpower_down",
+              amount: weekly,
+              by: from,
+            })
+          );
+        }
+        Promise.all(assigns).then((a) => {
+          var newdowns = {};
+          for (d in a) {
+            newdowns[a[d]] = a[d];
+          }
+          ops.push({
+            type: "del",
+            path: ["bpowd", from],
+          });
+          ops.push({ type: "put", path: ["bpowd", from], data: newdowns });
+          for (i in downs) {
+            ops.push({ type: "del", path: ["chrono", i] });
+          }
+          const msg = `@${from}| Powering down ${parseFloat(
+            amount / 1000
+          ).toFixed(3)} BROCA`;
+          if (config.hookurl || config.status)
+            postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
+          ops.push({
+            type: "put",
+            path: ["feed", `${json.block_num}:${json.transaction_id}`],
+            data: msg,
+          });
+          store.batch(ops, pc);
+        });
+      } else if (typeof amount == "number" && amount == 0 && active) {
+        for (i in downs) {
+          ops.push({ type: "del", path: ["chrono", downs[i]] });
+        }
+        const msg = `@${from}| Canceled BROCA Power Down`;
+        if (config.hookurl || config.status)
+          postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
+        ops.push({
+          type: "put",
+          path: ["feed", `${json.block_num}:${json.transaction_id}`],
+          data: msg,
+        });
+        store.batch(ops, pc);
+      } else {
+        const msg = `@${from}| Invalid BROCA Power Down`;
+        if (config.hookurl || config.status)
+          postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
+        ops.push({
+          type: "put",
+          path: ["feed", `${json.block_num}:${json.transaction_id}`],
+          data: msg,
+        });
+        store.batch(ops, pc);
+      }
+    })
+    .catch((e) => {
+      console.log(e);
+    });
+};
+
 exports.val_vote = (json, from, active, pc) => {
   var ops = []
   if (active) {

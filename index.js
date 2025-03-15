@@ -380,7 +380,7 @@ function startApp() {
     processor.on("dex_clear", HR.dex_clear);
     processor.on("spk_dex_sell", HR.spk_dex_sell);
     processor.on("spk_dex_clear", HR.spk_dex_clear);
-    
+
     processor.on(`sig_submit${config.mirrorNet ? "M" : ""}`, HR.sig_submit); //dlux is for putting executable programs into IPFS... this is for additional accounts to sign the code as non-malicious
     processor.on(`osig_submit${config.mirrorNet ? "M" : ""}`, HR.osig_submit);
   }
@@ -582,7 +582,7 @@ function startApp() {
                         [res, rej, "info"]
                       );
                       break;
-		    case "expires":
+                    case "expires":
                       releaseS(b.from, b.txid, num);
                       store.batch(
                         [{ type: "del", path: ["chrono", passed.delKey] }],
@@ -641,7 +641,7 @@ function startApp() {
                         Ptemplate = getPathObj(["template", b.c]),
                         Pstats = getPathObj(["stats"]),
                         Pbroca = getPathObj(["broca", b.from]),
-                        Ppow = getPathObj(["spow", b.from]);
+                        Ppow = getPathObj(["bpow", b.from]);
                       Chron.channelCheckOp(
                         [Pproffer, Ptemplate, Pstats, Pbroca, Ppow],
                         passed.delKey,
@@ -669,6 +669,19 @@ function startApp() {
                         spowp = getPathNum(["spow", b.by]);
                       Chron.sPowerDownOp(
                         [lbsp, tspowp, spowp],
+                        b.by,
+                        passed.delKey,
+                        num,
+                        passed.delKey.split(":")[1],
+                        b
+                      ).then((x) => res(x));
+                      break;
+                    case "bpower_down": //needs work and testing
+                      let lbroca = getPathNum(["lbroca", b.by]),
+                        tbpowp = getPathNum(["bpow", "t"]),
+                        bpowp = getPathNum(["bpow", b.by]);
+                      Chron.bPowerDownOp(
+                        [lbroca, tbpowp, bpowp],
                         b.by,
                         passed.delKey,
                         num,
@@ -732,7 +745,7 @@ function startApp() {
                           });
                       })
                     );
-                  } else if (msa_keys.length > 80 ) {
+                  } else if (msa_keys.length > 80) {
                     promises.push(
                       new Promise((res, rej) => {
                         sig_submit(consolidate(num, plasma, bh))
@@ -1092,6 +1105,8 @@ function startWith(hash, second) {
                         HIVE: 0,
                         HBD: 0
                       }
+                      cleanState.lbroca = cleanState.spk
+                      cleanState.bpow = cleanState.spow
                       cleanState.mss = {}
                       cleanState.stats.channel_bytes = 1024
                       cleanState.stats.channel_min = 100
@@ -1451,7 +1466,7 @@ function ipfspromise(hash, address = 0) {
     var done = false;
     catIPFS(hash, address, ipfslinks);
     setTimeout(() => {
-      if(!done && ipfslinks.length >= address + 2)ipfspromise(hash, address + 1).then(x => resolve(x)).catch(e => {})
+      if (!done && ipfslinks.length >= address + 2) ipfspromise(hash, address + 1).then(x => resolve(x)).catch(e => { })
     }, 4000)
     function catIPFS(hash, i, arr) {
       fetch(arr[i] + hash)
@@ -1477,7 +1492,7 @@ function ipfspromise(hash, address = 0) {
 }
 
 function issc(n, b, i, r, a) {
-  if(b.ops && b.ops[b.ops.length - 1] !== "W")b.ops.push("W")
+  if (b.ops && b.ops[b.ops.length - 1] !== "W") b.ops.push("W")
   const chain = JSON.parse(b.toString())[1].chain; //to verify runDelta matches current chain
   ipfsSaveState(n, b, i, r, a)
     .then((pla) => {

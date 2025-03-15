@@ -46,10 +46,10 @@ function dao(num) {
             PvBroca = getPathObj(['vbroca']),
             PSpk = getPathObj(['spk']),
             PcSpk = getPathObj(['cspk']),
-            PcSpow = getPathObj(['spow']),
+            PcBpow = getPathObj(['bpow']),
             Pgranted = getPathObj(['granted']),
             Pservices = getPathObj(['services'])
-        Promise.all([Pnews, Pbals, Prunners, Pnodes, Pstats, Pdelegations, Pico, Pdex, Pbr, Ppbal, Pnomen, Pposts, Pfeed, Ppaid, Pgranting, Pgranted, Pcbals, Pgov, Pvals, PcBroca, PSpk, PvBroca, Pservices, PcSpk, PcSpow]).then(function(v) {
+        Promise.all([Pnews, Pbals, Prunners, Pnodes, Pstats, Pdelegations, Pico, Pdex, Pbr, Ppbal, Pnomen, Pposts, Pfeed, Ppaid, Pgranting, Pgranted, Pcbals, Pgov, Pvals, PcBroca, PSpk, PvBroca, Pservices, PcSpk, PcBpow]).then(function(v) {
             daops.push({ type: 'del', path: ['postQueue'] });
             daops.push({ type: 'del', path: ['br'] });
             daops.push({ type: 'del', path: ['rolling'] });
@@ -82,7 +82,7 @@ function dao(num) {
                 vbroca = v[21],
                 services = v[22],
                 cspk = v[23],
-                spow = v[24]
+                bpow = v[24]
             // for(var i = 0; i < dist.length;i++){
             //     if(dist[i][0].split('div:')[1]){
             //         addMT(['div', dist[i][0].split('div:')[1], 'b'], dist[i][1] )
@@ -383,7 +383,7 @@ function dao(num) {
             const oldDailyTrend = stats.broca_daily_trend
             stats.broca_daily_ema = parseInt((totBroca - oldEMA) * 0.1 + oldEMA) 
             stats.broca_daily_trend = parseInt(stats.broca_daily_ema - oldEMA) // use this number to increase or decrease the max broca size
-            stats.utilization = parseInt((totBroca * 10000) / (spow.t * 100000) / stats.vals_target) // 51408 assumes 1/2 long tail rewards, 95.2% of checks accepted, and staking reawrds are equlized
+            stats.utilization = parseInt((totBroca * 10000) / (bpow.t * 100000) / stats.vals_target) // 51408 assumes 1/2 long tail rewards, 95.2% of checks accepted, and staking reawrds are equlized
             if(!stats.target_utilization)stats.target_utilization = stats.utilization * 2 //ramp up to target utilization
             if(!stats.staking_rewards)stats.staking_rewards = 2500
             else if (stats.target_utilization < 5000)stats.target_utilization += 10
