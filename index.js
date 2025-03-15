@@ -322,6 +322,8 @@ function startApp() {
   if (config.mirrorNet) processor.on("Tspk_send", HR.spk_send);
   processor.on("spk_up", HR.spk_up);
   processor.on("spk_down", HR.spk_down);
+  processor.on("broca_up", HR.broca_up);
+  processor.on("broca_down", HR.broca_down);
   processor.on("spk_vote", HR.spk_vote);
   processor.on("val_vote", HR.val_vote);
   processor.on("shares_claim", HR.shares_claim);
