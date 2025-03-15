@@ -108,8 +108,8 @@ function dao(num) {
             var i = 0,
                 j = 0,
                 b = 0,
-                t = 0;
-            t = parseInt(bals.ra);
+                t = parseInt(bals.ra),
+                ts = parseInt(spk.ra)
             for (var node in runners) { //node rate
                 b = parseInt(b) + parseInt(mnode?.[node].marketingRate) || 2500;
                 j = parseInt(j) + parseInt(mnode?.[node].bidRate) || 2500;
@@ -147,7 +147,7 @@ function dao(num) {
             post = post + `Total Supply: ${parseFloat(parseInt(stats.larynxSupply) / 1000).toFixed(3)} ${config.TOKEN}\n* ${parseFloat(parseInt(stats.larynxSupply - powBal - (bals.ra + bals.rc + bals.rd + bals.ri + bals.rn + bals.rm)) / 1000).toFixed(3)} ${config.TOKEN} liquid\n`;
             post = post + `* ${parseFloat(parseInt(powBal) / 1000).toFixed(3)} ${config.TOKEN} Locked to Govern\n`;
             post = post + `* ${parseFloat(parseInt(bals.ra + bals.rc + bals.rd + bals.ri + bals.rn + bals.rm) / 1000).toFixed(3)} ${config.TOKEN} in distribution accounts\n`;
-            if(config.features.inflation)post = post + `${parseFloat(parseInt(t) / 1000).toFixed(3)} ${config.TOKEN} has been generated today. 5% APY.\n${parseFloat(stats.marketingRate / 10000).toFixed(4)} is the marketing rate.\n${parseFloat(stats.nodeRate / 10000).toFixed(4)} is the node rate.\n`;
+            if(config.features.inflation)post = post + `${parseFloat(parseInt(t) / 1000).toFixed(3)} ${config.TOKEN} has been generated today.\n${parseFloat(stats.marketingRate / 10000).toFixed(4)} is the marketing rate.\n${parseFloat(stats.nodeRate / 10000).toFixed(4)} is the node rate.\n`;
             console.log(`DAO Accounting In Progress:\n${t} has been generated today\n${stats.marketingRate} is the marketing rate.\n${stats.nodeRate} is the node rate.`);
     // if collateral providers have less a penalty
     // this can also take in to account dex fees   
@@ -253,12 +253,13 @@ function dao(num) {
                 }
                 stats[`${config.jsonTokenName}PerDel`] = parseFloat(k / j).toFixed(6);
             }
-            if(config.features.ico){
+            if(config.features.ico && stats.inAuction){
                 post = post + `*****\n`;
 
                 // here we could find the price of the tokens and include either side of the DEX 
                     var dailyICODistrobution = bals.ra,
                         y = stats.inAuction;
+                        stats.inAuction = 0
                         //AMM here to settle DEX orders favorable to this price
                     post = post + `### LARYNX Auction Results:\n${parseFloat(dailyICODistrobution / 1000).toFixed(3)} LARYNX has been minted and purchased with ${parseFloat(y / 1000).toFixed(3)} HIVE today.\n`;
                     var auctionEntries = Object.keys(ico), iico = 0, ihive = 0
