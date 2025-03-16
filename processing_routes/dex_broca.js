@@ -13,14 +13,14 @@ const {
   hashThis,
   isEmpty,
   addMT,
-  burnBroca,
+  burnlbroca,
 } = require("../lil_ops");
 const { postToDiscord } = require("../discord");
 const stringify = require("json-stable-stringify");
 const fetch = require("node-fetch");
 
 exports.broca_dex_sell = (json, from, active, pc) => {
-  let PfromBal = getPathNum(["Broca", from]),
+  let PfromBal = getPathNum(["lbroca", from]),
     PStats = getPathObj(["stats"]),
     PSB = getPathObj(["dexb", "hive"]),
     order = {};
@@ -335,7 +335,7 @@ exports.broca_dex_sell = (json, from, active, pc) => {
           path: ["feed", `${json.block_num}:${json.transaction_id}`],
           data: msg,
         });
-        ops.push({ type: "put", path: ["Broca", from], data: bal });
+        ops.push({ type: "put", path: ["lbroca", from], data: bal });
         ops.push({ type: "put", path: ["dexb", order.pair], data: dex });
         if (Object.keys(his).length)
           ops.push({
@@ -343,14 +343,14 @@ exports.broca_dex_sell = (json, from, active, pc) => {
             path: ["dexb", order.pair, "his"],
             data: his,
           });
-      var someadds = [addMT(["Broca", "u"], fee), burnBroca(clawback)];
+      var someadds = [addMT(["lbroca", "u"], fee), burnlbroca(clawback)];
         Promise.all(someadds).then((empty) => {
           addop(0, addops);
         });
         function addop(i, a) {
           var keys = Object.keys(a);
           if (i < keys.length) {
-            add(["Broca", keys[i]], a[keys[i]]).then((empty) => {
+            add(["lbroca", keys[i]], a[keys[i]]).then((empty) => {
               if (keys.length > i + 1) {
                 addop(i + 1, a);
               } else {
@@ -577,7 +577,7 @@ const release = (from, txid, bn, tx_id) => {
                   path: ["dexb", "hive", "sellBook"],
                   data: res.sellBook,
                 });
-                addMT(["Broca", r.from], r.amount)
+                addMT(["lbroca", r.from], r.amount)
                   .then((empty) => {
                     ops.push({ type: "del", path: ["contracts", from, txid] });
                     ops.push({ type: "del", path: ["chrono", a.expire_path] });
@@ -618,7 +618,7 @@ const release = (from, txid, bn, tx_id) => {
                   path: ["dexb", "hbd", "sellBook"],
                   data: res.sellBook,
                 });
-                addMT(["Broca", r.from], r.amount)
+                addMT(["lbroca", r.from], r.amount)
                   .then((empty) => {
                     ops.push({ type: "del", path: ["contracts", from, txid] });
                     ops.push({ type: "del", path: ["chrono", a.expire_path] });

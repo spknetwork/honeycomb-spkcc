@@ -55,8 +55,8 @@ exports.spk_send = (json, from, active, pc) => {
                     ) {
                         //balance checks
                         let clawback = 0
-                        if(stats.spk_clawback){
-                            clawback = parseInt(send * stats.spk_clawback / 10000)
+                        if(stats.broca_clawback){
+                            clawback = parseInt(send * stats.broca_clawback / 10000)
                             ops.push({
                                 type: "put",
                                 path: ["spk", "t"],
@@ -88,6 +88,76 @@ exports.spk_send = (json, from, active, pc) => {
                             type: "put",
                             path: ["feed", `${json.block_num}:${json.transaction_id}`],
                             data: `@${from}| Invalid spk send operation`,
+                        });
+                    }
+                    if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+                    store.batch(ops, pc);
+                })
+                .catch((e) => {
+                    console.log(e);
+                });
+        // })
+};
+
+exports.broca_send = (json, from, active, pc) => {
+    // let Pinterest = reward_spk(from, json.block_num),
+    //     Pinterest2 = reward_spk(json.to, json.block_num);
+    // Promise.all([Pinterest, Pinterest2])
+    //     .then(interest => {
+            let fbalp = getPathNum(["lbroca", from]),
+                tbp = getPathNum(["lbroca", json.to]),
+                spkTotal = getPathNum(["lbroca", "t"]),
+                Pstats = getPathObj(["stats"]); //to balance promise
+            Promise.all([fbalp, tbp, Pstats])
+                .then((bals) => {
+                    let fbal = bals[0],
+                        tbal = bals[1],
+                        stats = bals[2],
+                        ops = [];
+                    send = parseInt(json.amount);
+                    if (
+                        json.to &&
+                        typeof json.to == "string" &&
+                        send > 0 &&
+                        fbal >= send &&
+                        active &&
+                        json.to != from
+                    ) {
+                        //balance checks
+                        let clawback = 0
+                        if(stats.broca_clawback){
+                            clawback = parseInt(send * stats.broca_clawback / 10000)
+                            ops.push({
+                                type: "put",
+                                path: ["lbroca", "t"],
+                                data: parseInt(spkTotal - clawback)})
+                        }
+                        send = parseInt(send - clawback)
+                        ops.push({
+                            type: "put",
+                            path: ["lbroca", from],
+                            data: parseInt(fbal - send),
+                        });
+                        ops.push({
+                            type: "put",
+                            path: ["lbroca", json.to],
+                            data: parseInt(tbal + send),
+                        });
+                        let msg = `@${from}| Sent @${json.to} ${parseFloat(
+                            parseInt(json.amount) / 1000
+                        ).toFixed(3)} BROCA`;
+                        if (config.hookurl || config.status)
+                            postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
+                        ops.push({
+                            type: "put",
+                            path: ["feed", `${json.block_num}:${json.transaction_id}`],
+                            data: msg,
+                        });
+                    } else {
+                        ops.push({
+                            type: "put",
+                            path: ["feed", `${json.block_num}:${json.transaction_id}`],
+                            data: `@${from}| Invalid broca send operation`,
                         });
                     }
                     if (process.env.npm_lifecycle_event == "test") pc[2] = ops;

@@ -390,15 +390,15 @@ function dao(num) {
             else if (stats.target_utilization > 5000)stats.target_utilization = 5000
             const diff = stats.utilization - stats.target_utilization
             if (diff > 500) { //utilization
-                stats.spk_clawback = 0
+                stats.broca_clawback = 0
                 stats.spk_interest_rate = 50000 * (240 - parseInt(diff-500 / 20)) // Growing SPK Size comiserate with network utilization.
                 if(stats.spk_interest_rate < 50000)stats.spk_interest_rate = 50000
             } else if(diff > -500 || stats.broca_daily_trend > - 100000){
                 stats.spk_interest_rate = 100000 * 24 // Assumes Storage Size will double in 24 months.
-                stats.spk_clawback = 0
+                stats.broca_clawback = 0
             } else {
                 stats.spk_interest_rate = totBroca + 1 // off
-                stats.spk_clawback = parseInt(diff / -10) // .5% clawback minimum 5% maximum
+                stats.broca_clawback = parseInt(diff / -10) // .5% clawback minimum 5% maximum
             }
             var newSPK = parseInt(totBroca / stats.spk_interest_rate)
             stats.spk_minted_today = newSPK

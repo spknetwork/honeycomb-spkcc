@@ -98,8 +98,8 @@ exports.spk_dex_sell = (json, from, active, pc) => {
             }
             if (next.amount <= remaining) {
               if (next[order.pair]) {
-                if(stats.spk_clawback){
-                  newClawback = parseInt(next.amount * stats.spk_clawback / 10000)
+                if(stats.broca_clawback){
+                  newClawback = parseInt(next.amount * stats.broca_clawback / 10000)
                   clawback += newClawback
                   next.amount -= newClawback
                 }
@@ -185,8 +185,8 @@ exports.spk_dex_sell = (json, from, active, pc) => {
                 ops.push({ type: "del", path: ["chrono", next.expire_path] }); //remove the chrono
               }
             } else {
-              if(stats.spk_clawback){
-                newClawback = parseInt((remaining / next.amount) * stats.spk_clawback / 10000)
+              if(stats.broca_clawback){
+                newClawback = parseInt((remaining / next.amount) * stats.broca_clawback / 10000)
                 clawback += newClawback
                 next.amount -= newClawback
               }

@@ -10,7 +10,7 @@ const {
   contract_close,
   update_metadata,
 } = require("./rollups");
-const { spk_send, send, shares_claim } = require('./send')
+const { spk_send, send, broca_send, shares_claim } = require('./send')
 const {
   val_check,
   val_report,
@@ -23,7 +23,7 @@ const {
   PoA
 } = require("./validators");
 const { gov_up, gov_down } = require('./gov')
-const { power_up, power_down, power_grant, spk_vote, val_vote, spk_up, spk_down } = require('./power')
+const { power_up, power_down, power_grant, spk_vote, val_vote, spk_up, spk_down, broca_up, broca_down } = require('./power')
 const { delegate_vesting_shares } = require('./delegate_vesting_shares')
 const { vote } = require('./vote')
 const { cert } = require('./cert')

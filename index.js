@@ -324,6 +324,7 @@ function startApp() {
   processor.on("spk_down", HR.spk_down);
   processor.on("broca_up", HR.broca_up);
   processor.on("broca_down", HR.broca_down);
+  processor.on("broca_send", HR.broca_send);
   processor.on("spk_vote", HR.spk_vote);
   processor.on("val_vote", HR.val_vote);
   processor.on("shares_claim", HR.shares_claim);
@@ -1126,7 +1127,7 @@ function startWith(hash, second) {
                       cleanState.stats.spk_interest_rate = 50 // 2% of redeemed broca
                       cleanState.stats.spk_interest_min = 200 // .5% of larynx
                       cleanState.stats.spk_interest_ema = 1000 // 10% of larynx
-                      cleanState.stats.spk_clawback = 0 // all transfer burnrate
+                      cleanState.stats.broca_clawback = 0 // all transfer burnrate
                       cleanState.stats.broca_daily_ema = 1000 // 10% of larynx
                       cleanState.stats.broca_daily_trend = 10000 // 100% of ema total
                       cleanState.stats.target_utilization = 0 // 50% of SPK
