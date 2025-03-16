@@ -192,12 +192,12 @@ exports.burnSpk = burnSpk
 
 const addBroca = (node, amount) => {
     return new Promise((resolve, reject) => {
-        store.get(['Broca', node], function (e, a) {
+        store.get(['lbroca', node], function (e, a) {
             if (!e) {
                 console.log(amount + ' to ' + node)
                 const a2 = typeof a != 'number' ? amount : a + amount
                 console.log('final balance ' + a2)
-                store.batch([{ type: 'put', path: ['Broca', node], data: a2 }], [resolve, reject, 1])
+                store.batch([{ type: 'put', path: ['lbroca', node], data: a2 }], [resolve, reject, 1])
             } else {
                 console.log(e)
             }
@@ -208,10 +208,10 @@ exports.addBroca = addBroca
 
 const burnBroca = (node, amount = 0) => {
     return new Promise((resolve, reject) => {
-        store.get(['Broca', 't'], function (e, a) {
+        store.get(['lbroca', 't'], function (e, a) {
             if (!e) {
                 const a2 = typeof a != 'number' ? amount : a - amount
-                store.batch([{ type: 'put', path: ['Broca', node], data: a2 }], [resolve, reject, 1])
+                store.batch([{ type: 'put', path: ['lbroca', node], data: a2 }], [resolve, reject, 1])
             } else {
                 console.log(e)
             }
