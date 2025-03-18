@@ -778,12 +778,9 @@ exports.margins = function (bn) {
               }
             });
         }
-      var allowedHive = parseInt(
-          stats.multiSigCollateral * parseFloat(dex.hive.tick)
-        ),
-        allowedHBD = parseInt(
-          stats.multiSigCollateral * parseFloat(dex.hbd.tick)
-        ),
+      // monitor SPK tick
+      var allowedHive = parseInt( stats.multiSigCollateralValue ),
+        allowedHBD = parseInt( stats.multiSigCollateralValue ),
         changed = [];
       promises = [];
       if (stats.MSHeld.HIVE > allowedHive && !config.mirrorNet)

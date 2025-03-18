@@ -1124,6 +1124,7 @@ exports.transfer = (json, pc) => {
             fee = 0,
             i = 0;
           if (typeof order.rate != "string") order.rate = dex.tick;
+          if(order.token == 'SPK')stats.multiSigCollateralValue = parseInt(stats.multiSigCollateral * dex.tick)
           stats.MSHeld[json.amount.nai == "@@000000021" ? "HIVE" : "HBD"] +=
             parseInt(json.amount.amount);
           while (remaining) {
@@ -1134,6 +1135,7 @@ exports.transfer = (json, pc) => {
             let item = "";
             if (price) item = dex.sellBook.split("_")[1].split(",")[0];
             else price = dex.tick;
+            if(order.token == 'SPK')stats.multiSigCollateralValue = parseInt(stats.multiSigCollateral * dex.tick)
             console.log("Matching...", { order, price, item });
             if (
               item &&
@@ -1158,6 +1160,7 @@ exports.transfer = (json, pc) => {
                   fee += next.fee; //add the fees
                   remaining -= next[order.pair];
                   dex.tick = next.rate;
+                  if(order.token == 'SPK')stats.multiSigCollateralValue = parseInt(stats.multiSigCollateral * dex.tick)
                   his[`${json.block_num}:${i}:${json.transaction_id}`] = {
                     type: "buy",
                     t: Date.parse(json.timestamp),
@@ -1277,6 +1280,7 @@ exports.transfer = (json, pc) => {
                   };
                 }
                 dex.tick = next.rate;
+                if(order.token == 'SPK')stats.multiSigCollateralValue = parseInt(stats.multiSigCollateral * dex.tick)
                 dex.sellOrders[`${price}:${item}`] = next;
                 const transfer = [
                   "transfer",
@@ -2114,12 +2118,8 @@ exports.margins = function (bn) {
               }
             });
         }
-      var allowedHive = parseInt(
-          stats.multiSigCollateral * parseFloat(dex.hive.tick)
-        ),
-        allowedHBD = parseInt(
-          stats.multiSigCollateral * parseFloat(dex.hbd.tick)
-        ),
+      var allowedHive = parseInt( stats.multiSigCollateralValue ),
+        allowedHBD = parseInt( stats.multiSigCollateralValue ),
         changed = [];
       promises = [];
       if (stats.MSHeld.HIVE > allowedHive && !config.mirrorNet)

@@ -18,7 +18,7 @@ exports.tally = (num, plasma, isStreaming) => {
             Pstats = getPathObj(["stats"]),
             Prb = getPathObj(["balances"]),
             Prcol = getPathObj(["col"]),
-            Prpow = getPathObj(["gov"]),
+            Prpow = getPathObj(["spow"]),
             Prqueue = getPathObj(["queue"]),
             Ppending = getPathObj(["pendingpayment"]),
             Pmss = getPathObj(["mss"]),

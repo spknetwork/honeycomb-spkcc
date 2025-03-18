@@ -118,6 +118,7 @@ exports.spk_dex_sell = (json, from, active, pc) => {
                 fee += next.fee; //add the fees
                 remaining -= next.amount;
                 dex.tick = price.toFixed(6);
+                stats.multiSigCollateralValue = stats.multiSigCollateral * dex.tick
                 pair += next[order.pair];
                 dex.buyBook = DEX.remove(item, dex.buyBook); //adjust the orderbook
                 delete dex.buyOrders[`${price.toFixed(6)}:${item}`];
@@ -148,6 +149,11 @@ exports.spk_dex_sell = (json, from, active, pc) => {
                   ],
                   data: msg,
                 });
+                ops.push({
+                  type: "put",
+                  path: ["stats"],
+                  data: stats,
+                })
                 ops.push({
                   type: "put",
                   path: [
@@ -213,6 +219,7 @@ exports.spk_dex_sell = (json, from, active, pc) => {
                 }
                 adds.push([next.from, remaining - thisfee]);
                 dex.tick = price.toFixed(6);
+                stats.multiSigCollateralValue = stats.multiSigCollateral * dex.tick
                 his[`${json.block_num}:${i}:${json.transaction_id}`] = {
                   type: "sell",
                   t: Date.parse(json.timestamp),
@@ -251,6 +258,11 @@ exports.spk_dex_sell = (json, from, active, pc) => {
                   ],
                   data: msg,
                 });
+                ops.push({
+                  type: "put",
+                  path: ["stats"],
+                  data: stats,
+                })
                 ops.push({
                   type: "put",
                   path: [
@@ -335,6 +347,11 @@ exports.spk_dex_sell = (json, from, active, pc) => {
           path: ["feed", `${json.block_num}:${json.transaction_id}`],
           data: msg,
         });
+        ops.push({
+          type: "put",
+          path: ["stats"],
+          data: stats,
+        })
         ops.push({ type: "put", path: ["spk", from], data: bal });
         ops.push({ type: "put", path: ["dexs", order.pair], data: dex });
         if (Object.keys(his).length)
@@ -389,6 +406,11 @@ exports.spk_dex_sell = (json, from, active, pc) => {
                 path: ["feed", `${json.block_num}:${json.transaction_id}.${i}`],
                 data: msg,
               });
+              ops.push({
+                type: "put",
+                path: ["stats"],
+                data: stats,
+              })
               if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
               store.batch(ops, pc);
             });
@@ -779,10 +801,10 @@ exports.margins = function (bn) {
             });
         }
       var allowedHive = parseInt(
-          stats.multiSigCollateral * parseFloat(dex.hive.tick)
+          stats.multiSigCollateralValue
         ),
         allowedHBD = parseInt(
-          stats.multiSigCollateral * parseFloat(dex.hbd.tick)
+          stats.multiSigCollateralValue
         ),
         changed = [];
       promises = [];
