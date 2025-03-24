@@ -1,5 +1,5 @@
 const config = require("./config");
-const VERSION = "v1.2.0-t21";
+const VERSION = "v1.2.0-t22";
 exports.VERSION = VERSION;
 exports.exit = exit;
 exports.processor = processor;
@@ -332,10 +332,10 @@ function startApp() {
   processor.on("node_add", HR.node_add);
   if (config.mirrorNet) processor.on("Tnode_add", HR.node_add);
   processor.on(`report${config.mirrorNet ? 'M' : ''}`, HR.report);
-  processor.on("gov_down", HR.gov_down); //larynx collateral
-  if (config.mirrorNet) processor.on("Tgov_down", HR.gov_down);
-  processor.on("gov_up", HR.gov_up); //larynx collateral
-  if (config.mirrorNet) processor.on("Tgov_up", HR.gov_up);
+  //processor.on("gov_down", HR.gov_down); //larynx collateral
+  //if (config.mirrorNet) processor.on("Tgov_down", HR.gov_down);
+  //processor.on("gov_up", HR.gov_up); //larynx collateral
+  //if (config.mirrorNet) processor.on("Tgov_up", HR.gov_up);
   processor.on("channel_open", HR.channel_open)
   processor.on("channel_update", HR.channel_update)
   processor.on("contract_close", HR.contract_close)
@@ -1063,8 +1063,11 @@ function startWith(hash, second) {
                 if (!e && (second || data[0] > API.RAM.head - 325)) {
                   if (hash) {
                     var cleanState = data[1];
-                    cleanState.lbroca = cleanState.spk
-                      cleanState.bpow = cleanState.spow
+                    for (var name in cleanState.gov){
+                      if(cleanState.balances[name])cleanState.balances[name] += cleanState.gov[name]
+                      else cleanState.balances[name] = cleanState.gov[name]
+                    }
+                    delete cleanState.gov
                     if (config.mirrorNet && hash == replay) { //test net and upgrade init
                       // delete cleanState.powd
                       // delete cleanState.govd
