@@ -169,7 +169,7 @@ update: 2 , [sig.theirs, IPFSID]
 exports.channel_open = (json, from, active, pc) => {
   if (active && json.to && json.broker) { //make this accept arrays of ops
     var Pbroca = getPathObj(["broca", from]);
-    var Ppow = getPathObj(["spow", from]);
+    var Ppow = getPathObj(["bpow", from]);
     var Pproffer = getPathObj(['proffer', json.to, from, json.contract])
     var Pstats = getPathObj(["stats"])
     var PauthB = getPathObj(["authorities", json.broker])
@@ -571,7 +571,7 @@ function process_complete_update(json, from, active) {
   return new Promise((resolve, reject) => {
     if (active && json.fo && json.f && json.id && json.co === from) {
       var Pbroca = getPathObj(["broca", json.f]);
-      var Ppow = getPathObj(["spow", json.f]);
+      var Ppow = getPathObj(["bpow", json.f]);
       var Pproffer = getPathObj(['proffer', json.fo, json.f, json.id.split(':')[1]]);
       var Pstats = getPathObj(["stats"]);
       var PauthB = getPathObj(["authorities", json.co]);
@@ -587,7 +587,7 @@ function process_complete_update(json, from, active) {
           authT = mem[4],
           authB = mem[5],
           template = mem[6],
-          spow = mem[7],
+          bpow = mem[7],
           ops = [],
           err = '';
 
@@ -668,7 +668,7 @@ function process_complete_update(json, from, active) {
               ops.push({
                 type: "put",
                 path: ["broca", json.f],
-                data: broca_calc(broca, spow, stats, json.block_num, broca_refund)
+                data: broca_calc(broca, bpow, stats, json.block_num, broca_refund)
               });
               ops.push({
                 type: "put",
@@ -759,7 +759,7 @@ exports.extend = (json, from, active, pc) => {
   console.log('extend', active, json.broca, json.id, json.file_owner)
   if (active && json.broca && json.id && json.file_owner) {
     var Pbroca = getPathObj(["broca", from]);
-    var Ppow = getPathObj(["spow", from])
+    var Ppow = getPathObj(["bpow", from])
     var Pstats = getPathObj(["stats"])
     var Pcontract = getPathObj(["contract", json.file_owner, json.id])
     Promise.all([Pbroca, Pstats, Ppow, Pcontract]).then(mem => {
@@ -1007,11 +1007,10 @@ exports.contract_close = (json, from, active, pc) => {
         try { extentions = contract.ex.split(',') } catch (e) { }
         var promises = []
         for (var i = 0; i < extentions.length; i++) {
-            promises.push(getPathObj(["broca", extentions[i].split(':')[0]]))
-            promises.push(getPathObj(["spow", extentions[i].split(':')[0]]))
+          promises.push(getPathObj(["broca", extentions[i].split(':')[0]]))
+          promises.push(getPathObj(["bpow", extentions[i].split(':')[0]]))
         }
         Promise.all(promises).then(exts => {
-          console.log(exts, contract.ex.split(','))
           var refunds = {}, promises = []
           for (var i = 0; i < extentions.length; i++) {
             if (extentions[i].split(':')[2] && parseInt(extentions[i].split(':')[2].split('-')[1]) > json.block_num) {
@@ -1033,7 +1032,7 @@ exports.contract_close = (json, from, active, pc) => {
           console.log('refund calc:', exts[0], exts[1], stats, json.block_num)
           console.log(refunds)
           for (var account in refunds) {
-            console.log({account}, exts[refunds[account].i + 1], exts[refunds[account].i + 1], stats, json.block_num, refunds[account].a)
+            console.log({ account }, exts[refunds[account].i + 1], exts[refunds[account].i + 1], stats, json.block_num, refunds[account].a)
             ops.push({
               type: 'put',
               path: ['broca', account],
@@ -1079,7 +1078,7 @@ exports.contract_close = (json, from, active, pc) => {
       } else if (proffer.e) {
         var promises = []
         promises.push(getPathObj(["broca", proffer.f]))
-        promises.push(getPathObj(["spow", proffer.f]))
+        promises.push(getPathObj(["bpow", proffer.f]))
         Promise.all(promises).then(exts => {
           ops.push({
             type: 'put',
