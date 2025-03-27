@@ -219,6 +219,7 @@ api.get("/stats", API.root);
 api.get("/coin", API.coin);
 api.get("/@:un", API.user);
 api.get("/spk/@:un", API.user_spk);
+api.get("/broca/@:un", API.user_spk);
 api.get("/api/mirrors", API.mirrors);
 api.get("/api/coin_detail", API.detail);
 api.get("/report/:un", API.report); // probably not needed
@@ -264,6 +265,15 @@ if (config.features.dex) {
   api.get("/spk/api/historical", API.historical_trades_spk);
   api.get("/spk/api/historical/:ticker_id", API.historical_trades_spk);
   api.get("/spk/api/recent/:ticker_id", API.chart_spk);
+  //broca dex
+  // api.get("/broca/dex", API.dex_broca);
+  // api.get("/broca/api/tickers", API.tickers_broca);
+  // api.get("/broca/api/orderbook", API.orderbook_broca);
+  // api.get("/broca/api/orderbook/:ticker_id", API.orderbook_broca);
+  // api.get("/broca/api/pairs", API.pairs_broca);
+  // api.get("/broca/api/historical", API.historical_trades_broca);
+  // api.get("/broca/api/historical/:ticker_id", API.historical_trades_broca);
+  // api.get("/broca/api/recent/:ticker_id", API.chart_broca);
 }
 if (config.features.nft) {
   api.get("/api/nfts/:user", API.nfts);
