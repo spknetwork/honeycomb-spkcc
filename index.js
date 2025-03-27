@@ -238,6 +238,13 @@ api.get("/spk/markets", API.markets);
 api.get("/spk/queue", API.queue);
 api.get("/spk/api/protocol", API.protocol_spk);
 api.get("/spk/api/status/:txid", API.status);
+// broca dex
+api.get("/broca/runners", API.runners);
+api.get("/broca/markets", API.markets);
+api.get("/broca/queue", API.queue);
+api.get("/broca/api/protocol", API.protocol_broca);
+api.get("/broca/api/status/:txid", API.status);
+// services
 api.get("/services/") // currently just IPFS
 if (config.features.dex) {
   api.get("/dex", API.dex);

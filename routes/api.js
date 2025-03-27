@@ -1618,6 +1618,33 @@ exports.protocol_spk = (req, res, next) => {
   });
 };
 
+exports.protocol_broca = (req, res, next) => {
+  res.setHeader("Content-Type", "application/json");
+  store.get(["queue"], function (err, obj) {
+    var feed = obj;
+    res.send(
+      JSON.stringify(
+        {
+          consensus: obj,
+          prefix: config.prefix + "broca_",
+          node: config.username,
+          multisig: config.msaccount,
+          jsontoken: 'broca',
+          memoKey: config.msPubMemo,
+          features: config.featuresModelSpk,
+          votable: config.votable,
+          head_block: RAM.head,
+          behind: RAM.behind,
+          info: "/markets will return node information and published APIs for the consensus nodes, you may check these other APIs to ensure that the information in the API is in consensus.\nThe prefix is used to address this tokens architecture built on Hive.",
+          VERSION,
+        },
+        null,
+        3
+      )
+    );
+  });
+};
+
 exports.status = (req, res, next) => {
   let txid = req.params.txid;
   res.setHeader("Content-Type", "application/json");
