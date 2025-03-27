@@ -1604,7 +1604,7 @@ exports.protocol_spk = (req, res, next) => {
           multisig: config.msaccount,
           jsontoken: 'spk',
           memoKey: config.msPubMemo,
-          features: config.featuresModel,
+          features: config.featuresModelSpk,
           votable: config.votable,
           head_block: RAM.head,
           behind: RAM.behind,

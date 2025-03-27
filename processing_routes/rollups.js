@@ -167,7 +167,7 @@ update: 2 , [sig.theirs, IPFSID]
 */
 
 exports.channel_open = (json, from, active, pc) => {
-  if (active && json.to && json.broker) { //make this accept arrays of ops
+  if (json.to && json.broker) { //make this accept arrays of ops
     var Pbroca = getPathObj(["broca", from]);
     var Ppow = getPathObj(["bpow", from]);
     var Pproffer = getPathObj(['proffer', json.to, from, json.contract])
