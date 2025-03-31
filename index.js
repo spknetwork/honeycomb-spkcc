@@ -390,7 +390,7 @@ function startApp() {
     processor.on("vote_content", HR.vote_content);
     processor.onOperation("vote", HR.vote); //layer 2 voting
     processor.onOperation(
-      "delegate_vesting_shares",1
+      "delegate_vesting_shares",
       HR.delegate_vesting_shares
     );
     //processor.onOperation("comment_options", HR.comment_options);
