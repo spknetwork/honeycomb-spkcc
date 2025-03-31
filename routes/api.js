@@ -1129,10 +1129,9 @@ exports.dex = (req, res, next) => {
 exports.dex_spk = (req, res, next) => {
   var Pdex = getPathObj(["dexs"]);
   var Pstats = getPathObj(["stats"]);
-  var Pico = getPathObj(["balances", "ri"]);
   var PQueue = getPathObj(["queue"]);
   res.setHeader("Content-Type", "application/json");
-  Promise.all([Pdex, Pstats, Pico, PQueue])
+  Promise.all([Pdex, Pstats, PQueue])
     .then(function (v) {
       var markets = v[0];
       markets.hive.sells = [];
@@ -1260,7 +1259,7 @@ exports.dex_spk = (req, res, next) => {
           {
             markets,
             stats: v[1],
-            queue: v[3],
+            queue: v[2],
             node: config.username,
             head_block: RAM.head,
             behind: RAM.behind,
@@ -2949,6 +2948,248 @@ exports.servicesByType = (req, res, next) => {
 };
 
 exports.user = (req, res, next) => {
+  let un = req.params.un,
+    bal = getPathNum(['balances', un]),
+    cbal = getPathNum(['cbalances', un]),
+    claims = getPathObj(['snap', un]),
+    pb = getPathNum(['pow', un]),
+    lp = getPathObj(['granted', un]),
+    lg = getPathObj(['granting', un]),
+    contracts = getPathObj(['contracts', un]),
+    incol = getPathNum(['col', un]), //collateral
+    gp = getPathNum(['gov', un]),
+    pup = getPathObj(['up', un]),
+    pdown = getPathObj(['down', un]),
+    pspk = getPathNum(['spk', un]),
+    pspkb = getPathNum(['spkb', un]),
+    tick = getPathObj(['dex', 'hive', 'tick']),
+    powdown = getPathObj(['powd', un]),
+    govdown = getPathObj(['govd', un]),
+    pspowdown = getPathObj(['spowd', un]),
+    pbpowdown = getPathObj(['bpowd', un]),
+    chron = getPathObj(['chrono']),
+    ppubKey = getPathObj(['authorities', un]),
+    pspow = getPathNum(['spow', un]),
+    pbroca = getPathObj(["broca", un]),
+    pChannels = getPathObj(["proffer", un]),
+    pContract = getPathObj(["contract", un]),
+    pspkVote = getPathObj(["spkVote", un]),
+    pNode = getPathObj(["markets", "node", un]),
+    pStorage = getPathObj(["service", "IPFS", un]),
+    pcspk = getPathNum(['cspk', un]),
+    pbpow = getPathNum(['bpow', un]),
+    plbroca = getPathNum(["lbroca", un])
+  res.setHeader('Content-Type', 'application/json');
+  Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims, pspk, pspkb, tick, powdown, govdown, chron, ppubKey, pspow, pbroca, pChannels, pspkVote, pContract, pStorage, pNode, pcspk, pspowdown, pbpowdown, pbpow, plbroca])
+    .then(function (v) {
+      var arr = []
+      for (var i in v[3]) {
+        var c = v[3][i]
+        if (c.partial) {
+          c.partials = []
+          for (var p in c.partial) {
+            var j = c.partial[p]
+            j.txid = p
+            c.partials.push(j)
+          }
+        }
+        arr.push(c)
+      }
+      const pubKey = typeof v[17] == 'string' ? v[17] : 'NA'
+      var power_downs = v[14]
+      if (power_downs) {
+        for (var pd in power_downs) {
+          power_downs[pd] = v[16][pd]
+        }
+      }
+      var spower_downs = v[26]
+      if (spower_downs) {
+        for (var pd in power_downs) {
+          spower_downs[pd] = v[16][pd]
+        }
+      }
+      var bpower_downs = v[27]
+      if (bpower_downs) {
+        for (var pd in power_downs) {
+          bpower_downs[pd] = v[16][pd]
+        }
+      }
+      var granted = v[2]
+      var granting = v[8]
+      if (!granted.t) granted.t = 0
+      if (!granting.t) granting.t = 0
+      res.send(
+        JSON.stringify(
+          {
+            name: un,
+            balance: v[0],
+            claim: v[9],
+            claim_spk: v[25],
+            drop: {
+              availible: {
+                amount: 0,
+                precision: 3,
+                token: "LARYNX",
+              },
+              last_claim: v[10].l || 0,
+              total_claims: v[10].t || 0,
+            }, //v[10],
+            poweredUp: v[1],
+            granted,
+            granting,
+            heldCollateral: v[4],
+            contracts: arr,
+            channels: v[20],
+            file_contracts: v[22],
+            storage: v[23],
+            spknode: v[24],
+            pubKey,
+            up: v[6],
+            down: v[7],
+            power_downs,
+            spower_downs,
+            bpower_downs,
+            gov_downs: v[15],
+            gov: v[5],
+            spk: v[11],
+            spk_block: v[12],
+            spk_power: v[18],
+            spk_vote: v[21],
+            broca: typeof v[19] == 'string' ? v[19] : '0,0',
+            liq_broca: v[29],
+            pow_broca: v[28],
+            tick: v[13],
+            node: config.username,
+            head_block: RAM.head,
+            behind: RAM.behind,
+            VERSION,
+          },
+          null,
+          3
+        )
+      );
+    })
+    .catch(function (err) {
+      console.log(err)
+    })
+}
+
+exports.spk_user = (req, res, next) => {
+  let un = req.params.un,
+    bal = getPathNum(['balances', un]),
+    cbal = getPathNum(['cspk', un]),
+    claims = getPathObj(['snap', un]),
+    pb = getPathNum(['pow', un]),
+    lp = getPathObj(['granted', un]),
+    lg = getPathObj(['granting', un]),
+    contracts = getPathObj(['contracts', un]),
+    incol = getPathNum(['col', un]), //collateral
+    gp = getPathNum(['gov', un]),
+    pup = getPathObj(['up', un]),
+    pdown = getPathObj(['down', un]),
+    pspk = getPathNum(['spk', un]),
+    pspkb = getPathNum(['spkb', un]),
+    tick = getPathObj(['dexs', 'hive', 'tick']),
+    powdown = getPathObj(['powd', un]),
+    govdown = getPathObj(['govd', un]),
+    pspowdown = getPathObj(['spowd', un]),
+    pbpowdown = getPathObj(['bpowd', un]),
+    chron = getPathObj(['chrono']),
+    ppubKey = getPathObj(['authorities', un]),
+    pspow = getPathNum(['spow', un]),
+    pbroca = getPathObj(["broca", un]),
+    pChannels = getPathObj(["proffer", un]),
+    pContract = getPathObj(["contract", un]),
+    pspkVote = getPathObj(["spkVote", un]),
+    pNode = getPathObj(["markets", "node", un]),
+    pStorage = getPathObj(["service", "IPFS", un]),
+    pcspk = getPathNum(['cspk', un]),
+    pbpow = getPathNum(['bpow', un]),
+    plbroca = getPathNum(["lbroca", un])
+  res.setHeader('Content-Type', 'application/json');
+  Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims, pspk, pspkb, tick, powdown, govdown, chron, ppubKey, pspow, pbroca, pChannels, pspkVote, pContract, pStorage, pNode, pcspk, pspowdown, pbpowdown, pbpow, plbroca])
+    .then(function (v) {
+      var arr = []
+      for (var i in v[3]) {
+        var c = v[3][i]
+        if (c.partial) {
+          c.partials = []
+          for (var p in c.partial) {
+            var j = c.partial[p]
+            j.txid = p
+            c.partials.push(j)
+          }
+        }
+        arr.push(c)
+      }
+      const pubKey = typeof v[17] == 'string' ? v[17] : 'NA'
+      var power_downs = v[14]
+      if (power_downs) {
+        for (var pd in power_downs) {
+          power_downs[pd] = v[16][pd]
+        }
+      }
+      var spower_downs = v[26]
+      if (spower_downs) {
+        for (var pd in power_downs) {
+          spower_downs[pd] = v[16][pd]
+        }
+      }
+      var bpower_downs = v[27]
+      if (bpower_downs) {
+        for (var pd in power_downs) {
+          bpower_downs[pd] = v[16][pd]
+        }
+      }
+      var granted = v[2]
+      var granting = v[8]
+      if (!granted.t) granted.t = 0
+      if (!granting.t) granting.t = 0
+      res.send(
+        JSON.stringify(
+          {
+            name: un,
+            balance: v[11],
+            claim_larynx: v[9],
+            claim: v[25],
+            poweredUp: v[18],
+            larynx_power: v[1],
+            heldCollateral: v[4],
+            contracts: arr,
+            channels: v[20],
+            file_contracts: v[22],
+            storage: v[23],
+            spknode: v[24],
+            pubKey,
+            up: v[6],
+            down: v[7],
+            power_downs: spower_downs,
+            lpower_downs: power_downs,
+            bpower_downs,
+            spk: v[11],
+            spk_block: v[12],
+            spk_power: v[18],
+            spk_vote: v[21],
+            broca: typeof v[19] == 'string' ? v[19] : '0,0',
+            liq_broca: v[29],
+            pow_broca: v[28],
+            tick: v[13],
+            node: config.username,
+            head_block: RAM.head,
+            behind: RAM.behind,
+            VERSION,
+          },
+          null,
+          3
+        )
+      );
+    })
+    .catch(function (err) {
+      console.log(err)
+    })
+}
+
+exports.broca_user = (req, res, next) => {
   let un = req.params.un,
     bal = getPathNum(['balances', un]),
     cbal = getPathNum(['cbalances', un]),

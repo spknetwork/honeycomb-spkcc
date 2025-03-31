@@ -258,6 +258,7 @@ if (config.features.dex) {
   api.get("/api/recent/:ticker_id", API.chart);
   //spk dex
   api.get("/spk/dex", API.dex_spk);
+  api.get("/spk/@:un", API.spk_user);
   api.get("/spk/api/tickers", API.tickers_spk);
   api.get("/spk/api/orderbook", API.orderbook_spk);
   api.get("/spk/api/orderbook/:ticker_id", API.orderbook_spk);
@@ -267,6 +268,7 @@ if (config.features.dex) {
   api.get("/spk/api/recent/:ticker_id", API.chart_spk);
   //broca dex
   // api.get("/broca/dex", API.dex_broca);
+  // api.get("/broca/@:un", API.broca_user);
   // api.get("/broca/api/tickers", API.tickers_broca);
   // api.get("/broca/api/orderbook", API.orderbook_broca);
   // api.get("/broca/api/orderbook/:ticker_id", API.orderbook_broca);
@@ -388,7 +390,7 @@ function startApp() {
     processor.on("vote_content", HR.vote_content);
     processor.onOperation("vote", HR.vote); //layer 2 voting
     processor.onOperation(
-      "delegate_vesting_shares",
+      "delegate_vesting_shares",1
       HR.delegate_vesting_shares
     );
     //processor.onOperation("comment_options", HR.comment_options);
