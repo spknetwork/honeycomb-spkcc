@@ -2963,6 +2963,8 @@ exports.user = (req, res, next) => {
     pspk = getPathNum(['spk', un]),
     pspkb = getPathNum(['spkb', un]),
     tick = getPathObj(['dex', 'hive', 'tick']),
+    ticks = getPathObj(['dexs', 'hive', 'tick']),
+    tickb = getPathObj(['dexb', 'hive', 'tick']),
     powdown = getPathObj(['powd', un]),
     govdown = getPathObj(['govd', un]),
     pspowdown = getPathObj(['spowd', un]),
@@ -2980,7 +2982,7 @@ exports.user = (req, res, next) => {
     pbpow = getPathNum(['bpow', un]),
     plbroca = getPathNum(["lbroca", un])
   res.setHeader('Content-Type', 'application/json');
-  Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims, pspk, pspkb, tick, powdown, govdown, chron, ppubKey, pspow, pbroca, pChannels, pspkVote, pContract, pStorage, pNode, pcspk, pspowdown, pbpowdown, pbpow, plbroca])
+  Promise.all([bal, pb, lp, contracts, incol, gp, pup, pdown, lg, cbal, claims, pspk, pspkb, tick, powdown, govdown, chron, ppubKey, pspow, pbroca, pChannels, pspkVote, pContract, pStorage, pNode, pcspk, pspowdown, pbpowdown, pbpow, plbroca, ticks, tickb])
     .then(function (v) {
       var arr = []
       for (var i in v[3]) {
@@ -3059,6 +3061,8 @@ exports.user = (req, res, next) => {
             liq_broca: v[29],
             pow_broca: v[28],
             tick: v[13],
+            tick_spk: v[30],
+            tick_broca: v[31],
             node: config.username,
             head_block: RAM.head,
             behind: RAM.behind,

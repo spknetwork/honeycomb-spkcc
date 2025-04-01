@@ -339,14 +339,16 @@ function startApp() {
   if (config.mirrorNet) processor.on("Tsend", HR.send);
   processor.on("spk_send", HR.spk_send);
   if (config.mirrorNet) processor.on("Tspk_send", HR.spk_send);
-  processor.on("spk_up", HR.spk_up);
-  processor.on("spk_down", HR.spk_down);
-  processor.on("broca_up", HR.broca_up);
-  processor.on("broca_down", HR.broca_down);
+  processor.on("spk_power_up", HR.spk_up);
+  processor.on("spk_power_down", HR.spk_down);
+  processor.on("broca_power_up", HR.broca_up);
+  processor.on("broca_power_down", HR.broca_down);
   processor.on("broca_send", HR.broca_send);
   processor.on("spk_vote", HR.spk_vote);
-  processor.on("val_vote", HR.val_vote);
+  processor.on("spk_val_vote", HR.val_vote);
   processor.on("shares_claim", HR.shares_claim);
+  processor.on("spk_shares_claim", HR.shares_claim);
+  processor.on("broca_shares_claim", HR.shares_claim);
   if (config.mirrorNet) processor.on("Tshares_claim", HR.shares_claim);
   processor.on("node_add", HR.node_add);
   if (config.mirrorNet) processor.on("Tnode_add", HR.node_add);
@@ -402,6 +404,8 @@ function startApp() {
     processor.on("dex_clear", HR.dex_clear);
     processor.on("spk_dex_sell", HR.spk_dex_sell);
     processor.on("spk_dex_clear", HR.spk_dex_clear);
+    processor.on("broca_dex_sell", HR.broca_dex_sell);
+    processor.on("broca_dex_clear", HR.broca_dex_clear);
 
     processor.on(`sig_submit${config.mirrorNet ? "M" : ""}`, HR.sig_submit); //dlux is for putting executable programs into IPFS... this is for additional accounts to sign the code as non-malicious
     processor.on(`osig_submit${config.mirrorNet ? "M" : ""}`, HR.osig_submit);
