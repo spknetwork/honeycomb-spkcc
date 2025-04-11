@@ -669,7 +669,7 @@ const Base38 = {
       number === null ||
       number === Number.POSITIVE_INFINITY
     )
-      throw "The input is not valid";
+      throw `The input(${number}) is not valid`;
     if (number < 0) throw "Can't represent negative numbers now";
     var char;
     var residual = Math.floor(number);
@@ -701,7 +701,7 @@ const Base58 = {
       number === null ||
       number === Number.POSITIVE_INFINITY
     )
-      throw "The input is not valid";
+      throw `The input(${number}) is not valid`;
     if (number < 0) throw "Can't represent negative numbers now";
     var char;
     var residual = Math.floor(number);
@@ -733,7 +733,7 @@ const Base64 = {
       number === null ||
       number === Number.POSITIVE_INFINITY
     )
-      throw "The input is not valid";
+      throw `The input(${number}) is not valid`;
     if (number < 0) throw "Can't represent negative numbers now";
     var char;
     var residual = Math.floor(number);
