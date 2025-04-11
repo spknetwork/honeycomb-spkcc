@@ -495,7 +495,7 @@ exports.channel_update = (json, from, active, pc) => {
           }
           // Validate consistency
           if (partial.total_chunks !== total_chunks) {
-            console.log("Error: Inconsistent total_chunks");
+            console.log("Error: Inconsistent total_chunks", partial.total_chunks, total_chunks);
             pc[0](pc[2]);
             return;
           }

@@ -219,7 +219,7 @@ api.get("/stats", API.root);
 api.get("/coin", API.coin);
 api.get("/@:un", API.user);
 api.get("/spk/@:un", API.user_spk);
-api.get("/broca/@:un", API.user_spk);
+api.get("/broca/@:un", API.user_broca);
 api.get("/api/mirrors", API.mirrors);
 api.get("/api/coin_detail", API.detail);
 api.get("/report/:un", API.report); // probably not needed

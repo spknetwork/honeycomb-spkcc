@@ -3193,7 +3193,7 @@ exports.spk_user = (req, res, next) => {
     })
 }
 
-exports.broca_user = (req, res, next) => {
+exports.user_broca = (req, res, next) => {
   let un = req.params.un,
     bal = getPathNum(['balances', un]),
     cbal = getPathNum(['cbalances', un]),

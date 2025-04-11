@@ -8,57 +8,57 @@ const { stats } = require("../state");
 
 exports.power_up = (json, from, active, pc) => {
   //reward_spk(from, json.block_num).then((interest) => {
-    var amount = parseInt(json.amount),
-      lpp = getPathNum(["balances", from]),
-      tpowp = getPathNum(["pow", "t"]),
-      powp = getPathNum(["pow", from]);
+  var amount = parseInt(json.amount),
+    lpp = getPathNum(["balances", from]),
+    tpowp = getPathNum(["pow", "t"]),
+    powp = getPathNum(["pow", from]);
 
-    Promise.all([lpp, tpowp, powp])
-      .then((bals) => {
-        let lb = bals[0],
-          tpow = bals[1],
-          pow = bals[2],
-          lbal = typeof lb != "number" ? 0 : lb,
-          pbal = typeof pow != "number" ? 0 : pow,
-          ops = [];
-        if (amount <= lbal && active) {
-          ops.push({
-            type: "put",
-            path: ["balances", from],
-            data: lbal - amount,
-          });
-          ops.push({
-            type: "put",
-            path: ["pow", from],
-            data: pbal + amount,
-          });
-          ops.push({
-            type: "put",
-            path: ["pow", "t"],
-            data: tpow + amount,
-          });
-          const msg = `@${from}| Powered ${parseFloat(
-            json.amount / 1000
-          ).toFixed(3)} ${config.TOKEN}`;
-          if (config.hookurl || config.status)
-            postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
-          ops.push({
-            type: "put",
-            path: ["feed", `${json.block_num}:${json.transaction_id}`],
-            data: msg,
-          });
-        } else {
-          ops.push({
-            type: "put",
-            path: ["feed", `${json.block_num}:${json.transaction_id}`],
-            data: `@${from}| Invalid power up`,
-          });
-        }
-        store.batch(ops, pc);
-      })
-      .catch((e) => {
-        console.log(e);
-      });
+  Promise.all([lpp, tpowp, powp])
+    .then((bals) => {
+      let lb = bals[0],
+        tpow = bals[1],
+        pow = bals[2],
+        lbal = typeof lb != "number" ? 0 : lb,
+        pbal = typeof pow != "number" ? 0 : pow,
+        ops = [];
+      if (amount <= lbal && active) {
+        ops.push({
+          type: "put",
+          path: ["balances", from],
+          data: lbal - amount,
+        });
+        ops.push({
+          type: "put",
+          path: ["pow", from],
+          data: pbal + amount,
+        });
+        ops.push({
+          type: "put",
+          path: ["pow", "t"],
+          data: tpow + amount,
+        });
+        const msg = `@${from}| Powered ${parseFloat(
+          json.amount / 1000
+        ).toFixed(3)} ${config.TOKEN}`;
+        if (config.hookurl || config.status)
+          postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
+        ops.push({
+          type: "put",
+          path: ["feed", `${json.block_num}:${json.transaction_id}`],
+          data: msg,
+        });
+      } else {
+        ops.push({
+          type: "put",
+          path: ["feed", `${json.block_num}:${json.transaction_id}`],
+          data: `@${from}| Invalid power up`,
+        });
+      }
+      store.batch(ops, pc);
+    })
+    .catch((e) => {
+      console.log(e);
+    });
   //});
 };
 
@@ -76,7 +76,7 @@ exports.power_grant = (json, from, active, pc) => {
     Pdown_to = getPathObj(["down", to]),
     Pgov = getPathNum(["services", to, "s", "c"]);
   //(Pinterest = reward_spk(from, json.block_num)), //interest calc before balance changes.
-    //(Pinterest2 = reward_spk(json.to, json.block_num));
+  //(Pinterest2 = reward_spk(json.to, json.block_num));
   Promise.all([
     Ppower,
     Pgranted_to_from,
@@ -123,7 +123,7 @@ exports.power_grant = (json, from, active, pc) => {
             path: ["granting", from, "t"],
             data: granting_from_total + more,
           });
-          if(amount > 0){
+          if (amount > 0) {
             ops.push({
               type: "put",
               path: ["granting", from, to],
@@ -198,32 +198,17 @@ exports.power_grant = (json, from, active, pc) => {
           if (down_to.max) {
             down_to.max -= less;
           }
-          if(less)
-          ops.push({
-            type: "put",
-            path: ["granting", from, "t"],
-            data: granting_from_total - less,
-          });
-          ops.push({
-            type: "put",
-            path: ["granting", from, to],
-            data: granting_to_from - less,
-          });
-          ops.push({
-            type: "put",
-            path: ["granted", to, from],
-            data: granted_to_from - less,
-          });
-          ops.push({
-            type: "put",
-            path: ["granted", to, "t"],
-            data: granted_to_total - less,
-          });
-          ops.push({
-            type: "put",
-            path: ["pow", from],
-            data: from_power + less,
-          });
+          if (granting_from_total - less) ops.push({ type: 'put', path: ['granting', from, 't'], data: granting_from_total - less })
+          else ops.push({ type: 'del', path: ['granting', from, 't'] })
+          if (granting_to_from - less) ops.push({ type: 'put', path: ['granting', from, to], data: granting_to_from - less })
+          else ops.push({ type: 'del', path: ['granting', from, to] });
+          if (granted_to_from - less) ops.push({ type: 'put', path: ['granted', to, from], data: granted_to_from - less })
+          else ops.push({ type: 'del', path: ['granted', to, from] })
+          if (granted_to_total - less) ops.push({ type: 'put', path: ['granted', to, 't'], data: granted_to_total - less })
+          else ops.push({ type: 'del', path: ['granted', to, 't'] })
+          if (from_power + less) ops.push({ type: 'put', path: ['pow', from], data: from_power + less })
+          else ops.push({ type: 'del', path: ['pow', from] });
+
           if (Object.keys(up_from).length)
             ops.push({
               type: "put",
@@ -348,167 +333,167 @@ exports.power_down = (json, from, active, pc) => {
 
 exports.spk_up = (json, from, active, pc) => {
   //reward_spk(from, json.block_num).then((interest) => {
-    var amount = parseInt(json.amount),
-      lpp = getPathNum(["spk", from]),
-      tpowp = getPathNum(["spow", "t"]),
-      powp = getPathNum(["spow", from]),
-      pbroca = getPathObj(["broca", from]),
-      pstats = getPathObj(["stats"]),
-      votebp = getPathObj(['spkVote', from]),
-      valtotp = getPathObj(['val'])
-    Promise.all([lpp, tpowp, powp, pbroca, pstats, votebp, valtotp])
-      .then((bals) => {
-        let lb = bals[0],
-          tpow = bals[1],
-          pow = bals[2],
-          daostring = bals[5],
-          valVotes = bals[6],
-          vals = bals[7],
-          lbal = typeof lb != "number" ? 0 : lb,
-          pbal = typeof pow != "number" ? 0 : pow,
-          ops = [];
-        // broca = broca_calc(typeof bals[3] == 'string' ? bals[3] : '0,0', pbal, bals[4], json.block_num)
-        // const cur_broca = parseInt(broca.split(',')[0]) || 0
-        if (amount <= lbal && active) {
-          if (typeof daostring == "string") { //retime last vote so new power won't effect weight voting
-            const dif = amount / (pow + amount),
-              lastVote = Base64.toNumber(daostring.split(',')[0]),
-              ago = json.block_num - lastVote,
-              valStr = daostring.split(',')[1]
-            if (ago <= (stats.spk_cycle_length * 4)) lastVote = lastVote + parseInt(dif * stats.spk_cycle_length * 4)
-            else if (ago <= (stats.spk_cycle_length * 8)) lastVote = lastVote - parseInt(dif * ((stats.spk_cycle_length * 4) - ago))
-            else lastVote = lastVote + parseInt(dif * stats.spk_cycle_length * 4)
-            if (valStr) {
-              vals = Validator.addSPK(vals, valStr, amount)
-            }
-            daostring = Base64.fromNumber(lastVote) + ',' + valStr
-          } else {
-            daostring = Base64.fromNumber(json.block_num) + ","
+  var amount = parseInt(json.amount),
+    lpp = getPathNum(["spk", from]),
+    tpowp = getPathNum(["spow", "t"]),
+    powp = getPathNum(["spow", from]),
+    pbroca = getPathObj(["broca", from]),
+    pstats = getPathObj(["stats"]),
+    votebp = getPathObj(['spkVote', from]),
+    valtotp = getPathObj(['val'])
+  Promise.all([lpp, tpowp, powp, pbroca, pstats, votebp, valtotp])
+    .then((bals) => {
+      let lb = bals[0],
+        tpow = bals[1],
+        pow = bals[2],
+        daostring = bals[5],
+        valVotes = bals[6],
+        vals = bals[7],
+        lbal = typeof lb != "number" ? 0 : lb,
+        pbal = typeof pow != "number" ? 0 : pow,
+        ops = [];
+      // broca = broca_calc(typeof bals[3] == 'string' ? bals[3] : '0,0', pbal, bals[4], json.block_num)
+      // const cur_broca = parseInt(broca.split(',')[0]) || 0
+      if (amount <= lbal && active) {
+        if (typeof daostring == "string") { //retime last vote so new power won't effect weight voting
+          const dif = amount / (pow + amount),
+            lastVote = Base64.toNumber(daostring.split(',')[0]),
+            ago = json.block_num - lastVote,
+            valStr = daostring.split(',')[1]
+          if (ago <= (stats.spk_cycle_length * 4)) lastVote = lastVote + parseInt(dif * stats.spk_cycle_length * 4)
+          else if (ago <= (stats.spk_cycle_length * 8)) lastVote = lastVote - parseInt(dif * ((stats.spk_cycle_length * 4) - ago))
+          else lastVote = lastVote + parseInt(dif * stats.spk_cycle_length * 4)
+          if (valStr) {
+            vals = Validator.addSPK(vals, valStr, amount)
           }
-          // ops.push({
-          //   type: "put",
-          //   path: ["broca", from],
-          //   data: `${cur_broca + (amount * 1000)},${require("./../helpers").Base64.fromNumber(json.block_num)}`,
-          // });
-          ops.push({
-            type: "put",
-            path: ["spk", from],
-            data: lbal - amount,
-          });
-          ops.push({
-            type: "put",
-            path: ["spow", from],
-            data: pbal + amount,
-          });
-          ops.push({
-            type: "put",
-            path: ["spow", "t"],
-            data: tpow + amount,
-          });
-          const msg = `@${from}| Powered ${parseFloat(
-            json.amount / 1000
-          ).toFixed(3)} SPK`;
-          if (config.hookurl || config.status)
-            postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
-          ops.push({
-            type: "put",
-            path: ["feed", `${json.block_num}:${json.transaction_id}`],
-            data: msg,
-          });
+          daostring = Base64.fromNumber(lastVote) + ',' + valStr
         } else {
-          ops.push({
-            type: "put",
-            path: ["feed", `${json.block_num}:${json.transaction_id}`],
-            data: `@${from}| Invalid SPK power up`,
-          });
+          daostring = Base64.fromNumber(json.block_num) + ","
         }
-        store.batch(ops, pc);
-      })
-      .catch((e) => {
-        console.log(e);
-      });
+        // ops.push({
+        //   type: "put",
+        //   path: ["broca", from],
+        //   data: `${cur_broca + (amount * 1000)},${require("./../helpers").Base64.fromNumber(json.block_num)}`,
+        // });
+        ops.push({
+          type: "put",
+          path: ["spk", from],
+          data: lbal - amount,
+        });
+        ops.push({
+          type: "put",
+          path: ["spow", from],
+          data: pbal + amount,
+        });
+        ops.push({
+          type: "put",
+          path: ["spow", "t"],
+          data: tpow + amount,
+        });
+        const msg = `@${from}| Powered ${parseFloat(
+          json.amount / 1000
+        ).toFixed(3)} SPK`;
+        if (config.hookurl || config.status)
+          postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
+        ops.push({
+          type: "put",
+          path: ["feed", `${json.block_num}:${json.transaction_id}`],
+          data: msg,
+        });
+      } else {
+        ops.push({
+          type: "put",
+          path: ["feed", `${json.block_num}:${json.transaction_id}`],
+          data: `@${from}| Invalid SPK power up`,
+        });
+      }
+      store.batch(ops, pc);
+    })
+    .catch((e) => {
+      console.log(e);
+    });
   //});
 };
 
 exports.broca_up = (json, from, active, pc) => {
   //reward_spk(from, json.block_num).then((interest) => {
-    var amount = parseInt(json.amount),
-      lpp = getPathNum(["lbroca", from]),
-      tpowp = getPathNum(["bpow", "t"]),
-      powp = getPathNum(["bpow", from]),
-      pbroca = getPathObj(["broca", from]),
-      pstats = getPathObj(["stats"])
-    Promise.all([lpp, tpowp, powp, pbroca, pstats, votebp, valtotp])
-      .then((bals) => {
-        let lb = bals[0],
-          tpow = bals[1],
-          pow = bals[2],
-          daostring = bals[5],
-          valVotes = bals[6],
-          vals = bals[7],
-          lbal = typeof lb != "number" ? 0 : lb,
-          pbal = typeof pow != "number" ? 0 : pow,
-          ops = [];
-        broca = broca_calc(typeof bals[3] == 'string' ? bals[3] : '0,0', pbal, bals[4], json.block_num)
-        const cur_broca = parseInt(broca.split(',')[0]) || 0
-        if (amount <= lbal && active) {
-          if (typeof daostring == "string") { //retime last vote so new power won't effect weight voting
-            const dif = amount / (pow + amount),
-              lastVote = Base64.toNumber(daostring.split(',')[0]),
-              ago = json.block_num - lastVote,
-              valStr = daostring.split(',')[1]
-            if (ago <= (stats.spk_cycle_length * 4)) lastVote = lastVote + parseInt(dif * stats.spk_cycle_length * 4)
-            else if (ago <= (stats.spk_cycle_length * 8)) lastVote = lastVote - parseInt(dif * ((stats.spk_cycle_length * 4) - ago))
-            else lastVote = lastVote + parseInt(dif * stats.spk_cycle_length * 4)
-            if (valStr) {
-              vals = Validator.addSPK(vals, valStr, amount)
-            }
-            daostring = Base64.fromNumber(lastVote) + ',' + valStr
-          } else {
-            daostring = Base64.fromNumber(json.block_num) + ","
+  var amount = parseInt(json.amount),
+    lpp = getPathNum(["lbroca", from]),
+    tpowp = getPathNum(["bpow", "t"]),
+    powp = getPathNum(["bpow", from]),
+    pbroca = getPathObj(["broca", from]),
+    pstats = getPathObj(["stats"])
+  Promise.all([lpp, tpowp, powp, pbroca, pstats, votebp, valtotp])
+    .then((bals) => {
+      let lb = bals[0],
+        tpow = bals[1],
+        pow = bals[2],
+        daostring = bals[5],
+        valVotes = bals[6],
+        vals = bals[7],
+        lbal = typeof lb != "number" ? 0 : lb,
+        pbal = typeof pow != "number" ? 0 : pow,
+        ops = [];
+      broca = broca_calc(typeof bals[3] == 'string' ? bals[3] : '0,0', pbal, bals[4], json.block_num)
+      const cur_broca = parseInt(broca.split(',')[0]) || 0
+      if (amount <= lbal && active) {
+        if (typeof daostring == "string") { //retime last vote so new power won't effect weight voting
+          const dif = amount / (pow + amount),
+            lastVote = Base64.toNumber(daostring.split(',')[0]),
+            ago = json.block_num - lastVote,
+            valStr = daostring.split(',')[1]
+          if (ago <= (stats.spk_cycle_length * 4)) lastVote = lastVote + parseInt(dif * stats.spk_cycle_length * 4)
+          else if (ago <= (stats.spk_cycle_length * 8)) lastVote = lastVote - parseInt(dif * ((stats.spk_cycle_length * 4) - ago))
+          else lastVote = lastVote + parseInt(dif * stats.spk_cycle_length * 4)
+          if (valStr) {
+            vals = Validator.addSPK(vals, valStr, amount)
           }
-          ops.push({
-            type: "put",
-            path: ["broca", from],
-            data: `${cur_broca + (amount * 1000)},${require("./../helpers").Base64.fromNumber(json.block_num)}`,
-          });
-          ops.push({
-            type: "put",
-            path: ["lbroca", from],
-            data: lbal - amount,
-          });
-          ops.push({
-            type: "put",
-            path: ["bpow", from],
-            data: pbal + amount,
-          });
-          ops.push({
-            type: "put",
-            path: ["bpow", "t"],
-            data: tpow + amount,
-          });
-          const msg = `@${from}| Powered ${parseFloat(
-            json.amount / 1000
-          ).toFixed(3)} BROCA`;
-          if (config.hookurl || config.status)
-            postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
-          ops.push({
-            type: "put",
-            path: ["feed", `${json.block_num}:${json.transaction_id}`],
-            data: msg,
-          });
+          daostring = Base64.fromNumber(lastVote) + ',' + valStr
         } else {
-          ops.push({
-            type: "put",
-            path: ["feed", `${json.block_num}:${json.transaction_id}`],
-            data: `@${from}| Invalid BROCA power up`,
-          });
+          daostring = Base64.fromNumber(json.block_num) + ","
         }
-        store.batch(ops, pc);
-      })
-      .catch((e) => {
-        console.log(e);
-      });
+        ops.push({
+          type: "put",
+          path: ["broca", from],
+          data: `${cur_broca + (amount * 1000)},${require("./../helpers").Base64.fromNumber(json.block_num)}`,
+        });
+        ops.push({
+          type: "put",
+          path: ["lbroca", from],
+          data: lbal - amount,
+        });
+        ops.push({
+          type: "put",
+          path: ["bpow", from],
+          data: pbal + amount,
+        });
+        ops.push({
+          type: "put",
+          path: ["bpow", "t"],
+          data: tpow + amount,
+        });
+        const msg = `@${from}| Powered ${parseFloat(
+          json.amount / 1000
+        ).toFixed(3)} BROCA`;
+        if (config.hookurl || config.status)
+          postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
+        ops.push({
+          type: "put",
+          path: ["feed", `${json.block_num}:${json.transaction_id}`],
+          data: msg,
+        });
+      } else {
+        ops.push({
+          type: "put",
+          path: ["feed", `${json.block_num}:${json.transaction_id}`],
+          data: `@${from}| Invalid BROCA power up`,
+        });
+      }
+      store.batch(ops, pc);
+    })
+    .catch((e) => {
+      console.log(e);
+    });
   //});
 };
 
@@ -693,15 +678,15 @@ exports.val_vote = (json, from, active, pc) => {
           daoStringArr = typeof mem[2] == "string" ? mem[2]?.split(',') : "",
           vals = mem[3],
           votes = json.votes || ''
-          votes = votes.replace(/[^0-9A-Za-z+=]/g, '')
-          if(votes.length > 60)votes = votes.substring(0,59)
+        votes = votes.replace(/[^0-9A-Za-z+=]/g, '')
+        if (votes.length > 60) votes = votes.substring(0, 59)
         if (spk_power) {
           vals = Validator.changeVote(vals, daoStringArr[1], votes, spk_power)
           const msg = `@${from}| VV:${json.votes}`;
           ops.push({
             type: "put",
             path: ['spkVote', from],
-            data: `${daoStringArr[0]  || ""},${votes}`,
+            data: `${daoStringArr[0] || ""},${votes}`,
           });
           ops.push({
             type: "put",
