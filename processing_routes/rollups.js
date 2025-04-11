@@ -665,6 +665,7 @@ function process_complete_update(json, from, active) {
                 path: ["stats"],
                 data: stats
               });
+              console.log(broca, bpow, stats, json.block_num, broca_refund)
               ops.push({
                 type: "put",
                 path: ["broca", json.f],
