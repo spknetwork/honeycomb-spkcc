@@ -458,7 +458,6 @@ exports.channel_open = (json, from, active, pc) => {
 // };
 
 exports.channel_update = (json, from, active, pc) => {
-  console.log(json);
 
   // Check if the JSON indicates a chunked update
   if (active && json.fo && json.f && json.id && json.co === from) {
@@ -522,12 +521,13 @@ exports.channel_update = (json, from, active, pc) => {
           let complete_json;
           try {
             complete_json = JSON.parse(complete_data);
+
           } catch (e) {
             console.log("Error parsing complete JSON:", e);
             pc[0](pc[2]);
             return;
           }
-
+          console.log(complete_json, from, active)
           // Process the complete update and clean up
           process_complete_update(complete_json, from, active).then(additional_ops => {
             ops = additional_ops.concat({
