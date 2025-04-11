@@ -527,7 +527,7 @@ exports.channel_update = (json, from, active, pc) => {
             pc[0](pc[2]);
             return;
           }
-          console.log(complete_json, from, active)
+          complete_json.block_num = json.block_num
           // Process the complete update and clean up
           process_complete_update(complete_json, from, active).then(additional_ops => {
             ops = additional_ops.concat({
@@ -591,7 +591,6 @@ function process_complete_update(json, from, active) {
           ops = [],
           err = '';
 
-        console.log({ proffer });
         if (proffer.b !== json.co) err += `Query with incorrect broker. `;
         if (typeof authF !== 'string') err += `Misplaced AuthorityF. `;
         if (typeof authT !== "string") err += `Misplaced AuthorityT. `;
@@ -627,7 +626,6 @@ function process_complete_update(json, from, active) {
             type: "del",
             path: ["chrono", `${proffer.e}`]
           });
-          console.log(ops)
           Promise.all(proms).then(ips => {
             var num = 0;
             for (var i = 0; i < ips.length; i++) {
@@ -665,7 +663,6 @@ function process_complete_update(json, from, active) {
                 path: ["stats"],
                 data: stats
               });
-              console.log(broca, bpow, stats, json.block_num, broca_refund)
               ops.push({
                 type: "put",
                 path: ["broca", json.f],
@@ -676,7 +673,6 @@ function process_complete_update(json, from, active) {
                 path: ["feed", `${json.block_num}:${json.transaction_id}`],
                 data: json.id + " bundled"
               });
-              console.log(ops)
               if (template[`${proffer.c}`].a === 'BEN') {
                 chronAssign(parseInt(json.block_num + template[`${proffer.c}`].t), {
                   block: parseInt(json.block_num + template[`${proffer.c}`].t),
@@ -708,7 +704,6 @@ function process_complete_update(json, from, active) {
                     path: ["cPointers", json.id],
                     data: json.fo
                   });
-                  console.log('ben', ops)
                   resolve(ops);
                 }).catch(reject);
               } else {
@@ -734,7 +729,6 @@ function process_complete_update(json, from, active) {
                     path: ["cPointers", json.id],
                     data: json.fo
                   });
-                  console.log('no-ben', ops)
                   resolve(ops);
                 }).catch(reject);
               }
