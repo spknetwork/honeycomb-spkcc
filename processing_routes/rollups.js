@@ -479,7 +479,7 @@ exports.channel_update = (json, from, active, pc) => {
         let ops = [];
 
         // If no partial update exists, initialize it
-        if (!partial) {
+        if (!partial.total_chunks) {
           partial = {
             total_chunks: total_chunks,
             from: from,
