@@ -1,3 +1,4 @@
+const jsdiff = require('diff')
 const config = require("./../config");
 const { store } = require("./../index");
 const hiveTx = require("hive-tx");
@@ -1115,30 +1116,158 @@ json.id = contract id
 json.m = memo (string only)
 */
 
+// exports.update_metadata = (json, from, active, pc) => {
+//   if (active && json.id && json.m && typeof json.m == "string") {
+//     var Pcontract = getPathObj(["contract", from, json.id])
+//     Promise.all([Pcontract]).then(mem => {
+//       var contract = mem[0],
+//         ops = [],
+//         err = '' //no log no broca?
+//       if (contract.e) {
+//         contract.m = json.m
+//         //replace all non-allows chars with -
+//         contract.m = stringify(contract.m)
+//         ops.push({
+//           type: "put",
+//           path: ["contract", from, json.id],
+//           data: contract,
+//         });
+//         if (config.hookurl || config.status) postToDiscord(`${from} updated metadata for ${json.id}`, `${json.block_num}:${json.transaction_id}`);
+//         if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+//         store.batch(ops, pc);
+//       } else {
+//         pc[0](pc[2]);
+//       }
+//     })
+//   } else {
+//     pc[0](pc[2]);
+//   }
+// }
+
+const jsdiff = require('diff'); // Ensure this library is included in your project
+
 exports.update_metadata = (json, from, active, pc) => {
-  if (active && json.id && json.m && typeof json.m == "string") {
-    var Pcontract = getPathObj(["contract", from, json.id])
-    Promise.all([Pcontract]).then(mem => {
-      var contract = mem[0],
-        ops = [],
-        err = '' //no log no broca?
-      if (contract.e) {
-        contract.m = json.m
-        //replace all non-allows chars with -
-        contract.m = stringify(contract.m)
-        ops.push({
-          type: "put",
-          path: ["contract", from, json.id],
-          data: contract,
-        });
-        if (config.hookurl || config.status) postToDiscord(`${from} updated metadata for ${json.id}`, `${json.block_num}:${json.transaction_id}`);
-        if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-        store.batch(ops, pc);
-      } else {
+  if (active && json.id) {
+    var Pcontract = getPathObj(["contract", from, json.id]);
+    var Ppartial = getPathObj(["partial_metadata_updates", json.id.split(':')[2]]);
+
+    Promise.all([Pcontract, Ppartial]).then(mem => {
+      var contract = mem[0];
+      var partial = mem[1];
+      var ops = [];
+
+      // Check if contract exists and is editable
+      if (!contract || !contract.e) {
+        console.log("Contract not found or not editable");
         pc[0](pc[2]);
+        return;
       }
-    })
+
+      if (json.chunk_data && json.chunk_id && json.total_chunks) {
+        // Handle chunked update for full metadata replacement
+        const chunk_id = json.chunk_id;
+        const total_chunks = json.total_chunks;
+        const chunk_data = json.chunk_data;
+
+        // Initialize partial storage if it doesn't exist
+        if (!partial) {
+          partial = {
+            total_chunks: total_chunks,
+            from: from,
+            chunks: {}
+          };
+        } else {
+          // Verify sender consistency
+          if (partial.from !== from) {
+            console.log("Error: Chunks from different senders");
+            pc[0](pc[2]);
+            return;
+          }
+          if (partial.total_chunks !== total_chunks) {
+            console.log("Error: Inconsistent total_chunks");
+            pc[0](pc[2]);
+            return;
+          }
+        }
+
+        // Store the chunk
+        partial.chunks[chunk_id] = chunk_data;
+
+        // Check if all chunks are received
+        if (Object.keys(partial.chunks).length === total_chunks) {
+          // Assemble complete metadata
+          let complete_metadata = "";
+          for (let i = 1; i <= total_chunks; i++) {
+            if (!partial.chunks[i]) {
+              console.log(`Error: Missing chunk ${i}`);
+              pc[0](pc[2]);
+              return;
+            }
+            complete_metadata += partial.chunks[i];
+          }
+
+          // Update contract metadata
+          contract.m = complete_metadata;
+          // Clean up partial storage
+          ops.push({
+            type: "del",
+            path: ["partial_metadata_updates", json.id.split(':')[2]]
+          });
+          // Notify
+          if (config.hookurl || config.status) {
+            postToDiscord(`${from} updated metadata for ${json.id} via chunks`, `${json.block_num}:${json.transaction_id}`);
+          }
+        } else {
+          // Store partial update and wait for more chunks
+          ops.push({
+            type: "put",
+            path: ["partial_metadata_updates", json.id.split(':')[2]],
+            data: partial
+          });
+        }
+      } else if (json.m && typeof json.m === "string") {
+        // Single-transaction full replacement (original behavior)
+        contract.m = json.m;
+        contract.m = stringify(contract.m); // Preserve existing stringify call
+        if (config.hookurl || config.status) {
+          postToDiscord(`${from} updated metadata for ${json.id}`, `${json.block_num}:${json.transaction_id}`);
+        }
+      } else if (json.diff && typeof json.diff === "string") {
+        // Diff-based update
+        const currentMetadata = contract.m;
+        const newMetadata = jsdiff.applyPatch(currentMetadata, json.diff);
+
+        if (newMetadata === false) {
+          console.log("Error: Failed to apply diff");
+          pc[0](pc[2]);
+          return;
+        }
+
+        contract.m = newMetadata;
+        if (config.hookurl || config.status) {
+          postToDiscord(`${from} updated metadata for ${json.id} via diff`, `${json.block_num}:${json.transaction_id}`);
+        }
+      } else {
+        console.log("Invalid update request");
+        pc[0](pc[2]);
+        return;
+      }
+
+      // Save the updated contract
+      ops.push({
+        type: "put",
+        path: ["contract", from, json.id],
+        data: contract
+      });
+
+      if (process.env.npm_lifecycle_event === "test") pc[2] = ops;
+      store.batch(ops, pc);
+    }).catch(e => {
+      console.log("Error:", e);
+      pc[0](pc[2]);
+    });
   } else {
+    console.log("Unauthorized or missing ID");
     pc[0](pc[2]);
   }
-}
+};
