@@ -9,6 +9,7 @@ const {
   remove,
   contract_close,
   update_metadata,
+  delete_files,
 } = require("./rollups");
 const { spk_send, send, broca_send, shares_claim } = require('./send')
 const {
@@ -20,7 +21,7 @@ const {
   val_add,
   val_reg,
   poa,
-  PoA
+  PoA,
 } = require("./validators");
 const { gov_up, gov_down } = require('./gov')
 const { power_up, power_down, power_grant, spk_vote, val_vote, spk_up, spk_down, broca_up, broca_down } = require('./power')
@@ -146,5 +147,6 @@ module.exports = {
   register_service_type,
   validator_burn,
   poa,
+  delete_files,
   PoA
 };

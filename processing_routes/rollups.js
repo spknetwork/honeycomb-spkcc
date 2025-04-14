@@ -1144,130 +1144,361 @@ json.m = memo (string only)
 //   }
 // }
 
-const jsdiff = require('diff'); // Ensure this library is included in your project
-
 exports.update_metadata = (json, from, active, pc) => {
-  if (active && json.id) {
-    var Pcontract = getPathObj(["contract", from, json.id]);
-    var Ppartial = getPathObj(["partial_metadata_updates", json.id.split(':')[2]]);
+  if (!active) {
+    console.log("Transaction not active");
+    pc[0](pc[2]);
+    return;
+  }
 
-    Promise.all([Pcontract, Ppartial]).then(mem => {
-      var contract = mem[0];
-      var partial = mem[1];
-      var ops = [];
+  const ops = [];
+  const errors = [];
 
-      // Check if contract exists and is editable
-      if (!contract || !contract.e) {
-        console.log("Contract not found or not editable");
+  let updatePromise;
+
+  if (json.id) {
+    // Single contract update (backward compatible)
+    updatePromise = handleSingleUpdate(json, from, ops, errors);
+  } else if (json.updates && typeof json.updates === "object") {
+    // Multiple contract updates
+    updatePromise = handleMultipleUpdates(json.updates, from, ops, errors);
+  } else {
+    console.log("Invalid update request: missing id or updates");
+    pc[0](pc[2]);
+    return;
+  }
+
+  // Wait for all updates to complete, then batch operations
+  updatePromise
+    .then(() => {
+      // Log results to the feed
+      if (errors.length > 0) {
+        ops.push({
+          type: "put",
+          path: ["feed", `${json.block_num}:${json.transaction_id}`],
+          data: `Errors: ${errors.join("; ")}`
+        });
+      } else {
+        ops.push({
+          type: "put",
+          path: ["feed", `${json.block_num}:${json.transaction_id}`],
+          data: `Updated metadata for contracts: ${Object.keys(json.updates || { [json.id]: true }).join(", ")}`
+        });
+      }
+
+      // For testing, expose ops; then batch
+      if (process.env.npm_lifecycle_event === "test") pc[2] = ops;
+      store.batch(ops, pc);
+    })
+    .catch((e) => {
+      console.log("Error in update_metadata:", e);
+      pc[0](pc[2]);
+    });
+};
+
+exports.delete_files = (json, from, pc) => {
+  // Validate input: must be an array of CIDs
+  if (!Array.isArray(json.cids)) {
+    pc[0](pc[2]); // Early exit with error
+    return;
+  }
+  const cids = json.cids;
+
+  // Fetch IPFS entries for each CID
+  const Pipfs = cids.map(cid => getPathObj(["IPFS", cid]));
+
+  Promise.all(Pipfs).then(ipfsEntries => {
+    // Parse IPFS entries to get contract info
+    const contractInfos = ipfsEntries.map((entry, i) => {
+      if (entry && typeof entry === "string") {
+        const [owner, contractId] = entry.split(",");
+        return { cid: cids[i], owner, contractId };
+      }
+      return null;
+    }).filter(Boolean);
+
+    // Get unique contract IDs and fetch contracts and stats
+    const uniqueContracts = [...new Set(contractInfos.map(info => info.contractId))];
+    const Pcontracts = uniqueContracts.map(id => getPathObj(["contract", from, id]));
+    const Pstats = getPathObj(["stats"]);
+
+    Promise.all([...Pcontracts, Pstats]).then(mem => {
+      const contracts = mem.slice(0, uniqueContracts.length);
+      const stats = mem[mem.length - 1];
+      const ops = [];
+      const errors = [];
+      const deletedFilesByContract = {};
+
+      // Process each contract
+      contracts.forEach(contract => {
+        // Verify ownership
+        if (contract.t !== from) {
+          errors.push(`Not authorized to delete from contract ${contract.i}`);
+          return;
+        }
+
+        let totalDeletedBytes = 0;
+        const deletedCids = [];
+
+        // Delete specified files and track bytes
+        for (const cid of cids) {
+          if (contract.df[cid]) {
+            const bytes = contract.df[cid];
+            totalDeletedBytes += bytes;
+            delete contract.df[cid];
+            deletedCids.push(cid);
+            // Delete IPFS reference
+            ops.push({ type: "del", path: ["IPFS", cid] });
+          }
+        }
+
+        if (deletedCids.length > 0) {
+          // Update contract total bytes
+          const originalTotalBytes = contract.u;
+          contract.u -= totalDeletedBytes;
+
+          // Update global stats
+          stats.total_bytes -= totalDeletedBytes;
+          stats.total_files -= deletedCids.length;
+
+          // Track for refund calculation
+          deletedFilesByContract[contract.i] = { contract, totalDeletedBytes, originalTotalBytes };
+        }
+      });
+
+      // Calculate and process refunds
+      calculateRefunds(deletedFilesByContract, json.block_num, from).then(refundOps => {
+        ops.push(...refundOps);
+
+        // Update or delete contracts
+        for (const contractId in deletedFilesByContract) {
+          const { contract } = deletedFilesByContract[contractId];
+          if (Object.keys(contract.df).length > 0) {
+            ops.push({ type: "put", path: ["contract", from, contractId], data: contract });
+          } else {
+            ops.push({ type: "del", path: ["contract", from, contractId] });
+          }
+        }
+
+        // Update stats
+        ops.push({ type: "put", path: ["stats"], data: stats });
+
+        // Log result
+        ops.push({
+          type: "put",
+          path: ["feed", `${json.block_num}:${json.transaction_id}`],
+          data: errors.length > 0 ? `Errors: ${errors.join("; ")}` : `Deleted files: ${cids.join(", ")}`
+        });
+
+        if (process.env.npm_lifecycle_event === "test") pc[2] = ops;
+        store.batch(ops, pc);
+      }).catch(e => {
+        console.log("Error calculating refunds:", e);
         pc[0](pc[2]);
+      });
+    }).catch(e => {
+      console.log("Error fetching contracts:", e);
+      pc[0](pc[2]);
+    });
+  }).catch(e => {
+    console.log("Error fetching IPFS entries:", e);
+    pc[0](pc[2]);
+  });
+};
+
+// Helper function to calculate refunds
+function calculateRefunds(deletedFilesByContract, block_num, from) {
+  return new Promise(resolve => {
+    const ops = [];
+    const accountPromises = [];
+
+    for (const contractId in deletedFilesByContract) {
+      const { contract, totalDeletedBytes, originalTotalBytes } = deletedFilesByContract[contractId];
+      const proportionDeleted = totalDeletedBytes / originalTotalBytes;
+
+      // Process extensions
+      const extensions = contract.ex ? contract.ex.split(",") : [];
+      const refundsByAccount = {};
+
+      extensions.forEach(ext => {
+        const [account, amount, period] = ext.split(":");
+        const [start, end] = period.split("-").map(Number);
+        if (end > block_num) {
+          const remainingBlocks = end - Math.max(start, block_num);
+          const totalBlocks = end - start;
+          const refundAmount = parseInt(amount * proportionDeleted * (remainingBlocks / totalBlocks));
+          if (refundAmount > 0) {
+            refundsByAccount[account] = (refundsByAccount[account] || 0) + refundAmount;
+          }
+        }
+      });
+
+      // Generate refund operations
+      for (const account in refundsByAccount) {
+        const refundAmount = refundsByAccount[account];
+        accountPromises.push(
+          Promise.all([
+            getPathObj(["broca", account]),
+            getPathObj(["bpow", account]),
+            getPathObj(["stats"])
+          ]).then(([broca, bpow, stats]) => {
+            const updatedBroca = broca_calc(broca, bpow, stats, block_num, refundAmount);
+            ops.push({
+              type: "put",
+              path: ["broca", account],
+              data: updatedBroca
+            });
+          })
+        );
+      }
+    }
+
+    // Wait for all refunds to be calculated
+    Promise.all(accountPromises).then(() => {
+      resolve(ops);
+    });
+  });
+}
+
+function handleSingleUpdate(json, from, ops, errors) {
+  return Promise.all([
+    getPathObj(["contract", from, json.id]),
+    getPathObj(["partial_metadata_updates", json.id.split(':')[2]])
+  ])
+    .then(([contract, partial]) => {
+      // Validation
+      if (!contract || !contract.e) {
+        errors.push(`Contract ${json.id} not found or not editable`);
+        return;
+      }
+      if (from !== contract.t) {
+        errors.push(`Unauthorized edit attempt for contract ${json.id}`);
         return;
       }
 
       if (json.chunk_data && json.chunk_id && json.total_chunks) {
-        // Handle chunked update for full metadata replacement
+        // Handle chunked updates
         const chunk_id = json.chunk_id;
         const total_chunks = json.total_chunks;
         const chunk_data = json.chunk_data;
 
-        // Initialize partial storage if it doesn't exist
-        if (!partial) {
-          partial = {
-            total_chunks: total_chunks,
-            from: from,
-            chunks: {}
-          };
-        } else {
-          // Verify sender consistency
-          if (partial.from !== from) {
-            console.log("Error: Chunks from different senders");
-            pc[0](pc[2]);
-            return;
-          }
-          if (partial.total_chunks !== total_chunks) {
-            console.log("Error: Inconsistent total_chunks");
-            pc[0](pc[2]);
-            return;
-          }
+        if (!partial) partial = { total_chunks, from, chunks: {} };
+        else if (partial.from !== from || partial.total_chunks !== total_chunks) {
+          errors.push(`Chunk mismatch for contract ${json.id}`);
+          return;
         }
 
-        // Store the chunk
         partial.chunks[chunk_id] = chunk_data;
 
-        // Check if all chunks are received
         if (Object.keys(partial.chunks).length === total_chunks) {
-          // Assemble complete metadata
           let complete_metadata = "";
           for (let i = 1; i <= total_chunks; i++) {
             if (!partial.chunks[i]) {
-              console.log(`Error: Missing chunk ${i}`);
-              pc[0](pc[2]);
+              errors.push(`Missing chunk ${i} for contract ${json.id}`);
               return;
             }
             complete_metadata += partial.chunks[i];
           }
-
-          // Update contract metadata
           contract.m = complete_metadata;
-          // Clean up partial storage
           ops.push({
             type: "del",
             path: ["partial_metadata_updates", json.id.split(':')[2]]
           });
-          // Notify
           if (config.hookurl || config.status) {
             postToDiscord(`${from} updated metadata for ${json.id} via chunks`, `${json.block_num}:${json.transaction_id}`);
           }
         } else {
-          // Store partial update and wait for more chunks
           ops.push({
             type: "put",
             path: ["partial_metadata_updates", json.id.split(':')[2]],
             data: partial
           });
+          return;
         }
       } else if (json.m && typeof json.m === "string") {
-        // Single-transaction full replacement (original behavior)
+        // Full metadata replacement
         contract.m = json.m;
-        contract.m = stringify(contract.m); // Preserve existing stringify call
         if (config.hookurl || config.status) {
           postToDiscord(`${from} updated metadata for ${json.id}`, `${json.block_num}:${json.transaction_id}`);
         }
       } else if (json.diff && typeof json.diff === "string") {
         // Diff-based update
-        const currentMetadata = contract.m;
-        const newMetadata = jsdiff.applyPatch(currentMetadata, json.diff);
-
+        const newMetadata = jsdiff.applyPatch(contract.m, json.diff);
         if (newMetadata === false) {
-          console.log("Error: Failed to apply diff");
-          pc[0](pc[2]);
+          errors.push(`Failed to apply diff for contract ${json.id}`);
           return;
         }
-
         contract.m = newMetadata;
         if (config.hookurl || config.status) {
           postToDiscord(`${from} updated metadata for ${json.id} via diff`, `${json.block_num}:${json.transaction_id}`);
         }
       } else {
-        console.log("Invalid update request");
-        pc[0](pc[2]);
+        errors.push(`Invalid update request for contract ${json.id}`);
         return;
       }
 
-      // Save the updated contract
+      // Add the contract update operation to ops
       ops.push({
         type: "put",
         path: ["contract", from, json.id],
         data: contract
       });
-
-      if (process.env.npm_lifecycle_event === "test") pc[2] = ops;
-      store.batch(ops, pc);
-    }).catch(e => {
-      console.log("Error:", e);
-      pc[0](pc[2]);
+    })
+    .catch((e) => {
+      console.log("Error in handleSingleUpdate:", e);
+      errors.push(`Error processing contract ${json.id}`);
     });
-  } else {
-    console.log("Unauthorized or missing ID");
-    pc[0](pc[2]);
-  }
-};
+}
+
+function handleMultipleUpdates(updates, from, ops, errors) {
+  const contractIds = Object.keys(updates);
+  const contractPaths = contractIds.map((id) => getPathObj(["contract", from, id]));
+
+  return Promise.all(contractPaths)
+    .then((contracts) => {
+      contracts.forEach((contract, i) => {
+        const contractId = contractIds[i];
+        const update = updates[contractId];
+
+        if (!contract || !contract.e) {
+          errors.push(`Contract ${contractId} not found or not editable`);
+          return;
+        }
+        if (from !== contract.t) {
+          errors.push(`Unauthorized edit attempt for contract ${contractId}`);
+          return;
+        }
+
+        if (update.m && typeof update.m === "string") {
+          contract.m = update.m;
+          if (config.hookurl || config.status) {
+            postToDiscord(`${from} updated metadata for ${contractId}`, `${json.block_num}:${json.transaction_id}`);
+          }
+        } else if (update.diff && typeof update.diff === "string") {
+          const newMetadata = jsdiff.applyPatch(contract.m, update.diff);
+          if (newMetadata === false) {
+            errors.push(`Failed to apply diff for contract ${contractId}`);
+            return;
+          }
+          contract.m = newMetadata;
+          if (config.hookurl || config.status) {
+            postToDiscord(`${from} updated metadata for ${contractId} via diff`, `${json.block_num}:${json.transaction_id}`);
+          }
+        } else {
+          errors.push(`Invalid update for contract ${contractId}`);
+          return;
+        }
+
+        // Add the contract update operation to ops
+        ops.push({
+          type: "put",
+          path: ["contract", from, contractId],
+          data: contract
+        });
+      });
+    })
+    .catch((e) => {
+      console.log("Error in handleMultipleUpdates:", e);
+      errors.push("Error processing multiple updates");
+    });
+}
