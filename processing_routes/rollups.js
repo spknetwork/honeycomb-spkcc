@@ -1240,6 +1240,10 @@ exports.delete_files = (json, from, pc) => {
         let totalDeletedBytes = 0;
         const deletedCids = [];
 
+        const sortedCids = Object.keys(contract.df).sort();
+        const metadataFields = contract.m.split(',');
+        const expectedFieldCount = 4 * sortedCids.length + 1;
+
         // Delete specified files and track bytes
         for (const cid of cids) {
           if (contract.df[cid]) {
@@ -1256,6 +1260,25 @@ exports.delete_files = (json, from, pc) => {
           // Update contract total bytes
           const originalTotalBytes = contract.u;
           contract.u -= totalDeletedBytes;
+          // Update contract Metadata
+          if (metadataFields.length === expectedFieldCount) {
+
+            const indicesToRemove = [];
+            for (const cid of deletedCids) {
+              const index = sortedCids.indexOf(cid);
+              if (index !== -1) {
+                const startIndex = 1 + index * 4;
+                for (let i = 0; i < 4; i++) {
+                  indicesToRemove.push(startIndex + i);
+                }
+              }
+            }
+            indicesToRemove.sort((a, b) => b - a);
+            for (const index of indicesToRemove) {
+              metadataFields.splice(index, 1);
+            }
+            contract.m = metadataFields.join(',');
+          }
 
           // Update global stats
           stats.total_bytes -= totalDeletedBytes;
