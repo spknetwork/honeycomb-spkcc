@@ -1228,7 +1228,141 @@ exports.update_metadata = (json, from, active, pc) => {
     });
 };
 
-exports.delete_files = (json, from, active, pc) => { //NOT FOR DIRECT USE, Only call from extend
+exports.delete_files = (json, from, active, pc) => {
+  // Validate input: must be an array of CIDs
+  if (!Array.isArray(json.cids)) {
+    pc[0](pc[2]); // Early exit with error
+    return;
+  }
+  const cids = json.cids;
+  let contractObject = {}
+  // Fetch IPFS entries for each CID
+  const Pipfs = cids.map(cid => getPathObj(["IPFS", cid]));
+
+  Promise.all(Pipfs).then(ipfsEntries => {
+    // Parse IPFS entries to get contract info
+    const contractInfos = ipfsEntries.map((entry, i) => {
+      if (entry && typeof entry === "string") {
+        const [owner, contractId] = entry.split(",");
+        return { cid: cids[i], owner, contractId };
+      }
+      return null;
+    }).filter(Boolean);
+
+    // Get unique contract IDs and fetch contracts and stats
+    const uniqueContracts = [...new Set(contractInfos.map(info => info.contractId))];
+    const Pcontracts = uniqueContracts.map(id => getPathObj(["contract", from, id]));
+    const Pstats = getPathObj(["stats"]);
+
+    Promise.all([...Pcontracts, Pstats]).then(mem => {
+      const contracts = mem.slice(0, uniqueContracts.length);
+      const stats = mem[mem.length - 1];
+      const ops = [];
+      const errors = [];
+      const deletedFilesByContract = {};
+
+      // Process each contract
+      contracts.forEach(contract => {
+        // Verify ownership
+        if (contract.t !== from) {
+          errors.push(`Not authorized to delete from contract ${contract.i}`);
+          return;
+        }
+
+        let totalDeletedBytes = 0;
+        const deletedCids = [];
+
+        const sortedCids = Object.keys(contract.df).sort();
+        const metadataFields = contract.m.split(',');
+        const expectedFieldCount = 4 * sortedCids.length + 1;
+
+        // Delete specified files and track bytes
+        for (const cid of cids) {
+          if (contract.df[cid]) {
+            const bytes = contract.df[cid];
+            totalDeletedBytes += bytes;
+            delete contract.df[cid];
+            deletedCids.push(cid);
+            // Delete IPFS reference
+            ops.push({ type: "del", path: ["IPFS", cid] });
+          }
+        }
+
+        if (deletedCids.length > 0) {
+          // Update contract total bytes
+          const originalTotalBytes = contract.u;
+          contract.u -= totalDeletedBytes;
+          // Update contract Metadata
+          if (metadataFields.length === expectedFieldCount) {
+
+            const indicesToRemove = [];
+            for (const cid of deletedCids) {
+              const index = sortedCids.indexOf(cid);
+              if (index !== -1) {
+                const startIndex = 1 + index * 4;
+                for (let i = 0; i < 4; i++) {
+                  indicesToRemove.push(startIndex + i);
+                }
+              }
+            }
+            indicesToRemove.sort((a, b) => b - a);
+            for (const index of indicesToRemove) {
+              metadataFields.splice(index, 1);
+            }
+            contract.m = metadataFields.join(',');
+          }
+
+          // Update global stats
+          stats.total_bytes -= totalDeletedBytes;
+          stats.total_files -= deletedCids.length;
+
+          // Track for refund calculation
+          deletedFilesByContract[contract.i] = { contract, totalDeletedBytes, originalTotalBytes };
+        }
+        contractObject[contract.i] = contract
+      });
+
+      // Calculate and process refunds
+      calculateRefunds(deletedFilesByContract, json.block_num, from).then(refundOps => {
+        ops.push(...refundOps);
+
+        // Update or delete contracts
+        for (const contractId in deletedFilesByContract) {
+          const { contract } = deletedFilesByContract[contractId];
+          if (Object.keys(contract.df).length > 0) {
+            ops.push({ type: "put", path: ["contract", from, contractId], data: contract });
+          } else {
+            ops.push({ type: "del", path: ["contract", from, contractId] });
+          }
+        }
+
+        // Update stats
+        ops.push({ type: "put", path: ["stats"], data: stats });
+
+        // Log result
+        ops.push({
+          type: "put",
+          path: ["feed", `${json.block_num}:${json.transaction_id}`],
+          data: errors.length > 0 ? `Errors: ${errors.join("; ")}` : `Deleted files: ${cids.join(", ")}`
+        });
+
+        if (process.env.npm_lifecycle_event === "test") pc[2] = ops;
+        store.batch(ops, pc);
+      }).catch(e => {
+        console.log("Error calculating refunds:", e);
+        pc[0](pc[2]);
+      });
+    }).catch(e => {
+      console.log("Error fetching contracts:", e);
+      pc[0](pc[2]);
+    });
+  }).catch(e => {
+    console.log("Error fetching IPFS entries:", e);
+    pc[0](pc[2]);
+  });
+};
+
+exports.delete_files_internal = (json, from, active, pc) => { //NOT FOR DIRECT USE, Only call from extend
   // Validate input: must be an array of CIDs
   if (!Array.isArray(json.cids)) {
     pc[0](pc[2]); // Early exit with error
