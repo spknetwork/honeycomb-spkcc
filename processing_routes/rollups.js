@@ -603,7 +603,20 @@ function process_complete_update(json, from, active) {
           var total = 0;
           proffer.c++;
           proffer.n = { "1": from };
-          if (json.m && typeof json.m === 'string') {
+          function isValidMetadata(metadataString) {
+            const metadataRegex = /^(?:(?:[0-9a-zA-Z+_.-]+)?;)?(?:\|[0-9a-zA-Z+_.-]{1,47})?(?:,(?:[0-9a-zA-Z+_.-]+,[A-Za-z0-9]{1,4}(?:\.[A-Za-z0-9])?,[^,]*,[^,]*,[^,]*)?)*$/;
+            return metadataRegex.test(metadataString);
+          }
+          var cids = json.c.split(',');
+          proffer.m = stringify("1")
+          const metadata_size_verification = (cids.length * 4 + 1)
+          let metadata_size = 0
+          try {
+            metadata_size = json.m.split(',').length
+          } catch (e) {
+            console.log("Error parsing metadata:", e);
+          }
+          if (json.m && typeof json.m === 'string' && isValidMetadata(json.m) && metadata_size == metadata_size_verification) {
             proffer.m = json.m;
             proffer.m = stringify(proffer.m);
           }
@@ -698,13 +711,13 @@ function process_complete_update(json, from, active) {
                   ops.push({
                     type: "put",
                     path: ["contract", json.fo, json.id],
-                    data: proffer
-                  });
+                    data: proffer,
+                  })
                   ops.push({
                     type: "put",
                     path: ["cPointers", json.id],
                     data: json.fo
-                  });
+                  })
                   resolve(ops);
                 }).catch(reject);
               } else {
@@ -723,13 +736,13 @@ function process_complete_update(json, from, active) {
                   ops.push({
                     type: "put",
                     path: ["contract", json.fo, json.id],
-                    data: proffer
-                  });
+                    data: proffer,
+                  })
                   ops.push({
                     type: "put",
                     path: ["cPointers", json.id],
                     data: json.fo
-                  });
+                  })
                   resolve(ops);
                 }).catch(reject);
               }
@@ -772,14 +785,85 @@ exports.extend = (json, from, active, pc) => {
       if (json.broca <= broca && contract.c == 3) {
         broca = broca - json.broca
         const exp_block = parseInt(contract.e.split(':')[0])
-        if (json.from == contract.t && parseInt(json.power) > 0) {
-          const broca_per_old_term = parseInt((contract.u * contract.p) / (stats.channel_bytes * 3)) || 1
-          contract.p++
-          const payUp = exp_block - json.block_num
-          const broca_per_new_term = parseInt((contract.u * contract.p) / (stats.channel_bytes * 3)) || 1
-          const debt = parseInt((broca_per_new_term - broca_per_old_term) * payUp)
-          if (debt > json.broca) {
-            const msg = `@${from} | Failed to increase decentralizition of ${json.id} due to lack of BROCA`
+        let cidsSorted = Object.keys(contract.df).sort()
+        let cidsMetaData = []
+        let cidsFlaggedForDeletion = []
+        try {
+          cidsMetaData = contract.m.split(',').splice(1)
+        } catch (e) {
+          console.log("Error parsing metadata:", e);
+        }
+        for (var i = 0; i < cidsMetaData.length; i++) {
+          if (cidsMetaData[(i * 4) + 1].split('.').length > 1 && cidsMetaData[(i * 4) + 1].split('.')[1] == "8") {
+            cidsFlaggedForDeletion.push(cidsSorted[i])
+          }
+        }
+        let deletePromise = new Promise((resolve, reject) => {
+          if (cidsFlaggedForDeletion.length) {
+            exports.delete_files({ cids: cidsFlaggedForDeletion, block_num: json.block_num, transaction_id: json.transaction_id }, contract.t, true, [resolve, reject, 0])
+          } else {
+            resolve([])
+          }
+        })
+        deletePromise.then(contracts => {
+          contract = contracts[contract.i]
+          if (json.from == contract.t && parseInt(json.power) > 0) {
+            const broca_per_old_term = parseInt((contract.u * contract.p) / (stats.channel_bytes * 3)) || 1
+            contract.p++
+            const payUp = exp_block - json.block_num
+            const broca_per_new_term = parseInt((contract.u * contract.p) / (stats.channel_bytes * 3)) || 1
+            const debt = parseInt((broca_per_new_term - broca_per_old_term) * payUp)
+            if (debt > json.broca) {
+              const msg = `@${from} | Failed to increase decentralizition of ${json.id} due to lack of BROCA`
+              ops.push({
+                type: "put",
+                path: ["feed", `${json.block_num}:${json.transaction_id}`],
+                data: msg,
+              });
+              if (config.hookurl || config.status)
+                postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
+              if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+              console.log(ops)
+              store.batch(ops, pc);
+            } else {
+              json.broca -= debt
+            }
+          }
+
+          // (28800 * 30) // term
+          // remaining_time = exp_block - json.block_num
+          const broca_per_term = parseInt((contract.u * contract.p) / (stats.channel_bytes * 3)) || 1
+          const blocks_additional = parseInt((json.broca / broca_per_term) * 28800 * 30)
+          chronAssign(parseInt(exp_block + blocks_additional), {
+            block: parseInt(exp_block + blocks_additional),
+            op: 'contract_close',
+            fo: json.file_owner,
+            id: json.id
+          }).then(exe_path => {
+            ops.push({
+              type: 'del',
+              path: ['chrono', contract.e]
+            })
+            contract.ex = contract.ex ? contract.ex + `,${from}:${json.broca}:${exp_block}-${exp_block + blocks_additional}` : `${from}:${contract.r}:${exp_block}-${exp_block + blocks_additional}`
+            // clean extentions
+            var extentions = contract.ex.split(',')
+            var valid_exts = []
+            for (var i = 0; i < extentions.length; i++) {
+              if (extentions[i].split('-')[1] > json.block_num) valid_exts.push(extentions[i])
+            }
+            contract.ex = valid_exts.join(',')
+            contract.e = exe_path
+            ops.push({
+              type: 'put',
+              path: ["contract", json.file_owner, json.id],
+              data: contract
+            })
+            ops.push({
+              type: 'put',
+              path: ["broca", from],
+              data: `${broca},${brocaString.split(',')[1]}`
+            })
+            const msg = `@${from} | Extended ${json.id} by ${blocks_additional} blocks for ${json.broca} BROCA`
             ops.push({
               type: "put",
               path: ["feed", `${json.block_num}:${json.transaction_id}`],
@@ -790,55 +874,9 @@ exports.extend = (json, from, active, pc) => {
             if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
             console.log(ops)
             store.batch(ops, pc);
-          } else {
-            json.broca -= debt
-          }
-        }
+          })
 
-        // (28800 * 30) // term
-        // remaining_time = exp_block - json.block_num
-        const broca_per_term = parseInt((contract.u * contract.p) / (stats.channel_bytes * 3)) || 1
-        const blocks_additional = parseInt((json.broca / broca_per_term) * 28800 * 30)
-        chronAssign(parseInt(exp_block + blocks_additional), {
-          block: parseInt(exp_block + blocks_additional),
-          op: 'contract_close',
-          fo: json.file_owner,
-          id: json.id
-        }).then(exe_path => {
-          ops.push({
-            type: 'del',
-            path: ['chrono', contract.e]
-          })
-          contract.ex = contract.ex ? contract.ex + `,${from}:${json.broca}:${exp_block}-${exp_block + blocks_additional}` : `${from}:${contract.r}:${exp_block}-${exp_block + blocks_additional}`
-          // clean extentions
-          var extentions = contract.ex.split(',')
-          var valid_exts = []
-          for (var i = 0; i < extentions.length; i++) {
-            if (extentions[i].split('-')[1] > json.block_num) valid_exts.push(extentions[i])
-          }
-          contract.ex = valid_exts.join(',')
-          contract.e = exe_path
-          ops.push({
-            type: 'put',
-            path: ["contract", json.file_owner, json.id],
-            data: contract
-          })
-          ops.push({
-            type: 'put',
-            path: ["broca", from],
-            data: `${broca},${brocaString.split(',')[1]}`
-          })
-          const msg = `@${from} | Extended ${json.id} by ${blocks_additional} blocks for ${json.broca} BROCA`
-          ops.push({
-            type: "put",
-            path: ["feed", `${json.block_num}:${json.transaction_id}`],
-            data: msg,
-          });
-          if (config.hookurl || config.status)
-            postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
-          if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-          console.log(ops)
-          store.batch(ops, pc);
+
         })
       } else {
         console.log('failOnContract', json.broca <= broca, contract.c == 3)
@@ -1145,12 +1183,6 @@ json.m = memo (string only)
 // }
 
 exports.update_metadata = (json, from, active, pc) => {
-  if (!active) {
-    console.log("Transaction not active");
-    pc[0](pc[2]);
-    return;
-  }
-
   const ops = [];
   const errors = [];
 
@@ -1196,14 +1228,14 @@ exports.update_metadata = (json, from, active, pc) => {
     });
 };
 
-exports.delete_files = (json, from, pc) => {
+exports.delete_files = (json, from, active, pc) => { //NOT FOR DIRECT USE, Only call from extend
   // Validate input: must be an array of CIDs
   if (!Array.isArray(json.cids)) {
     pc[0](pc[2]); // Early exit with error
     return;
   }
   const cids = json.cids;
-
+  let contractObject = {}
   // Fetch IPFS entries for each CID
   const Pipfs = cids.map(cid => getPathObj(["IPFS", cid]));
 
@@ -1287,6 +1319,7 @@ exports.delete_files = (json, from, pc) => {
           // Track for refund calculation
           deletedFilesByContract[contract.i] = { contract, totalDeletedBytes, originalTotalBytes };
         }
+        contractObject[contract.i] = contract
       });
 
       // Calculate and process refunds
@@ -1314,6 +1347,7 @@ exports.delete_files = (json, from, pc) => {
         });
 
         if (process.env.npm_lifecycle_event === "test") pc[2] = ops;
+        else pc[2] = contractObject
         store.batch(ops, pc);
       }).catch(e => {
         console.log("Error calculating refunds:", e);
@@ -1398,7 +1432,7 @@ function handleSingleUpdate(json, from, ops, errors) {
         errors.push(`Unauthorized edit attempt for contract ${json.id}`);
         return;
       }
-
+      const metadata_size_verification = (Object.keys(contract.df).length * 4 + 1)
       if (json.chunk_data && json.chunk_id && json.total_chunks) {
         // Handle chunked updates
         const chunk_id = json.chunk_id;
@@ -1422,6 +1456,16 @@ function handleSingleUpdate(json, from, ops, errors) {
             }
             complete_metadata += partial.chunks[i];
           }
+          // Validate complete metadata
+          if (!isValidMetadata(complete_metadata) || complete_metadata.split(',').length !== metadata_size_verification) {
+            errors.push(`Invalid metadata format or size for contract ${json.id}`);
+            // Clean up partial update entry if validation fails on completion
+            ops.push({
+              type: "del",
+              path: ["partial_metadata_updates", json.id.split(':')[2]]
+            });
+            return;
+          }
           contract.m = complete_metadata;
           ops.push({
             type: "del",
@@ -1440,6 +1484,11 @@ function handleSingleUpdate(json, from, ops, errors) {
         }
       } else if (json.m && typeof json.m === "string") {
         // Full metadata replacement
+        // Validate new metadata
+        if (!isValidMetadata(json.m) || json.m.split(',').length !== metadata_size_verification) {
+          errors.push(`Invalid metadata format or size for contract ${json.id}`);
+          return;
+        }
         contract.m = json.m;
         if (config.hookurl || config.status) {
           postToDiscord(`${from} updated metadata for ${json.id}`, `${json.block_num}:${json.transaction_id}`);
@@ -1449,6 +1498,11 @@ function handleSingleUpdate(json, from, ops, errors) {
         const newMetadata = jsdiff.applyPatch(contract.m, json.diff);
         if (newMetadata === false) {
           errors.push(`Failed to apply diff for contract ${json.id}`);
+          return;
+        }
+        // Validate metadata after applying patch
+        if (!isValidMetadata(newMetadata) || newMetadata.split(',').length !== metadata_size_verification) {
+          errors.push(`Invalid metadata format or size after diff for contract ${json.id}`);
           return;
         }
         contract.m = newMetadata;
@@ -1491,14 +1545,23 @@ function handleMultipleUpdates(updates, from, ops, errors) {
           errors.push(`Unauthorized edit attempt for contract ${contractId}`);
           return;
         }
-
+        const metadata_size_verification = (Object.keys(contract.df).length * 4 + 1)
         if (update.m && typeof update.m === "string") {
+          // Validate new metadata
+          if (!isValidMetadata(update.m) || update.m.split(',').length !== metadata_size_verification) {
+            errors.push(`Invalid metadata format or size for contract ${contractId}`);
+            return; // Use return instead of continue to align with single update logic
+          }
           contract.m = update.m;
           if (config.hookurl || config.status) {
             postToDiscord(`${from} updated metadata for ${contractId}`, `${json.block_num}:${json.transaction_id}`);
           }
         } else if (update.diff && typeof update.diff === "string") {
           const newMetadata = jsdiff.applyPatch(contract.m, update.diff);
+          if (!isValidMetadata(newMetadata) || newMetadata.split(',').length !== metadata_size_verification) {
+            errors.push(`Invalid metadata format or size for contract ${contractId}`);
+            return; // Use return instead of continue to align with single update logic
+          }
           if (newMetadata === false) {
             errors.push(`Failed to apply diff for contract ${contractId}`);
             return;
@@ -1524,4 +1587,12 @@ function handleMultipleUpdates(updates, from, ops, errors) {
       console.log("Error in handleMultipleUpdates:", e);
       errors.push("Error processing multiple updates");
     });
+}
+
+// Function to validate metadata format
+function isValidMetadata(metadataString) {
+  // Regex allowing optional first field with semicolon, optional pipe field, and required comma-separated fields with specific structure
+  const metadataRegex = /^(?:(?:[0-9a-zA-Z+_.\-]+)?;)?(?:\|[0-9a-zA-Z+_.\-]{1,47})?(?:,(?:[0-9a-zA-Z+_.\-]+,[A-Za-z0-9]{1,4}(?:\.[A-Za-z0-9])?,[^,]*,[^,]*,[^,]*)?)*$/;
+  // Ensure the string is not empty and matches the pattern
+  return typeof metadataString === 'string' && metadataString.length > 0 && metadataRegex.test(metadataString);
 }
