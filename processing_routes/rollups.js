@@ -807,7 +807,7 @@ exports.extend = (json, from, active, pc) => {
         })
         deletePromise.then(contracts => {
           contract = contracts[contract.i]
-          if (json.from == contract.t && parseInt(json.power) > 0) {
+          if (from == contract.t && parseInt(json.power) > 0) {
             const broca_per_old_term = parseInt((contract.u * contract.p) / (stats.channel_bytes * 3)) || 1
             contract.p++
             const payUp = exp_block - json.block_num
