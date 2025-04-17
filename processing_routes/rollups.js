@@ -768,7 +768,7 @@ function process_complete_update(json, from, active) {
 
 exports.extend = (json, from, active, pc) => {
   console.log('extend', active, json.broca, json.id, json.file_owner)
-  if (active && json.broca && json.id && json.file_owner) {
+  if (json.broca && json.id && json.file_owner) {
     var Pbroca = getPathObj(["broca", from]);
     var Ppow = getPathObj(["bpow", from])
     var Pstats = getPathObj(["stats"])
@@ -794,7 +794,7 @@ exports.extend = (json, from, active, pc) => {
           console.log("Error parsing metadata:", e);
         }
         for (var i = 0; i < cidsMetaData.length; i++) {
-          if (cidsMetaData[(i * 4) + 1].split('.').length > 1 && cidsMetaData[(i * 4) + 1].split('.')[1] == "8") {
+          if (cidsMetaData[(i * 4) + 1] && cidsMetaData[(i * 4) + 1].split('.').length > 1 && cidsMetaData[(i * 4) + 1].split('.')[1] == "8") {
             cidsFlaggedForDeletion.push(cidsSorted[i])
           }
         }
@@ -889,7 +889,6 @@ exports.extend = (json, from, active, pc) => {
 }
 
 exports.store = (json, from, active, pc) => {
-  console.log(json)
   if (json.items.length) {
     var promises = []
     for (var i = 0; i < json.items.length; i++) {
@@ -1021,7 +1020,7 @@ Contract close allows the file owner to remove the files from the incentivized s
 */
 
 exports.contract_close = (json, from, active, pc) => {
-  if (active && json?.id.indexOf(':') > 0) {
+  if (json?.id.indexOf(':') > 0) {
     var Pstats = getPathObj(["stats"])
     var Pcontract = getPathObj(["contract", from, json.id])
     var Pproffer = getPathObj(['proffer', from, json.id.split(":")[0]])
