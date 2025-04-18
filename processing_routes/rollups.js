@@ -1684,6 +1684,7 @@ function handleMultipleUpdates(updates, from, ops, errors) {
           // Validate new metadata
           if (!isValidMetadata(update.m) || update.m.split(',').length !== metadata_size_verification) {
             errors.push(`Invalid metadata format or size for contract ${contractId}`);
+            console.log(!isValidMetadata(newMetadata), newMetadata.split(',').length, metadata_size_verification)
             return; // Use return instead of continue to align with single update logic
           }
           contract.m = update.m;
