@@ -1886,7 +1886,7 @@ function isValidMetadata(metadataString) {
       }
 
       // Validate thumb (IPFS CID or URL)
-      if (!ipfsPattern.test(thumb) && !urlPattern.test(thumb)) {
+      if (thumb && !ipfsPattern.test(thumb) && !urlPattern.test(thumb)) {
         console.log(`Metadata validation failed: Invalid thumbnail format: '${thumb}'`);
         return false;
       }
