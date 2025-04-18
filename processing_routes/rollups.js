@@ -1188,7 +1188,7 @@ exports.update_metadata = (json, from, active, pc) => {
   const errors = [];
 
   let updatePromise;
-
+  console.log('update_metadata', from)
   if (json.id) {
     // Single contract update (backward compatible)
     updatePromise = handleSingleUpdate(json, from, ops, errors);
