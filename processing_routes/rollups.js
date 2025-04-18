@@ -8,7 +8,7 @@ const base64url = require("base64url");
 const { getPathObj } = require("../getPathObj");
 const { chronAssign, broca_calc } = require("./../lil_ops")
 const { postToDiscord } = require('./../discord');
-const { Base64 } = require("../helpers");
+const { Base64, Base58 } = require("../helpers");
 const { put } = require("request");
 
 const stringify = require('json-stable-stringify');
@@ -806,7 +806,7 @@ exports.extend = (json, from, active, pc) => {
           }
         })
         deletePromise.then(contracts => {
-          if(contracts.length) {
+          if (contracts.length) {
             contract = contracts[contracts.i]
           }
           if (from == contract.t && parseInt(json.power) > 0) {
@@ -1727,8 +1727,124 @@ function handleMultipleUpdates(updates, from, ops, errors) {
 
 // Function to validate metadata format
 function isValidMetadata(metadataString) {
-  // Regex allowing optional first field with semicolon, optional pipe field, and required comma-separated fields with specific structure
-  const metadataRegex = /^(?:(?:[0-9a-zA-Z+_.\-]+)?;)?(?:\|[0-9a-zA-Z+_.\-]{1,47})?(?:,(?:[0-9a-zA-Z+_.\-]+,[A-Za-z0-9]{1,4}(?:\.[A-Za-z0-9])?,[^,]*,[^,]*,[^,]*)?)*$/;
-  // Ensure the string is not empty and matches the pattern
-  return typeof metadataString === 'string' && metadataString.length > 0 && metadataRegex.test(metadataString);
+  // build arrays to validate each portion of the metadata
+  let metaData = metadataString.split(',')
+  // Isolate the first portion of the metadata, this is the contract data
+  const contractData = metaData[0]
+  // Isolate the rest of the metadata, this is the file metadata
+  const metadata = metaData.splice(1)
+  // Validate the first character of the contract data containing 6 bitwise flags, we will assume the first character is a 1 if none are present
+  // its valid as a base64 character
+  let firstChar = contractData.split('')[0]
+  // if the first character is a # or |, we will set the first character is a 1
+  if (firstChar == '#') {
+    firstChar = "1"
+  }
+  if (firstChar == '|') {
+    firstChar = "1"
+  }
+  // test to see it's a valid character
+  let simpleTest = Base64.toNumber(firstChar) + 1
+  if (typeof simpleTest !== 'number') {
+    return false
+  }
+  // Verify encryption keys if present
+  let encryptionData = contractData.split('#')
+  encryptionData[encryptionData.length - 1] = encryptionData[encryptionData.length - 1].split('|')[0]
+  for (let i = 0; i < encryptionData.length; i++) {
+    let key = encryptionData[i];
+    if (key.endsWith(';')) {
+      key = key.substring(0, key.length - 1);
+    }
+    let atIndex = key.indexOf('@');
+    if (atIndex === -1) {
+      return false;
+    }
+    let cipher = key.substring(0, atIndex);
+    if (!/^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/.test(cipher)) {
+      return false;
+    }
+    let account = key.substring(atIndex + 1);
+    if (!/^[a-z0-9-.]{1,16}$/.test(account)) {
+      return false;
+    }
+  }
+  // Verify folder data
+  let folderData = contractData.split('|')
+  folderData = folderData.splice(1)
+  if (folderData.length > 48) return false;
+  let folderIndexMap = new Map(); // Track folder indices by path
+  folderIndexMap.set('', 0); // Root folder
+  let k = 0
+  for (let i = 0; i < folderData.length; i++) {
+    let folderPath = folderData[i];
+    let pathParts = folderPath.split('/');
+    for (let j = 0; j < pathParts.length; j++) {
+      let part = pathParts[j];
+      if (j < pathParts.length - 1) {
+        // Parent indices
+        if (!part.match(/^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/)) return false;
+        let parentIndex = Base58.toNumber(part);
+        if (!folderIndexMap.has(parentIndex)) return false;
+      } else {
+        // Folder name
+        if (!part.match(/^[0-9a-zA-Z+_.\- ]{2,16}$/)) return false;
+        folderIndexMap.set(k + 1, folderPath); // Assign index to path
+        if (k == 0) {
+          for (var l = 2; l < 10; l++) {
+            folderIndexMap.set(l, l)
+          }
+          k = 9
+        }
+        k++
+      }
+    }
+  }
+
+  // if folderIndexMap is < 9, fill with dummy values
+  for (let i = folderIndexMap.size; i < 9; i++) {
+    folderIndexMap.set(i, i)
+  }
+
+  if (!validateFileMetadata(metadata, folderIndexMap)) {
+    return false;
+  }
+
+  function validateFileMetadata(metadataStr, folderIndexMap) {
+    // Split the metadata string into file entries (each entry has 4 fields)
+    const fileEntries = metadataStr.split(',').reduce((acc, val, index, array) => {
+      if (index % 4 === 0) acc.push(array.slice(index, index + 4));
+      return acc;
+    }, []);
+
+    // Regex patterns for validation
+    const namePattern = /^[^,]{1,32}$/u; // Up to 32 chars, no commas, Unicode support
+    const typePattern = /^[a-z0-9]{1,4}(?:\.[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)?$/; // Up to 4 lowercase chars/numbers, optional .folderIndex
+    const ipfsPattern = /^Qm[1-9A-HJ-NP-Za-km-z]{44}$/; // Simplified IPFS CID pattern
+    const urlPattern = /^(https?:\/\/[^\s$.?#].[^\s]*)$/; // Valid full URL
+    const flagsPattern = /^[0-9a-zA-Z+/=]-[0-9a-zA-Z+/=]-[0-9a-zA-Z+/=]+$/; // Two base64 chars with hyphens, then several base64 chars
+
+    // Validate each file entry
+    for (const entry of fileEntries) {
+      if (entry.length !== 4) return false; // Must have exactly 4 fields
+
+      const [name, type, thumb, flagsCombined] = entry;
+
+      // Validate name
+      if (!namePattern.test(name)) return false;
+
+      // Validate type
+      if (!typePattern.test(type)) return false;
+      const typeParts = type.split('.');
+      if (typeParts.length > 1 && !folderIndexMap.has(typeParts[1])) return false; // Check folder index
+
+      // Validate thumb (IPFS CID or URL)
+      if (!ipfsPattern.test(thumb) && !urlPattern.test(thumb)) return false;
+
+      // Validate flagsCombined
+      if (!flagsPattern.test(flagsCombined)) return false;
+    }
+
+    return true; // All entries are valid
+  }
 }
