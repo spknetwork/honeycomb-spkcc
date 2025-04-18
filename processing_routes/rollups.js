@@ -1821,6 +1821,7 @@ function isValidMetadata(metadataString) {
           }
           k = 9
         }
+        console.log('Folder index map', folderIndexMap)
         k++
       }
     }
