@@ -1856,7 +1856,7 @@ function isValidMetadata(metadataString) {
     const typePattern = /^[a-z0-9]{1,4}(?:\.[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)?$/; // Up to 4 lowercase chars/numbers, optional .folderIndex
     const ipfsPattern = /^Qm[1-9A-HJ-NP-Za-km-z]{44}$/; // Simplified IPFS CID pattern
     const urlPattern = /^(https?:\/\/[^\s$.?#].[^\s]*)$/; // Valid full URL
-    const flagsPattern = /^[0-9a-zA-Z+/=]-[0-9a-zA-Z+/=]-[0-9a-zA-Z+/=]+$/; // Two base64 chars with hyphens, then several base64 chars
+    const flagsPattern = /^([0-9a-zA-Z+/=]?)-([0-9a-zA-Z+/=]?)-([0-9a-zA-Z+/=]*)$/;// Two base64 chars with hyphens, then several base64 chars
 
     // Validate each file entry
     for (let i = 0; i < fileEntries.length; i++) {
