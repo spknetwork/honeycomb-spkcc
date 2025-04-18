@@ -1671,7 +1671,6 @@ function handleMultipleUpdates(updates, from, ops, errors) {
       contracts.forEach((contract, i) => {
         const contractId = contractIds[i];
         const update = updates[contractId];
-        console.log('contractId', contractId, update)
         if (!contract || !contract.e) {
           errors.push(`Contract ${contractId} not found or not editable`);
           return;
@@ -1695,6 +1694,7 @@ function handleMultipleUpdates(updates, from, ops, errors) {
           const newMetadata = jsdiff.applyPatch(contract.m, update.diff);
           if (!isValidMetadata(newMetadata) || newMetadata.split(',').length !== metadata_size_verification) {
             errors.push(`Invalid metadata format or size for contract ${contractId}`);
+            console.log(!isValidMetadata(newMetadata), newMetadata.split(',').length, metadata_size_verification)
             return; // Use return instead of continue to align with single update logic
           }
           if (newMetadata === false) {
