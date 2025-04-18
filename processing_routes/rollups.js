@@ -1814,7 +1814,7 @@ function isValidMetadata(metadataString) {
           console.log(`Metadata validation failed: Invalid folder name format: '${part}'`);
           return false;
         }
-        folderIndexMap.set(Base58.fromNumber(k + 1), folderPath); // Assign index to path
+        folderIndexMap.set(Base58.fromNumber(k), folderPath); // Assign index to path
         if (k == 0) {
           for (var l = 2; l < 10; l++) {
             folderIndexMap.set(Base58.fromNumber(l), l)
