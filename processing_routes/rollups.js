@@ -1838,7 +1838,7 @@ function isValidMetadata(metadataString) {
       if (!ipfsPattern.test(thumb) && !urlPattern.test(thumb)) return false;
 
       // Validate flagsCombined
-      if (!flagsPattern.test(flagsCombined)) return false;
+      if (flagsCombined && !flagsPattern.test(flagsCombined)) return false;
     }
 
     return true; // All entries are valid
