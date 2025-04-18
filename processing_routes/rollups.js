@@ -1758,6 +1758,7 @@ function isValidMetadata(metadataString) {
   // Verify encryption keys if present
   let encryptionData = contractData.split('#')
   encryptionData[encryptionData.length - 1] = encryptionData[encryptionData.length - 1].split('|')[0]
+  console.log(encryptionData)
   for (let i = 0; i < encryptionData.length; i++) {
     let key = encryptionData[i];
     if (key.endsWith(';')) {
