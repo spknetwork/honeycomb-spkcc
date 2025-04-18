@@ -1671,7 +1671,7 @@ function handleMultipleUpdates(updates, from, ops, errors) {
       contracts.forEach((contract, i) => {
         const contractId = contractIds[i];
         const update = updates[contractId];
-
+        console.log('contractId', contractId, update)
         if (!contract || !contract.e) {
           errors.push(`Contract ${contractId} not found or not editable`);
           return;
