@@ -1187,10 +1187,10 @@ exports.update_metadata = (json, from, active, pc) => {
   console.log('update_metadata', from)
   if (json.id) {
     // Single contract update (backward compatible)
-    updatePromise = handleSingleUpdate(json, from, ops, errors);
+    updatePromise = handleSingleUpdate(json, from, ops, errors, json);
   } else if (json.updates && typeof json.updates === "object") {
     // Multiple contract updates
-    updatePromise = handleMultipleUpdates(json.updates, from, ops, errors);
+    updatePromise = handleMultipleUpdates(json.updates, from, ops, errors, json);
   } else {
     console.log("Invalid update request: missing id or updates");
     pc[0](pc[2]);
@@ -1548,7 +1548,7 @@ function calculateRefunds(deletedFilesByContract, block_num, from) {
   });
 }
 
-function handleSingleUpdate(json, from, ops, errors) {
+function handleSingleUpdate(json, from, ops, errors, json) {
   return Promise.all([
     getPathObj(["contract", from, json.id]),
     getPathObj(["partial_metadata_updates", json.id.split(':')[2]])
@@ -1658,7 +1658,7 @@ function handleSingleUpdate(json, from, ops, errors) {
     });
 }
 
-function handleMultipleUpdates(updates, from, ops, errors) {
+function handleMultipleUpdates(updates, from, ops, errors, json) {
   const contractIds = Object.keys(updates);
   const contractPaths = contractIds.map((id) => getPathObj(["contract", from, id]));
 
