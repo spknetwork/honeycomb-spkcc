@@ -1725,10 +1725,19 @@ function handleMultipleUpdates(updates, from, ops, errors) {
 function isValidMetadata(metadataString) {
   // build arrays to validate each portion of the metadata
   let metaData = metadataString.split(',')
+  
+  console.log(`Validating metadata with ${metaData.length} parts`);
+  
   // Isolate the first portion of the metadata, this is the contract data
   const contractData = metaData[0]
   // Isolate the rest of the metadata, this is the file metadata
   const metadata = metaData.splice(1)
+  
+  if (metadata.length % 4 !== 0) {
+    console.log(`Metadata validation failed: File metadata length (${metadata.length}) is not a multiple of 4`);
+    return false;
+  }
+  
   // Validate the first character of the contract data containing 6 bitwise flags, we will assume the first character is a 1 if none are present
   // its valid as a base64 character
   let firstChar = contractData.split('')[0]
@@ -1742,8 +1751,10 @@ function isValidMetadata(metadataString) {
   // test to see it's a valid character
   let simpleTest = Base64.toNumber(firstChar) + 1
   if (typeof simpleTest !== 'number') {
+    console.log(`Metadata validation failed: First character '${firstChar}' is not a valid Base64 character`);
     return false
   }
+  
   // Verify encryption keys if present
   let encryptionData = contractData.split('#')
   encryptionData[encryptionData.length - 1] = encryptionData[encryptionData.length - 1].split('|')[0]
@@ -1754,21 +1765,29 @@ function isValidMetadata(metadataString) {
     }
     let atIndex = key.indexOf('@');
     if (atIndex === -1) {
+      console.log(`Metadata validation failed: Missing @ in encryption key ${key}`);
       return false;
     }
     let cipher = key.substring(0, atIndex);
     if (!/^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/.test(cipher)) {
+      console.log(`Metadata validation failed: Invalid cipher format in encryption key: '${cipher}'`);
       return false;
     }
     let account = key.substring(atIndex + 1);
     if (!/^[a-z0-9-.]{1,16}$/.test(account)) {
+      console.log(`Metadata validation failed: Invalid account format in encryption key: '${account}'`);
       return false;
     }
   }
+  
   // Verify folder data
   let folderData = contractData.split('|')
   folderData = folderData.splice(1)
-  if (folderData.length > 48) return false;
+  if (folderData.length > 48) {
+    console.log(`Metadata validation failed: Too many folders (${folderData.length}), maximum is 48`);
+    return false;
+  }
+  
   let folderIndexMap = new Map(); // Track folder indices by path
   folderIndexMap.set('', 0); // Root folder
   let k = 0
@@ -1779,12 +1798,21 @@ function isValidMetadata(metadataString) {
       let part = pathParts[j];
       if (j < pathParts.length - 1) {
         // Parent indices
-        if (!part.match(/^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/)) return false;
+        if (!part.match(/^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/)) {
+          console.log(`Metadata validation failed: Invalid parent folder index format: '${part}'`);
+          return false;
+        }
         let parentIndex = Base58.toNumber(part);
-        if (!folderIndexMap.has(parentIndex)) return false;
+        if (!folderIndexMap.has(parentIndex)) {
+          console.log(`Metadata validation failed: Parent folder index not found: ${parentIndex}`);
+          return false;
+        }
       } else {
         // Folder name
-        if (!part.match(/^[0-9a-zA-Z+_.\- ]{2,16}$/)) return false;
+        if (!part.match(/^[0-9a-zA-Z+_.\- ]{2,16}$/)) {
+          console.log(`Metadata validation failed: Invalid folder name format: '${part}'`);
+          return false;
+        }
         folderIndexMap.set(k + 1, folderPath); // Assign index to path
         if (k == 0) {
           for (var l = 2; l < 10; l++) {
@@ -1803,15 +1831,24 @@ function isValidMetadata(metadataString) {
   }
 
   if (!validateFileMetadata(metadata, folderIndexMap)) {
+    // Validation error is logged in validateFileMetadata
     return false;
   }
+  
+  console.log('Metadata validation passed');
+  return true;
 
   function validateFileMetadata(metadataStr, folderIndexMap) {
     // Split the metadata string into file entries (each entry has 4 fields)
-    const fileEntries = metadataStr.split(',').reduce((acc, val, index, array) => {
-      if (index % 4 === 0) acc.push(array.slice(index, index + 4));
-      return acc;
-    }, []);
+    const fileEntries = [];
+    for (let i = 0; i < metadataStr.length; i += 4) {
+      if (i + 4 <= metadataStr.length) {
+        fileEntries.push(metadataStr.slice(i, i + 4));
+      } else {
+        console.log(`Metadata validation failed: Incomplete file entry at position ${i}`);
+        return false;
+      }
+    }
 
     // Regex patterns for validation
     const namePattern = /^[^,]{1,32}$/u; // Up to 32 chars, no commas, Unicode support
@@ -1821,24 +1858,43 @@ function isValidMetadata(metadataString) {
     const flagsPattern = /^[0-9a-zA-Z+/=]-[0-9a-zA-Z+/=]-[0-9a-zA-Z+/=]+$/; // Two base64 chars with hyphens, then several base64 chars
 
     // Validate each file entry
-    for (const entry of fileEntries) {
-      if (entry.length !== 4) return false; // Must have exactly 4 fields
+    for (let i = 0; i < fileEntries.length; i++) {
+      const entry = fileEntries[i];
+      if (entry.length !== 4) {
+        console.log(`Metadata validation failed: File entry ${i} has ${entry.length} fields, expected 4`);
+        return false;
+      }
 
       const [name, type, thumb, flagsCombined] = entry;
 
       // Validate name
-      if (!namePattern.test(name)) return false;
+      if (!namePattern.test(name)) {
+        console.log(`Metadata validation failed: Invalid file name format: '${name}'`);
+        return false;
+      }
 
       // Validate type
-      if (!typePattern.test(type)) return false;
+      if (!typePattern.test(type)) {
+        console.log(`Metadata validation failed: Invalid file type format: '${type}'`);
+        return false;
+      }
       const typeParts = type.split('.');
-      if (typeParts.length > 1 && !folderIndexMap.has(typeParts[1])) return false; // Check folder index
+      if (typeParts.length > 1 && !folderIndexMap.has(typeParts[1])) {
+        console.log(`Metadata validation failed: Invalid folder index in type: '${type}', folder index '${typeParts[1]}' not found`);
+        return false;
+      }
 
       // Validate thumb (IPFS CID or URL)
-      if (!ipfsPattern.test(thumb) && !urlPattern.test(thumb)) return false;
+      if (!ipfsPattern.test(thumb) && !urlPattern.test(thumb)) {
+        console.log(`Metadata validation failed: Invalid thumbnail format: '${thumb}'`);
+        return false;
+      }
 
       // Validate flagsCombined
-      if (flagsCombined && !flagsPattern.test(flagsCombined)) return false;
+      if (flagsCombined && !flagsPattern.test(flagsCombined)) {
+        console.log(`Metadata validation failed: Invalid flags format: '${flagsCombined}'`);
+        return false;
+      }
     }
 
     return true; // All entries are valid
