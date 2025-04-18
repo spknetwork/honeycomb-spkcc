@@ -1790,7 +1790,7 @@ function isValidMetadata(metadataString) {
   }
   
   let folderIndexMap = new Map(); // Track folder indices by path
-  folderIndexMap.set(0, 0); // Root folder
+  folderIndexMap.set(Base58.fromNumber(0), 0); // Root folder
   let k = 0
   for (let i = 0; i < folderData.length; i++) {
     let folderPath = folderData[i];
@@ -1814,10 +1814,10 @@ function isValidMetadata(metadataString) {
           console.log(`Metadata validation failed: Invalid folder name format: '${part}'`);
           return false;
         }
-        folderIndexMap.set(k + 1, folderPath); // Assign index to path
+        folderIndexMap.set(Base58.fromNumber(k + 1), folderPath); // Assign index to path
         if (k == 0) {
           for (var l = 2; l < 10; l++) {
-            folderIndexMap.set(l, l)
+            folderIndexMap.set(Base58.fromNumber(l), l)
           }
           k = 9
         }
