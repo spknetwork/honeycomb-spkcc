@@ -1791,7 +1791,7 @@ function isValidMetadata(metadataString) {
   
   let folderIndexMap = new Map(); // Track folder indices by path
   folderIndexMap.set(0, 0); // Root folder
-  let k = 0
+  let k = 1
   for (let i = 0; i < folderData.length; i++) {
     let folderPath = folderData[i];
     let pathParts = folderPath.split('/');
@@ -1814,7 +1814,7 @@ function isValidMetadata(metadataString) {
           console.log(`Metadata validation failed: Invalid folder name format: '${part}'`);
           return false;
         }
-        folderIndexMap.set(k+1, folderPath); // Assign index to path
+        folderIndexMap.set(k, folderPath); // Assign index to path
         if (k == 0) {
           for (var l = 2; l < 10; l++) {
             folderIndexMap.set(l, l)
@@ -1828,9 +1828,9 @@ function isValidMetadata(metadataString) {
   }
 
   // if folderIndexMap is < 9, fill with dummy values
-  for (let i = folderIndexMap.size; i < 9; i++) {
-    folderIndexMap.set(i, i)
-  }
+  // for (let i = folderIndexMap.size; i < 9; i++) {
+  //   folderIndexMap.set(i, i)
+  // }
 
   if (!validateFileMetadata(metadata, folderIndexMap)) {
     // Validation error is logged in validateFileMetadata
