@@ -1790,7 +1790,7 @@ function isValidMetadata(metadataString) {
   }
   
   let folderIndexMap = new Map(); // Track folder indices by path
-  folderIndexMap.set("0", 0); // Root folder
+  folderIndexMap.set(0, 0); // Root folder
   let k = 0
   for (let i = 0; i < folderData.length; i++) {
     let folderPath = folderData[i];
