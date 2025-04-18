@@ -603,10 +603,6 @@ function process_complete_update(json, from, active) {
           var total = 0;
           proffer.c++;
           proffer.n = { "1": from };
-          function isValidMetadata(metadataString) {
-            const metadataRegex = /^(?:(?:[0-9a-zA-Z+_.-]+)?;)?(?:\|[0-9a-zA-Z+_.-]{1,47})?(?:,(?:[0-9a-zA-Z+_.-]+,[A-Za-z0-9]{1,4}(?:\.[A-Za-z0-9])?,[^,]*,[^,]*,[^,]*)?)*$/;
-            return metadataRegex.test(metadataString);
-          }
           var cids = json.c.split(',');
           proffer.m = stringify("1")
           const metadata_size_verification = (cids.length * 4 + 1)
