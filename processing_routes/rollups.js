@@ -1789,6 +1789,10 @@ function isValidMetadata(metadataString) {
     return false;
   }
   
+const presetFoldersMap = [
+          "Documents", "Images", "Videos", "Music",
+          "Archives", "Code", "Trash", "Misc"]
+
   let folderIndexMap = new Map(); // Track folder indices by path
   folderIndexMap.set(0, 0); // Root folder
   let k = 1
@@ -1817,7 +1821,7 @@ function isValidMetadata(metadataString) {
         folderIndexMap.set(k, folderPath); // Assign index to path
         if (k == 1) {
           for (var l = 2; l < 10; l++) {
-            folderIndexMap.set(l, l)
+            folderIndexMap.set(l, presetFoldersMap[l-2])
           }
           k = 9
         }
