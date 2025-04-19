@@ -1441,6 +1441,7 @@ function rundelta(arr, ops, sb, pr) {
               resolve([]);
             }
           } else {
+            Watchdog.startup(0)  
             Watchdog.monitor()
             console.log("Current Block");
             block.ops = [];

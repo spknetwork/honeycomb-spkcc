@@ -1818,7 +1818,6 @@ function isValidMetadata(metadataString) {
           return false;
         }
         folderIndexMap.set(k, folderPath); // Assign index to path
-        console.log(k, folderPath)
         if (k == 1) {
           k = 9
         }

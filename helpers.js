@@ -919,7 +919,7 @@ exports.Log = log
 
 const Watchdog = {
   current: 0,
-  blocks_to_apply: 0,
+  blocks_to_apply: 500,
   timeout: config.timeoutStart,
   monitor: function () {
     if (!this.current) console.log('Watchdog: Monitoring...')
@@ -941,7 +941,8 @@ const Watchdog = {
   startup: function (blocks = 500) {
     this.blocks_to_apply = blocks
     setTimeout(() => {
-      if(this.blocks_to_apply == blocks) {
+      if(this.blocks_to_apply == blocks && this.blocks_to_apply > 0) {
+        console.log('Watchdog: TIMEOUT')
         require('process').exit(3)
       }
     }, this.timeout)
