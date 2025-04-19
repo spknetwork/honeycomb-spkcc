@@ -944,7 +944,7 @@ const Watchdog = {
       if(this.blocks_to_apply == blocks) {
         require('process').exit(3)
       }
-    }, 10000)
+    }, this.timeout)
   }
 }
 
