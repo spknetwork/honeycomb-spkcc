@@ -1789,13 +1789,12 @@ function isValidMetadata(metadataString) {
     return false;
   }
   
-const presetFoldersMap = [
-          "Documents", "Images", "Videos", "Music",
-          "Archives", "Code", "Trash", "Misc"]
-
   let folderIndexMap = new Map(); // Track folder indices by path
   folderIndexMap.set(0, 0); // Root folder
   let k = 1
+  for (var l = 2; l < 10; l++) {
+    folderIndexMap.set(l, l)
+  }
   for (let i = 0; i < folderData.length; i++) {
     let folderPath = folderData[i];
     let pathParts = folderPath.split('/');
@@ -1821,11 +1820,6 @@ const presetFoldersMap = [
         folderIndexMap.set(k, folderPath); // Assign index to path
         console.log(k, folderPath)
         if (k == 1) {
-          for (var l = 2; l < 10; l++) {
-            //folderIndexMap.set(presetFoldersMap[l-2], l)
-            folderIndexMap.set(l, presetFoldersMap[l-2])
-            console.log(l, presetFoldersMap[l-2])
-          }
           k = 9
         }
         k++
