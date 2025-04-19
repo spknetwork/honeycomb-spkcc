@@ -919,6 +919,7 @@ exports.Log = log
 
 const Watchdog = {
   current: 0,
+  blocks_to_apply: 0,
   timeout: config.timeoutStart,
   monitor: function () {
     if (!this.current) console.log('Watchdog: Monitoring...')
@@ -928,6 +929,7 @@ const Watchdog = {
         require('process').exit(3)
       } else if (!this.current) {
         this.timeout = config.timeoutContinuous
+        this.blocks_to_apply = -1
         this.current = TXID.blocknumber
         this.monitor()
       } else {
@@ -935,6 +937,14 @@ const Watchdog = {
         this.monitor()
       }
     }, this.timeout)
+  },
+  startup: function (blocks = 500) {
+    this.blocks_to_apply = blocks
+    setTimeout(() => {
+      if(this.blocks_to_apply == blocks) {
+        require('process').exit(3)
+      }
+    }, 10000)
   }
 }
 

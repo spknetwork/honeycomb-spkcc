@@ -206,7 +206,7 @@ exports.processor = processor;
 const replay = "QmZbMuCt5naUtcimhSVTNuA1iTAZryBizNZFTAYzyWoVsv"
 //startWith(replay, true);
 dynStart();
-Watchdog.monitor();
+Watchdog.startup();
 
 // API defs
 api.use(API.https_redirect);
@@ -1423,6 +1423,7 @@ function rundelta(arr, ops, sb, pr) {
         function delta(a) {
           if (a.length) {
             console.log("Blocks to apply:", a.length);
+            Watchdog.startup(a.length)  
             var b;
             try {
               b = JSON.parse(a.shift());
@@ -1440,6 +1441,7 @@ function rundelta(arr, ops, sb, pr) {
               resolve([]);
             }
           } else {
+            Watchdog.monitor()
             console.log("Current Block");
             block.ops = [];
             block.chain = arr;
