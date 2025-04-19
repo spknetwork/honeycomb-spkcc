@@ -1853,7 +1853,7 @@ function isValidMetadata(metadataString) {
 
     // Regex patterns for validation
     const namePattern = /^[^,]{1,32}$/u; // Up to 32 chars, no commas, Unicode support
-    const typePattern = /^[a-z0-9]{1,4}(?:\.[0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)?$/; // Up to 4 lowercase chars/numbers, optional .folderIndex
+    const typePattern = /^[a-z0-9]{0,4}(?:\.[0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)?$/; // Up to 4 lowercase chars/numbers, optional .folderIndex
     const ipfsPattern = /^Qm[1-9A-HJ-NP-Za-km-z]{44}$/; // Simplified IPFS CID pattern
     const urlPattern = /^(https?:\/\/[^\s$.?#].[^\s]*)$/; // Valid full URL
     const flagsPattern = /^([0-9a-zA-Z+/=]?)-([0-9a-zA-Z+/=]?)-([0-9a-zA-Z+/=]*)$/;// Two base64 chars with hyphens, then several base64 chars
