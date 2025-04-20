@@ -1880,8 +1880,8 @@ function isValidMetadata(metadataString) {
         return false;
       }
       const typeParts = type.split('.');
-      if (typeParts.length > 1 && !folderIndexMap.has(Base58.toNumber(typeParts[1]) && typeParts[1] != "0")) {
-        console.log(`Metadata validation failed: Invalid folder index in type: '${type}', folder index '${typeParts[1]}' not found`, typeParts[1] != "0");
+      if (typeParts.length > 1 && !folderIndexMap.has(Base58.toNumber(typeParts[1])) && typeParts[1] != "0") {
+        console.log(`Metadata validation failed: Invalid folder index in type: '${type}', folder index '${typeParts[1]}' not found`);
         return false;
       }
 
