@@ -3,6 +3,9 @@ const app = require('./../processing_routes/index')
 const { tally } = require('./../tally')
 const { store } = require('./../index')
 const test_state = require('./test_state')
+const config = require('./../config')
+const dex = require('./../processing_routes/dex')
+const { Base64 } = require('./../helpers')
 
 function init() {
     return new Promise((resolve, reject) => {
@@ -262,11 +265,6 @@ describe('State', function() {
             })
     })
 
-    /*
-    dlux_report
-    json: {"hash":"QmYaMrk7MhXzCMEZNH2tcvURzx1taEStJ4fM5KoCXN77Mz","block":50322301}
-    */
-
     it('Build consensus Leader:', () => {
         let json = {
             hash: 'hash',
@@ -366,479 +364,96 @@ describe('State', function() {
                     })
                 })
         })
-        /*
-            it('Check on nodes:', () => {
-                store.get(['markets', 'node', 'leader'], function(e, r) {
-                    console.log(r)
-
-                })
-            })
-        */
-    it('Testing dlux hive sell listing:', () => {
-        let json = {
-            hive: 10,
-            dlux: 100,
-            hours: 1,
-            block_num: 101,
-            transaction_id: 101
-        }
-        return new Promise((resolve, reject) => {
-                app.dex_hive_sell(json, 'leader', true, [resolve, reject])
-            })
-            .then(ops => {
-                assert.equal(ops[3].data, '@leader| has placed order DLUXQmUQxeGyAobwtxXYexTmpYxNr2rT2AeAF5mRHs1gftgWnn to sell 0.100 for 0.010 HIVE')
-            })
-    })
-
-    it('Build hive sell listings for Tests A:', () => {
-        let json = {
-            hive: 1000,
-            dlux: 9999,
-            hours: 1,
-            block_num: 101,
-            transaction_id: 102
-        }
-        return new Promise((resolve, reject) => {
-                app.dex_hive_sell(json, 'leader', true, [resolve, reject])
-            })
-            .then(ops => {
-                assert.equal(ops[3].data, '@leader| has placed order DLUXQmRaq1xddXPqBeAa6DMfDhbqYBW8KDajH2TB4Fau1nAwZ7 to sell 9.999 for 1.000 HIVE')
-            })
-    })
-
-    it('Build hive sell listings for Tests B:', () => {
-        let json = {
-            hive: 1000,
-            dlux: 9990,
-            hours: 1,
-            block_num: 101,
-            transaction_id: 103
-        }
-        return new Promise((resolve, reject) => {
-                app.dex_hive_sell(json, 'leader', true, [resolve, reject])
-            })
-            .then(ops => {
-                assert.equal(ops[3].data, '@leader| has placed order DLUXQmZuiTkVnSyfM3m7myRYdsMdngcKfvV8wrjJvaysb3DeXZ to sell 9.990 for 1.000 HIVE')
-            })
-    })
-
-    it('Build hive sell listings for Tests C:', () => {
-        let json = {
-            hive: 1000,
-            dlux: 9900,
-            hours: 1,
-            block_num: 101,
-            transaction_id: 104
-        }
-        return new Promise((resolve, reject) => {
-                app.dex_hive_sell(json, 'leader', true, [resolve, reject])
-            })
-            .then(ops => {
-                assert.equal(ops[3].data, '@leader| has placed order DLUXQmQyPGmVrJQbXiXXEFyF6TtJd6VNhNnD3XmTvamTw7sDQq to sell 9.900 for 1.000 HIVE')
-            })
-    })
-
-    it('Build hive sell listings for Tests D:', () => {
-        let json = {
-            hive: 1000,
-            dlux: 9000,
-            hours: 1,
-            block_num: 101,
-            transaction_id: 105
-        }
-        return new Promise((resolve, reject) => {
-                app.dex_hive_sell(json, 'leader', true, [resolve, reject])
-            })
-            .then(ops => {
-                assert.equal(ops[3].data, '@leader| has placed order DLUXQmb92SjGXBBWKrEc5U8saKfaYuDPfkygKE7tKcgsfcdHYA to sell 9.000 for 1.000 HIVE')
-            })
-    })
-
-    it('Testing dlux sell listing with insuffiecent dlux:', () => {
-        let json = {
-            hive: 100000,
-            dlux: 1000000,
-            hours: 1,
-            block_num: 101,
-            transaction_id: 101
-        }
-        return new Promise((resolve, reject) => {
-                app.dex_hive_sell(json, 'leader', false, [resolve, reject])
-            })
-            .then(ops => {
-                assert.equal(ops[0].data, '@leader| tried to place an order to sell 1000.000 for 100.000 HIVE')
-            })
-    })
-
-    it('Testing dlux sell listing with posting permission:', () => {
-        let json = {
-            hive: 1000,
-            dlux: 10000,
-            hours: 1,
-            block_num: 101,
-            transaction_id: 101
-        }
-        return new Promise((resolve, reject) => {
-                app.dex_hive_sell(json, 'leader', false, [resolve, reject])
-            })
-            .then(ops => {
-                assert.equal(ops[0].data, '@leader| tried to place an order to sell 10.000 for 1.000 HIVE')
-            })
-    })
-
-    it('Testing dlux sell listing with string:', () => {
-        let json = {
-            hive: '1000',
-            dlux: '10000',
-            hours: 1,
-            block_num: 101,
-            transaction_id: 101
-        }
-        return new Promise((resolve, reject) => {
-                app.dex_hive_sell(json, 'leader', false, [resolve, reject])
-            })
-            .then(ops => {
-                assert.equal(ops[0].data, '@leader| tried to place an order to sell 10.000 for 1.000 HIVE')
-            })
-    })
-
-    it('Testing dlux sell listing high curb:', () => {
-        let json = {
-            hive: 799,
-            dlux: 10000,
-            hours: 1,
-            block_num: 101,
-            transaction_id: 101
-        }
-        return new Promise((resolve, reject) => {
-                app.dex_hive_sell(json, 'leader', true, [resolve, reject])
-            })
-            .then(ops => {
-                assert.equal(ops[0].data, '@leader| tried to place an order to sell 10.000 for 0.799 HIVE')
-            })
-    })
-
-    it('Testing dlux sell listing low curb:', () => {
-        let json = {
-            hive: 1201,
-            dlux: 10000,
-            hours: 1,
-            block_num: 101,
-            transaction_id: 101
-        }
-        return new Promise((resolve, reject) => {
-                app.dex_hive_sell(json, 'leader', true, [resolve, reject])
-            })
-            .then(ops => {
-                assert.equal(ops[0].data, '@leader| tried to place an order to sell 10.000 for 1.201 HIVE')
-            })
-    })
-
-    it('Testing dlux hbd sell listing:', () => {
-        let json = {
-            hbd: 1000,
-            dlux: 10000,
-            hours: 1,
-            block_num: 101,
-            transaction_id: 106
-        }
-        return new Promise((resolve, reject) => {
-                app.dex_hbd_sell(json, 'leader', true, [resolve, reject])
-            })
-            .then(ops => {
-                assert.equal(ops[3].data, '@leader| has placed order DLUXQmSkqEjmJmsGCKdg87BdHMezTeonVqvvU8Z9mder2N62Yy to sell 10.000 for 1.000 HBD')
-            })
-    })
-
-    it('Build hbd sell listings for Tests A:', () => {
-        let json = {
-            hbd: 1000,
-            dlux: 9999,
-            hours: 1,
-            block_num: 101,
-            transaction_id: 107
-        }
-        return new Promise((resolve, reject) => {
-                app.dex_hbd_sell(json, 'leader', true, [resolve, reject])
-            })
-            .then(ops => {
-                assert.equal(ops[3].data, '@leader| has placed order DLUXQmcg2v7jTLCBMPff7NzZJ1A1hdyhtqjmCSuGTcpm6SZ9oB to sell 9.999 for 1.000 HBD')
-            })
-    })
-
-    it('Build hbd sell listings for Tests B:', () => {
-        let json = {
-            hbd: 1000,
-            dlux: 9990,
-            hours: 1,
-            block_num: 101,
-            transaction_id: 108
-        }
-        return new Promise((resolve, reject) => {
-                app.dex_hbd_sell(json, 'leader', true, [resolve, reject])
-            })
-            .then(ops => {
-                assert.equal(ops[3].data, '@leader| has placed order DLUXQmSWyXa8yKsM4vAu3BCsnEkW2CH74YNPKPTkfbKuKntUuw to sell 9.990 for 1.000 HBD')
-            })
-    })
-
-    it('Build hbd sell listings for Tests C:', () => {
-        let json = {
-            hbd: 1000,
-            dlux: 9900,
-            hours: 1,
-            block_num: 101,
-            transaction_id: 109
-        }
-        return new Promise((resolve, reject) => {
-                app.dex_hbd_sell(json, 'leader', true, [resolve, reject])
-            })
-            .then(ops => {
-                assert.equal(ops[3].data, '@leader| has placed order DLUXQmRd6h8iiy1MEnhJAsQisyU4xr6zGSerhndVc2zS2saVf1 to sell 9.900 for 1.000 HBD')
-            })
-    })
-
-    it('Build hbd sell listings for Tests D:', () => {
-        let json = {
-            hbd: 801,
-            dlux: 10000,
-            hours: 1,
-            block_num: 101,
-            transaction_id: 110
-        }
-        return new Promise((resolve, reject) => {
-                app.dex_hbd_sell(json, 'leader', true, [resolve, reject])
-            })
-            .then(ops => {
-                assert.equal(ops[3].data, '@leader| has placed order DLUXQmZyKw3RSwA5D9E8zW3s5iZ22azcpTdyM7hhVfCvnTaqnX to sell 10.000 for 0.801 HBD')
-            })
-    })
-
-    it('Testing hbd dlux sell listing with posting permission:', () => {
-        let json = {
-            hbd: 1000,
-            dlux: 10000,
-            hours: 1,
-            block_num: 101,
-            transaction_id: 101
-        }
-        return new Promise((resolve, reject) => {
-                app.dex_hbd_sell(json, 'leader', false, [resolve, reject])
-            })
-            .then(ops => {
-                assert.equal(ops[0].data, '@leader| tried to place an order to sell 10.000 for 1.000 HBD')
-            })
-    })
-
-    it('Testing hbd dlux sell listing with string:', () => {
-        let json = {
-            hbd: '1000',
-            dlux: '10000',
-            hours: 1,
-            block_num: 101,
-            transaction_id: 101
-        }
-        return new Promise((resolve, reject) => {
-                app.dex_hbd_sell(json, 'leader', false, [resolve, reject])
-            })
-            .then(ops => {
-                assert.equal(ops[0].data, '@leader| tried to place an order to sell 10.000 for 1.000 HBD')
-            })
-    })
-
-    it('Testing hbd dlux sell listing high curb:', () => {
-        let json = {
-            hbd: 799,
-            dlux: 10000,
-            hours: 1,
-            block_num: 101,
-            transaction_id: 101
-        }
-        return new Promise((resolve, reject) => {
-                app.dex_hbd_sell(json, 'leader', true, [resolve, reject])
-            })
-            .then(ops => {
-                assert.equal(ops[0].data, '@leader| tried to place an order to sell 10.000 for 0.799 HBD')
-            })
-    })
-
-    it('Testing hbd dlux sell listing low curb:', () => {
-        let json = {
-            hbd: 1201,
-            dlux: 10000,
-            hours: 1,
-            block_num: 101,
-            transaction_id: 101
-        }
-        return new Promise((resolve, reject) => {
-                app.dex_hbd_sell(json, 'leader', true, [resolve, reject])
-            })
-            .then(ops => {
-                assert.equal(ops[0].data, '@leader| tried to place an order to sell 10.000 for 1.201 HBD')
-            })
-    })
-
-    it('Testing dlux hive buy listing out of network agent:', () => {
-        let json = {
-            from: 'minnow',
-            to: 'node-opa',
-            agent: 'rando',
-            hive_amount: '0.100 HIVE',
-            hbd_amount: '0.000 HBD',
-            fee: '0.000 HIVE',
-            escrow_id: 654321,
-            ratification_deadline: '2021-01-15T20:00:00',
-            escrow_expiration: '2021-01-22T12:00:00',
-            json_meta: JSON.stringify({
-                dextx: {
-                    dlux: 1000,
-                },
-                hours: 1
-            }),
-            block_num: 102,
-            transaction_id: 111,
-            timestamp: '2021-01-15T12:00:00'
-        }
-        return new Promise((resolve, reject) => {
-                app.escrow_transfer(json, [resolve, reject])
-            })
-            .then(ops => {
-                assert.equal(ops, 'fail_thru')
-            })
-    })
-
-    it('Testing dlux hive buy listing out of network to:', () => {
-        let json = {
-            from: 'minnow',
-            to: 'rando',
-            agent: 'node-opb',
-            hive_amount: '0.100 HIVE',
-            hbd_amount: '0.000 HBD',
-            fee: '0.000 HIVE',
-            escrow_id: 654321,
-            ratification_deadline: '2021-01-15T20:00:00',
-            escrow_expiration: '2021-01-22T12:00:00',
-            json_meta: JSON.stringify({
-                dextx: {
-                    dlux: 1000,
-                },
-                hours: 1
-            }),
-            block_num: 102,
-            transaction_id: 111,
-            timestamp: '2021-01-15T12:00:00'
-        }
-        return new Promise((resolve, reject) => {
-                app.escrow_transfer(json, [resolve, reject])
-            })
-            .then(ops => {
-                assert.equal(ops, 'fail_thru')
-            })
-    })
-
-    it('Testing dlux hive buy listing:', () => {
-        let json = {
-            from: 'minnow',
-            to: 'node-opa',
-            agent: 'node-opb',
-            hive_amount: '0.100 HIVE',
-            hbd_amount: '0.000 HBD',
-            fee: '0.000 HIVE',
-            escrow_id: 654321,
-            ratification_deadline: '2021-01-15T20:00:00',
-            escrow_expiration: '2021-01-22T12:00:00',
-            json_meta: JSON.stringify({
-                dextx: {
-                    dlux: 1000,
-                },
-                hours: 1
-            }),
-            block_num: 50500005,
-            transaction_id: 111,
-            timestamp: '2021-01-15T12:00:00'
-        }
-        return new Promise((resolve, reject) => {
-                app.escrow_transfer(json, [resolve, reject])
-            })
-            .then(ops => {
-                console.log(ops)
-                assert.equal(ops[0].path[1], 'node-opb')
-                assert.equal(ops[0].path[2], 'DLUXQma1TSmexWi1TtRqKpYhVUpvos9GQ95uHchcJMdq6isCLk:listApproveA')
-                assert.equal(ops[1].path[1], 'node-opa')
-                assert.equal(ops[1].path[2], 'DLUXQma1TSmexWi1TtRqKpYhVUpvos9GQ95uHchcJMdq6isCLk:listApproveT')
-                assert.equal(ops[3].data, 88000)
-                assert.equal(ops[4].data, 7000)
-                assert.equal(ops[5].data, 2000)
-                assert.equal(ops[6].data, 2000)
-            })
-    })
-
-    it('Testing dlux hbd buy listing:', () => {
-        let json = {
-            from: 'minnow',
-            to: 'node-opa',
-            agent: 'node-opb',
-            hive_amount: '0.000 HIVE',
-            hbd_amount: '0.100 HBD',
-            fee: '0.000 HIVE',
-            escrow_id: 65432,
-            ratification_deadline: '2021-01-15T20:00:00',
-            escrow_expiration: '2021-01-22T12:00:00',
-            json_meta: JSON.stringify({
-                dextx: {
-                    dlux: 1000,
-                },
-                hours: 1
-            }),
-            block_num: 50500005,
-            transaction_id: 112,
-            timestamp: '2021-01-15T12:00:00'
-        }
-        return new Promise((resolve, reject) => {
-                app.escrow_transfer(json, [resolve, reject])
-            })
-            .then(ops => {
-                assert.equal(ops[0].path[1], 'node-opb')
-                assert.equal(ops[0].path[2], 'DLUXQmNigd1h1FH6RuPKwi45k31pc1xz6w4mngZH7ZECwkTVrm:listApproveA')
-                assert.equal(ops[1].path[1], 'node-opa')
-                assert.equal(ops[1].path[2], 'DLUXQmNigd1h1FH6RuPKwi45k31pc1xz6w4mngZH7ZECwkTVrm:listApproveT')
-                assert.equal(ops[3].data, 86000)
-                assert.equal(ops[4].data, 5000)
-                assert.equal(ops[5].data, 4000)
-                assert.equal(ops[6].data, 4000)
-            })
-    })
-
-    it('Testing dlux hive buy:', () => {
-        let json = {
-            from: 'whale',
-            to: 'node-opa',
-            agent: 'node-opb',
-            hive_amount: '0.010 HIVE',
-            hbd_amount: '0.000 HBD',
-            fee: '0.000 HIVE',
-            escrow_id: 654321,
-            ratification_deadline: '2021-01-15T20:00:00',
-            escrow_expiration: '2021-01-22T12:00:00',
-            json_meta: JSON.stringify({
-                contract: '0.1000000:DLUXQmUQxeGyAobwtxXYexTmpYxNr2rT2AeAF5mRHs1gftgWnn',
-                for: 'leader',
-                hours: 1
-            }),
-            block_num: 50500005,
-            transaction_id: 111,
-            timestamp: '2021-01-15T12:00:00'
-        }
-        return new Promise((resolve, reject) => {
-                app.escrow_transfer(json, [resolve, reject])
-            })
-            .then(ops => {
-                assert.equal(ops[5].data, 100)
-                assert.equal(ops[6].data, 85800)
-                assert.equal(ops[7].data, 4800)
-                assert.equal(ops[8].data, 4200)
-                assert.equal(ops[9].data, 4200)
-            })
-    })
-
 })
+
+describe('DEX Tests', function() {
+    this.timeout(15000);
+    const user_a = 'test-seller';
+    const user_b = 'test-buyer';
+    const defaultToken = config.jsonTokenName;
+    const block_num = 50500001;
+    let tx_id_counter = 1;
+
+    before('Initialize DEX balances', () => {
+        const initial_ops = [
+            { type: 'put', path: ['balances', user_a], data: 100000 },
+            { type: 'put', path: ['balances', user_b], data: 0 },
+            { type: 'put', path: ['dex', 'hive'], data: { buyBook: '', sellBook: '', buyOrders: {}, sellOrders: {}, tick: '0.100000', his: {} } },
+            { type: 'put', path: ['dex', 'hbd'], data: { buyBook: '', sellBook: '', buyOrders: {}, sellOrders: {}, tick: '1.000000', his: {} } },
+            { type: 'del', path: ['contracts', user_a] },
+            { type: 'del', path: ['contracts', user_b] }
+        ];
+        return new Promise((resolve, reject) => {
+            store.batch(initial_ops, [resolve, reject]);
+        });
+    });
+
+    it('Place a LARYNX:HIVE limit sell order', () => {
+        const sellAmount = 50000;
+        const hiveAmount = 5000;
+        const rate = (hiveAmount / sellAmount).toFixed(6);
+        const current_tx_id = `dex-sell-${tx_id_counter++}`;
+        let json = {
+            [defaultToken]: sellAmount,
+            hive: hiveAmount,
+            hours: 1,
+            block_num: block_num,
+            transaction_id: current_tx_id,
+            timestamp: new Date().toISOString()
+        };
+        
+        if(!json[config.jsonTokenName]) {
+            console.error(`Error: config.jsonTokenName ('${config.jsonTokenName}') not found in json object for sell order.`);
+            json[config.jsonTokenName] = sellAmount;
+        }
+
+        let sell_ops = [];
+        return new Promise((resolve, reject) => {
+            dex.dex_sell(json, user_a, true, [resolve, reject, sell_ops]); 
+        })
+        .then(() => {
+            console.log(sell_ops)
+            assert.ok(sell_ops.length > 0, 'Should generate operations');
+            
+            const balance_op = sell_ops.find(op => op.path[0] === 'balances' && op.path[1] === user_a);
+            assert.ok(balance_op, 'Seller balance update operation not found');
+            assert.equal(balance_op.data, 100000 - sellAmount, 'Seller balance should be reduced');
+
+            const dex_op = sell_ops.find(op => op.path[0] === 'dex' && op.path[1] === 'hive');
+            assert.ok(dex_op, 'DEX state update operation not found');
+            assert.ok(dex_op.data.sellBook.includes(rate), 'Sell book should contain the order rate');
+            const orderKey = Object.keys(dex_op.data.sellOrders).find(key => key.startsWith(rate));
+            assert.ok(orderKey, 'Sell order should be added to sellOrders');
+            assert.equal(dex_op.data.sellOrders[orderKey].from, user_a);
+            assert.equal(dex_op.data.sellOrders[orderKey].amount, sellAmount);
+            assert.equal(dex_op.data.sellOrders[orderKey].hive, hiveAmount);
+            
+            const contract_op = sell_ops.find(op => op.path[0] === 'contracts' && op.path[1] === user_a);
+            assert.ok(contract_op, 'Contract creation operation not found');
+            assert.equal(contract_op.data.from, user_a);
+            assert.equal(contract_op.data.amount, sellAmount);
+            assert.equal(contract_op.data.rate, rate);
+            assert.equal(contract_op.data.type, 'hive:sell');
+            const contractTxId = contract_op.path[2];
+            assert.ok(contractTxId.startsWith(config.TOKEN), 'Contract txid should start with token name');
+
+            const chrono_op = sell_ops.find(op => op.path[0] === 'chrono');
+            assert.ok(chrono_op, 'Chrono operation for expiration not found');
+            assert.equal(chrono_op.data.op, 'expire');
+            assert.equal(chrono_op.data.from, user_a);
+            assert.equal(chrono_op.data.txid, contractTxId);
+
+            const feed_op = sell_ops.find(op => op.path[0] === 'feed' && op.path[1].startsWith(`${block_num}:${current_tx_id}`));
+            assert.ok(feed_op, 'Feed message operation not found');
+            assert.include(feed_op.data, `@${user_a} is selling`);
+
+            return store.get(['dex', 'hive']);
+        })
+        .then(dexState => {
+            assert.ok(dexState.sellBook.length > 0, 'Sell book should not be empty in store');
+            const orderKey = Object.keys(dexState.sellOrders).find(key => key.startsWith(rate));
+            assert.ok(orderKey, 'Sell order should exist in store');
+        });
+    });
+
+});

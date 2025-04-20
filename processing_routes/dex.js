@@ -580,6 +580,7 @@ exports.transfer = (json, pc) => {
             data: msg,
           });
           ops.push({ type: "put", path: ["stats"], data: stats });
+          if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
           store.batch(ops, pc);
         } else {
           ops.push({
@@ -603,6 +604,7 @@ exports.transfer = (json, pc) => {
             path: ["feed", `${json.block_num}:${json.transaction_id}`],
             data: msg,
           });
+          if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
           store.batch(ops, pc);
         }
       });
@@ -728,6 +730,7 @@ exports.transfer = (json, pc) => {
                 data: msg,
               });
               ops.push({ type: "put", path: ["stats"], data: stats });
+              if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
               store.batch(ops, promise);
             }
           } else {
@@ -750,6 +753,7 @@ exports.transfer = (json, pc) => {
             if (config.hookurl || config.status)
               postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
             ops.push({ type: "put", path: ["stats"], data: stats });
+            if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
             store.batch(ops, pc);
           }
         })
@@ -818,6 +822,7 @@ exports.transfer = (json, pc) => {
                   path: ["feed", `${json.block_num}:${json.transaction_id}`],
                   data: msg,
                 });
+                if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
                 store.batch(ops, pc);
               } else {
                 const transfer = [
@@ -848,6 +853,7 @@ exports.transfer = (json, pc) => {
                     msg,
                     `${json.block_num}:${json.transaction_id}`
                   );
+                if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
                 store.batch(ops, pc);
               }
             } else if (amount >= listing.p) {
@@ -871,6 +877,7 @@ exports.transfer = (json, pc) => {
                 path: ["feed", `${json.block_num}:${json.transaction_id}`],
                 data: msg,
               });
+              if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
               store.batch(ops, pc);
             } else {
               const transfer = [
@@ -895,6 +902,7 @@ exports.transfer = (json, pc) => {
               let msg = `@${json.from} hasn't outbid on ${set}:${uid}`;
               if (config.hookurl || config.status)
                 postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
+              if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
               store.batch(ops, pc);
             }
           } else {
@@ -920,6 +928,7 @@ exports.transfer = (json, pc) => {
             let msg = `@${json.from} bid on ${set}:${uid} didn't go well.`;
             if (config.hookurl || config.status)
               postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
+            if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
             store.batch(ops, pc);
           }
         })
@@ -1049,6 +1058,7 @@ exports.transfer = (json, pc) => {
                   data: set,
                 });
               ops.push({ type: "del", path: ["ls", item] });
+              if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
               store.batch(ops, promise);
             }
           } else {
@@ -1074,6 +1084,7 @@ exports.transfer = (json, pc) => {
             let msg = `@${json.from} buy of ${set}:${uid} didn't go well.`;
             if (config.hookurl || config.status)
               postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
+            if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
             store.batch(ops, pc);
           }
         })
@@ -1458,6 +1469,7 @@ exports.transfer = (json, pc) => {
                   ];
                   if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
                   ops.push({ type: "put", path: ["stats"], data: stats });
+                  if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
                   store.batch(ops, pc);
                 }
               } else {
@@ -1616,6 +1628,7 @@ exports.transfer = (json, pc) => {
           data: stringify(transfer),
         });
         ops.push({ type: "put", path: ["stats"], data: stats });
+        if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
         store.batch(ops, pc);
       }
     }
@@ -1636,6 +1649,7 @@ exports.transfer = (json, pc) => {
           break;
         }
       }
+      if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
       store.batch(ops, pc);
     });
   } else {
@@ -1936,6 +1950,7 @@ const release = (from, txid, bn, tx_id) => {
                         `${bn}:${tx_id}`
                       );
                     }
+                    if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
                     store.batch(ops, [resolve, reject]);
                   })
                   .catch((e) => {
@@ -1972,6 +1987,7 @@ const release = (from, txid, bn, tx_id) => {
                         `${bn}:${tx_id}`
                       );
                     }
+                    if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
                     store.batch(ops, [resolve, reject]);
                   })
                   .catch((e) => {
@@ -2020,6 +2036,7 @@ const release = (from, txid, bn, tx_id) => {
                     `${bn}:${tx_id}`
                   );
                 }
+                if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
                 store.batch(ops, [resolve, reject]);
               }
             });
@@ -2064,6 +2081,7 @@ const release = (from, txid, bn, tx_id) => {
                     `${bn}:${tx_id}`
                   );
                 }
+                if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
                 store.batch(ops, [resolve, reject]);
               }
             });
@@ -2186,13 +2204,12 @@ function removeItems(arr, p) {
       if (arr[i][1] == "hive") hive = DEX.remove(arr[i][0], hive);
       if (arr[i][1] == "hbd") hbd = DEX.remove(arr[i][0], hbd);
     }
-    store.batch(
-      [
-        { type: "put", path: ["dex", "hive", "buyBook"], data: hive },
-        { type: "put", path: ["dex", "hbd", "buyBook"], data: hbd },
-      ],
-      [p, "error", "Pruned"]
-    );
+    const ops = [
+      { type: "put", path: ["dex", "hive", "buyBook"], data: hive },
+      { type: "put", path: ["dex", "hbd", "buyBook"], data: hbd },
+    ]
+    if (process.env.npm_lifecycle_event == "test")store.batch(ops, [p,"error", ops])
+    else store.batch(ops, [p, "error", "Pruned"]);
   });
 }
 

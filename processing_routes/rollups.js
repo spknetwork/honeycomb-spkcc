@@ -1790,7 +1790,7 @@ function isValidMetadata(metadataString) {
   }
   
   let folderIndexMap = new Map(); // Track folder indices by path
-  folderIndexMap.set(0, 0); // Root folder
+  folderIndexMap.set(0, "Root"); // Root folder
   let k = 1
   for (var l = 2; l < 10; l++) {
     folderIndexMap.set(l, l)
@@ -1880,7 +1880,7 @@ function isValidMetadata(metadataString) {
         return false;
       }
       const typeParts = type.split('.');
-      if (typeParts.length > 1 && !folderIndexMap.has(Base58.toNumber(typeParts[1]))) {
+      if (typeParts.length > 1 && (!folderIndexMap.has(Base58.toNumber(typeParts[1]) || typeParts[1] !== "0"))) {
         console.log(`Metadata validation failed: Invalid folder index in type: '${type}', folder index '${typeParts[1]}' not found`);
         return false;
       }

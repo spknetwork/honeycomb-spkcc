@@ -55,6 +55,10 @@ module.exports = {
     "stats": {
         "IPFSRate": 2000,
         "budgetRate": 2000,
+        "MSHeld":{
+            "HIVE": 0,
+            "HBD": 0
+        },
         "currationRate": 2000,
         "delegationRate": 2000,
         "hashLastIBlock": "Genesis",
