@@ -7598,8 +7598,8 @@ const CustomChron = [
               pow = mem[2],
               contract = mem[3],
               ops = [],
-              err = '' //no log no broca?
-            brocaString = broca_calc(broca, pow, stats, json.block_num),
+              err = '', //no log no broca?
+              brocaString = broca_calc(broca, pow, stats, json.block_num),
               broca = parseInt(brocaString.split(',')[0])
             if (json.broca <= broca && contract.c == 3) {
               broca = broca - json.broca
