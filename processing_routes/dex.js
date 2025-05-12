@@ -1,12 +1,10 @@
-const config = require("./../config");
+import { store, GetNodeOps, Config } from "../index.mjs"
 
-const { Base64, NFT, DEX } = require("./../helpers");
-const { store, GetNodeOps, spliceOp, plasma } = require("./../index");
-const { getPathObj, getPathNum } = require("./../getPathObj");
-const {
+import { Base64, NFT, DEX } from "./../helpers.js"
+import { getPathObj, getPathNum } from "./../getPathObj.js"
+import {
   add,
-  addSpk,
-  addCol,
+  //addCol,
   addGov,
   deletePointer,
   credit,
@@ -14,14 +12,11 @@ const {
   hashThis,
   isEmpty,
   addMT,
-  burnBroca,
-} = require("./../lil_ops");
-const { postToDiscord } = require("./../discord");
-const stringify = require("json-stable-stringify");
-const fetch = require("node-fetch");
+} from "./../lil_ops.js"
+import { postToDiscord } from "./../discord.js"
+import stringify from "json-stable-stringify"
 
-exports.dex_sell = (json, from, active, pc) => {
-  console.log(pc)
+export const dex_sell = (json, from, active, pc) => {
   let PfromBal = getPathNum(["balances", from]),
     PStats = getPathObj(["stats"]),
     PSB = getPathObj(["dex", "hive"]),
@@ -30,7 +25,7 @@ exports.dex_sell = (json, from, active, pc) => {
     order.type = "LIMIT";
     order.target = parseInt(json.hive);
     order.rate = parseFloat(
-      parseInt(json.hive) / parseInt(json[config.jsonTokenName])
+      parseInt(json.hive) / parseInt(json[Config("jsonTokenName")])
     ).toFixed(6);
     order.pair = "hive";
   } else if (parseInt(json.hbd)) {
@@ -39,7 +34,7 @@ exports.dex_sell = (json, from, active, pc) => {
     order.pair = "hbd";
     order.target = parseInt(json.hbd);
     order.rate = parseFloat(
-      parseInt(json.hbd) / parseInt(json[config.jsonTokenName])
+      parseInt(json.hbd) / parseInt(json[Config("jsonTokenName")])
     ).toFixed(6);
   } else if (json.pair == "HBD") {
     PSB = getPathObj(["dex", "hbd"]);
@@ -49,13 +44,13 @@ exports.dex_sell = (json, from, active, pc) => {
     order = {
       type: "MARKET",
       pair: "hive",
-      amount: json[config.jsonTokenName],
+      amount: json[Config("jsonTokenName")],
     };
   }
   if (parseFloat(order.rate) < 0) {
     (order.type = "MARKET"), delete order.rate;
   }
-  order[config.jsonTokenName] = parseInt(json[config.jsonTokenName]);
+  order[Config("jsonTokenName")] = parseInt(json[Config("jsonTokenName")]);
   Promise.all([PfromBal, PStats, PSB])
     .then((a) => {
       let bal = a[0],
@@ -71,11 +66,11 @@ exports.dex_sell = (json, from, active, pc) => {
       }
       const expBlock = json.block_num + hours * 1200;
       if (
-        order[config.jsonTokenName] <= bal &&
-        order[config.jsonTokenName] >= 4 &&
+        order[Config("jsonTokenName")] <= bal &&
+        order[Config("jsonTokenName")] >= 4 &&
         active
       ) {
-        let remaining = json[config.jsonTokenName],
+        let remaining = json[Config("jsonTokenName")],
           filled = 0,
           pair = 0,
           i = 0,
@@ -86,7 +81,7 @@ exports.dex_sell = (json, from, active, pc) => {
             ? parseFloat(dex.buyBook.split("_")[0])
             : dex.tick;
           let item = dex.buyBook ? dex.buyBook.split("_")[1].split(",")[0] : "";
-          console.log({ json, item, price, order });
+          //console.log({ json, item, price, order });
           if (
             item &&
             (order.type == "MARKET" ||
@@ -120,7 +115,7 @@ exports.dex_sell = (json, from, active, pc) => {
                 const transfer = [
                   "transfer",
                   {
-                    from: config.msaccount,
+                    from: Config("msaccount"),
                     to: from,
                     amount:
                       parseFloat(next[order.pair] / 1000).toFixed(3) +
@@ -131,11 +126,10 @@ exports.dex_sell = (json, from, active, pc) => {
                 ];
                 let msg = `@${from} sold ${parseFloat(
                   parseInt(next.amount) / 1000
-                ).toFixed(3)} ${config.TOKEN} with ${parseFloat(
+                ).toFixed(3)} ${Config("TOKEN")} with ${parseFloat(
                   parseInt(next[order.pair]) / 1000
-                ).toFixed(3)} ${order.pair.toUpperCase()} to ${
-                  next.from
-                } (${item})`;
+                ).toFixed(3)} ${order.pair.toUpperCase()} to ${next.from
+                  } (${item})`;
                 ops.push({
                   type: "put",
                   path: [
@@ -181,7 +175,7 @@ exports.dex_sell = (json, from, active, pc) => {
                 ops.push({ type: "del", path: ["chrono", next.expire_path] }); //remove the chrono
               }
             } else {
-              const thisfee = Math.max(0, Math.round((remaining / next.amount) * next.fee));
+              const thisfee = parseInt((remaining / next.amount) * next.fee);
               const thistarget = parseInt(
                 (remaining / next.amount) * next[order.pair]
               );
@@ -218,7 +212,7 @@ exports.dex_sell = (json, from, active, pc) => {
                 const transfer = [
                   "transfer",
                   {
-                    from: config.msaccount,
+                    from: Config("msaccount"),
                     to: from,
                     amount:
                       parseFloat(thistarget / 1000).toFixed(3) +
@@ -229,11 +223,10 @@ exports.dex_sell = (json, from, active, pc) => {
                 ];
                 let msg = `@${from} sold ${parseFloat(
                   parseInt(remaining) / 1000
-                ).toFixed(3)} ${config.TOKEN} with ${parseFloat(
+                ).toFixed(3)} ${Config("TOKEN")} with ${parseFloat(
                   parseInt(thistarget) / 1000
-                ).toFixed(3)} ${order.pair.toUpperCase()} to ${
-                  next.from
-                } (${item})`;
+                ).toFixed(3)} ${order.pair.toUpperCase()} to ${next.from
+                  } (${item})`;
                 ops.push({
                   type: "put",
                   path: [
@@ -263,14 +256,15 @@ exports.dex_sell = (json, from, active, pc) => {
               }
             }
           } else {
-            let txid = config.TOKEN + hashThis(from + json.transaction_id + pc[1].length),
+            let txid = Config("TOKEN") + hashThis(from + json.transaction_id),
               crate =
                 typeof parseFloat(order.rate) == "number"
                   ? parseFloat(order.rate).toFixed(6)
                   : dex.tick,
               cfee =
                 parseFloat(stats.dex_fee) > 0
-                  ? parseInt(parseInt(remaining) * parseFloat(stats.dex_fee)) + 1
+                  ? parseInt(parseInt(remaining) * parseFloat(stats.dex_fee)) +
+                  1
                   : parseInt(parseInt(remaining) * 0.005) + 1,
               hours = 720;
             if (crate > 0) {
@@ -313,25 +307,25 @@ exports.dex_sell = (json, from, active, pc) => {
             addops[adds[j][0]] = adds[j][1];
           }
         }
-        bal -= json[config.jsonTokenName];
+        bal -= json[Config("jsonTokenName")];
         if (addops[from]) {
           bal += addops[from];
           delete addops[from];
         }
         const msg = `@${from}| Sell order confirmed.`;
-        if (config.hookurl || config.status)
+        if (Config("hookurl") || Config("status"))
           postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
         ops.push({
           type: "put",
           path: ["feed", `${json.block_num}:${json.transaction_id}`],
           data: msg,
         });
-        ops.push({ type: "put", path: [order.token == 'SPK' ? 'spk' : "balances", from], data: bal });
-        ops.push({ type: "put", path: [order.token == 'SPK' ? 'dexs' : (order.token == 'BROCA' ? 'dexb' : 'dex'), order.pair], data: dex });
+        ops.push({ type: "put", path: ["balances", from], data: bal });
+        ops.push({ type: "put", path: ["dex", order.pair], data: dex });
         if (Object.keys(his).length)
           ops.push({
             type: "put",
-            path: [order.token == 'SPK' ? 'dexs' : (order.token == 'BROCA' ? 'dexb' : 'dex'), order.pair, "his"],
+            path: ["dex", order.pair, "his"],
             data: his,
           });
         add("rn", fee).then((empty) => {
@@ -369,11 +363,10 @@ exports.dex_sell = (json, from, active, pc) => {
               }
               let msg = `@${from} is selling ${parseFloat(
                 parseInt(contract.amount) / 1000
-              ).toFixed(3)} ${config.TOKEN} for ${parseFloat(
+              ).toFixed(3)} ${Config("TOKEN")} for ${parseFloat(
                 parseInt(contract[order.pair]) / 1000
-              ).toFixed(3)} ${order.pair.toUpperCase()}(${contract.rate}:${
-                contract.txid
-              })`;
+              ).toFixed(3)} ${order.pair.toUpperCase()}(${contract.rate}:${contract.txid
+                })`;
               ops.push({
                 type: "put",
                 path: ["feed", `${json.block_num}:${json.transaction_id}.${i}`],
@@ -388,8 +381,8 @@ exports.dex_sell = (json, from, active, pc) => {
           }
         }
       } else {
-        const msg = `@${from}| tried to sell ${config.TOKEN} but sent an invalid order.`;
-        if (config.hookurl || config.status)
+        const msg = `@${from}| tried to sell ${Config("TOKEN")} but sent an invalid order.`;
+        if (Config("hookurl") || Config("status"))
           postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
         ops = [
           {
@@ -407,30 +400,36 @@ exports.dex_sell = (json, from, active, pc) => {
     });
 };
 
-exports.transfer = (json, pc) => {
+export const transfer = (json, pc) => {
   json = naizer(json);
   if (
-    config.features.ico &&
-    json.to == config.msaccount &&
+    Config("features").ico &&
+    json.to == Config("mainICO") &&
     json.amount.nai == "@@000000021" &&
-    json.from != config.msaccount && 
-    json.memo == 'AUCTION'
+    json.from != Config("msaccount")
   ) {
+    //the ICO disribution... should be in multi sig account
     const amount = parseInt(json.amount.amount);
-    var clawback = 0;
     var purchase,
       Pstats = getPathObj(["stats"]),
-      Pbal = getPathNum(["auction", json.from])
-    Promise.all([Pstats, Pbal]).then(function (v) {
+      Pbal = getPathNum(["balances", json.from]),
+      Pinv = getPathNum(["balances", "ri"]);
+    Promise.all([Pstats, Pbal, Pinv]).then(function (v) {
       var stats = v[0],
-        bal = v[1] + amount
+        b = v[1],
+        i = v[2],
         ops = [];
-        if(!stats.inAuction)stats.inAuction = 0
-        stats.inAuction += amount
-          const msg = `@${json.from}| placed ${parseFloat(
+      if (!stats.outOnBlock) {
+        purchase = parseInt((amount / stats.icoPrice) * 1000);
+        if (purchase < i) {
+          i -= purchase;
+          b += purchase;
+          const msg = `@${json.from}| bought ${parseFloat(
+            purchase / 1000
+          ).toFixed(3)} ${Config("TOKEN")} with ${parseFloat(
             amount / 1000
-          ).toFixed(3)} HIVE into daily auction.`;
-          if (config.hookurl || config.status)
+          ).toFixed(3)} HIVE`;
+          if (Config("hookurl") || Config("status"))
             postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
           ops = [
             {
@@ -438,42 +437,84 @@ exports.transfer = (json, pc) => {
               path: ["feed", `${json.block_num}:${json.transaction_id}`],
               data: msg,
             },
-            { type: "put", path: ["auction", json.from], data: bal },
-            { type: "put", path: ["stats"], data: stats },
+            { type: "put", path: ["balances", json.from], data: b },
+            { type: "put", path: ["balances", "ri"], data: i },
           ];
           if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
           store.batch(ops, pc);
+        } else {
+          b += i;
+          const left = purchase - i;
+          stats.outOnBlock = json.block_num;
+          const msg = `@${json.from}| bought ALL ${parseFloat(
+            parseInt(purchase - left)
+          ).toFixed(3)} ${Config("TOKEN")} with ${parseFloat(
+            parseInt(amount) / 1000
+          ).toFixed(3)} HIVE. And bid in the over-auction`;
+          if (Config("hookurl") || Config("status"))
+            postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
+          ops = [
+            {
+              type: "put",
+              path: ["ico", `${json.block_num}`, json.from],
+              data: parseInt((amount * left) / purchase),
+            },
+            { type: "put", path: ["balances", json.from], data: b },
+            { type: "put", path: ["balances", "ri"], data: 0 },
+            { type: "put", path: ["stats"], data: stats },
+            {
+              type: "put",
+              path: ["feed", `${json.block_num}:${json.transaction_id}`],
+              data: msg,
+            },
+          ];
+          if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+          store.batch(ops, pc);
+        }
+      } else {
+        const msg = `@${json.from}| bought ALL ${parseFloat(
+          parseInt(purchase - left)
+        ).toFixed(3)} ${Config("TOKEN")} with ${parseFloat(
+          parseInt(amount) / 1000
+        ).toFixed(3)} HIVE. And bid in the over-auction`;
+        if (Config("hookurl") || Config("status"))
+          postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
+        ops = [
+          {
+            type: "put",
+            path: ["ico", `${json.block_num}`, json.from],
+            data: parseInt(amount),
+          },
+          {
+            type: "put",
+            path: ["feed", `${json.block_num}:${json.transaction_id}`],
+            data: msg,
+          },
+        ];
+        if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+        store.batch(ops, pc);
+      }
     });
   } else if (
-    (config.features.dex || config.features.nft) &&
-    json.to == config.msaccount &&
-    json.from != config.mainICO
+    (Config("features").dex || Config("features").nft) &&
+    json.to == Config("msaccount") &&
+    json.from != Config("mainICO")
   ) {
     if (
       json.memo.split(" ").length > 1 &&
       json.memo.split(" ")[0] == "NFT"
     ) {
-      /*
-                    lth[`set:hash`]{
-                        h,//millihive
-                        b,//millihbd
-                        q,//qty
-                        d,//distro string
-                        i:`${json.set}:${hash}`,//item for canceling
-                        e:'pb:startdate_enddate,max:3',
-                        s:'account1_1,account2_2,account3_1',
-                        p,//pending sales 
-                    }
-            */
       let item = json.memo.split(" ")[1],
         setname = item.split(":")[0],
         Pset = getPathObj(["sets", setname]),
         Pstats = getPathObj(["stats"]),
-        Pitem = getPathObj(["lth", item]);
-      Promise.all([Pset, Pitem, Pstats]).then((mem) => {
+        Pitem = getPathObj(["lth", item]),
+        Pmsh = getPathObj(["stats", "ms", "active_account_auths"]);
+      Promise.all([Pset, Pitem, Pstats, Pmsh]).then((mem) => {
         let set = mem[0],
           listing = mem[1],
           stats = mem[2],
+          msholders = mem[3],
           amount = parseInt(json.amount.amount),
           type = json.amount.nai == "@@000000021" ? "HIVE" : "HBD",
           ops = [],
@@ -485,7 +526,10 @@ exports.transfer = (json, pc) => {
           whoBoughtIndex,
           whoBoughtAmount = 0;
         stats.MSHeld[type] += refund_amount;
-        if (listing) {
+        if (msholders.includes(json.from) && json.memo == "IGNORE") {
+          //console.log('IGNORE')
+          pc[0](pc[2]);
+        } else if (listing) {
           if (!listing.s) listing.s = "";
           if (enf.max) {
             allowed = enf.max;
@@ -540,8 +584,7 @@ exports.transfer = (json, pc) => {
                 qty * listing.h + qty * listing.b,
                 type,
                 listing.d,
-                `${qty} ${setname}${qty > 1 ? "'s" : ""} purchased - ${
-                  json.from
+                `${qty} ${setname}${qty > 1 ? "'s" : ""} purchased - ${json.from
                 }:${json.transaction_id.substr(0, 8)}:`
               ),
             ];
@@ -555,7 +598,7 @@ exports.transfer = (json, pc) => {
               "transfer",
               {
                 to: json.from,
-                from: config.msaccount,
+                from: Config("msaccount"),
                 amount:
                   parseFloat(refund_amount / 1000).toFixed(3) + ` ${type}`,
                 memo: `Refund ${setname} mint token purchase:${json.transaction_id}:`,
@@ -569,10 +612,9 @@ exports.transfer = (json, pc) => {
               data: stringify(transfers[i]),
             });
           }
-          const msg = `@${json.from}| bought ${qty} ${setname} token${
-            qty > 1 ? "s" : ""
-          } with ${parseFloat(parseInt(amount) / 1000).toFixed(3)} ${type}`;
-          if (config.hookurl || config.status)
+          const msg = `@${json.from}| bought ${qty} ${setname} token${qty > 1 ? "s" : ""
+            } with ${parseFloat(parseInt(amount) / 1000).toFixed(3)} ${type}`;
+          if (Config("hookurl") || Config("status"))
             postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
           ops.push({
             type: "put",
@@ -590,14 +632,14 @@ exports.transfer = (json, pc) => {
               "transfer",
               {
                 to: json.from,
-                from: config.msaccount,
+                from: Config("msaccount"),
                 amount: json.amount,
                 memo: `Refund: Item(s) not found.`,
               },
             ]),
           });
           const msg = `@${json.from}| can't locate item(s). Refund in progress.`;
-          if (config.hookurl || config.status)
+          if (Config("hookurl") || Config("status"))
             postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
           ops.push({
             type: "put",
@@ -631,13 +673,13 @@ exports.transfer = (json, pc) => {
             stats.MSHeld[json.amount.nai == "@@000000021" ? "HIVE" : "HBD"] +=
               parseInt(json.amount.amount);
           } catch (e) {
-            console.log(nfts[0]);
+            //console.log(nfts[0]);
           }
           if (
             nfts[0].s !== undefined &&
-            to == json.from &&
-            parseInt(json.amount.amount) == price &&
-            (type == json.amount.nai) == "@@000000021"
+              to == json.from &&
+              parseInt(json.amount.amount) == price &&
+              (type == json.amount.nai) == "@@000000021"
               ? "HIVE"
               : "HBD"
           ) {
@@ -645,12 +687,12 @@ exports.transfer = (json, pc) => {
               nft = nfts[0],
               set = nfts[1];
             let royalties = parseInt((price * set.r) / 10000);
-            let fee = parseInt((price * config.hive_service_fee) / 10000);
+            let fee = parseInt((price * Config("hive_service_fee")) / 10000);
             let total = price - royalties - fee;
             const Transfer = [
               "transfer",
               {
-                from: config.msaccount,
+                from: Config("msaccount"),
                 to: nfts[0].t.split("_")[0],
                 amount: parseFloat(total / 1000).toFixed(3) + ` ${type}`,
                 memo: `${item} traded to ${json.from}.`,
@@ -663,8 +705,7 @@ exports.transfer = (json, pc) => {
                 json.block_num,
                 `roy_${json.transaction_id}`,
                 `n:${set.n}`,
-                json.timestamp,
-                config.TOKEN
+                json.timestamp
               ).then((empty) => {
                 DEX.buyTokenFromDex(
                   fee,
@@ -672,8 +713,7 @@ exports.transfer = (json, pc) => {
                   json.block_num,
                   `fee_${json.transaction_id}`,
                   `rn`,
-                  json.timestamp,
-                  config.TOKEN
+                  json.timestamp
                 ).then((emp) => {
                   finish(set, json, listing, uid, item, Transfer, nft, pc);
                 });
@@ -685,8 +725,7 @@ exports.transfer = (json, pc) => {
                 json.block_num,
                 `fee_${json.transaction_id}`,
                 `rn`,
-                json.timestamp,
-                config.TOKEN
+                json.timestamp
               ).then((emp) => {
                 finish(set, json, listing, uid, item, Transfer, nft, pc);
               });
@@ -722,7 +761,7 @@ exports.transfer = (json, pc) => {
               });
               // is there anything in the NFT that needs to be modified? owner, renter,
               let msg = `@${json.from} completed NFT: ${setname}:${uid} transfer`;
-              if (config.hookurl || config.status)
+              if (Config("hookurl") || Config("status"))
                 postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
               ops.push({
                 type: "put",
@@ -738,7 +777,7 @@ exports.transfer = (json, pc) => {
               "transfer",
               {
                 to: json.from,
-                from: config.msaccount,
+                from: Config("msaccount"),
                 amount: json.amount,
                 memo: `Failed trade. ${json.transaction_id.substr(0, 8)}`,
               },
@@ -750,7 +789,7 @@ exports.transfer = (json, pc) => {
               data: stringify(transfer),
             });
             let msg = `@${json.from} trade of ${setname}:${uid} didn't go well.`;
-            if (config.hookurl || config.status)
+            if (Config("hookurl") || Config("status"))
               postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
             ops.push({ type: "put", path: ["stats"], data: stats });
             if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
@@ -785,7 +824,7 @@ exports.transfer = (json, pc) => {
                   "transfer",
                   {
                     to: listing.f,
-                    from: config.msaccount,
+                    from: Config("msaccount"),
                     amount:
                       parseFloat(listing.b / 1000).toFixed(3) + ` ${type}`,
                     memo: `Outbid on ${set}:${uid}. ${json.transaction_id.substr(
@@ -812,7 +851,7 @@ exports.transfer = (json, pc) => {
                 let msg = `@${json.from} bid ${parseFloat(
                   amount / 1000
                 ).toFixed(3)} ${type} on ${set}:${uid}'s auction`;
-                if (config.hookurl || config.status)
+                if (Config("hookurl") || Config("status"))
                   postToDiscord(
                     msg,
                     `${json.block_num}:${json.transaction_id}`
@@ -829,7 +868,7 @@ exports.transfer = (json, pc) => {
                   "transfer",
                   {
                     to: json.from,
-                    from: config.msaccount,
+                    from: Config("msaccount"),
                     amount: json.amount,
                     memo: `Underbid on ${set}:${uid}. ${json.transaction_id.substr(
                       0,
@@ -848,7 +887,7 @@ exports.transfer = (json, pc) => {
                   data: stringify(transfer),
                 });
                 let msg = `@${json.from} hasn't outbid on ${set}:${uid}`;
-                if (config.hookurl || config.status)
+                if (Config("hookurl") || Config("status"))
                   postToDiscord(
                     msg,
                     `${json.block_num}:${json.transaction_id}`
@@ -870,7 +909,7 @@ exports.transfer = (json, pc) => {
               let msg = `@${json.from} bid ${parseFloat(amount / 1000).toFixed(
                 3
               )} ${type} on ${set}:${uid}'s auction`;
-              if (config.hookurl || config.status)
+              if (Config("hookurl") || Config("status"))
                 postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
               ops.push({
                 type: "put",
@@ -884,7 +923,7 @@ exports.transfer = (json, pc) => {
                 "transfer",
                 {
                   to: json.from,
-                  from: config.msaccount,
+                  from: Config("msaccount"),
                   amount: json.amount,
                   memo: `Underbid on ${set}:${uid}. ${json.transaction_id.substr(
                     0,
@@ -900,7 +939,7 @@ exports.transfer = (json, pc) => {
                 data: stringify(transfer),
               });
               let msg = `@${json.from} hasn't outbid on ${set}:${uid}`;
-              if (config.hookurl || config.status)
+              if (Config("hookurl") || Config("status"))
                 postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
               if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
               store.batch(ops, pc);
@@ -910,7 +949,7 @@ exports.transfer = (json, pc) => {
               "transfer",
               {
                 to: json.from,
-                from: config.msaccount,
+                from: Config("msaccount"),
                 amount: json.amount,
                 memo: `Underbid on ${set}:${uid}. ${json.transaction_id.substr(
                   0,
@@ -926,7 +965,7 @@ exports.transfer = (json, pc) => {
               data: stringify(transfer),
             });
             let msg = `@${json.from} bid on ${set}:${uid} didn't go well.`;
-            if (config.hookurl || config.status)
+            if (Config("hookurl") || Config("status"))
               postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
             if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
             store.batch(ops, pc);
@@ -962,12 +1001,12 @@ exports.transfer = (json, pc) => {
             const last_modified = nft.s.split(",")[0];
             nft.s.replace(last_modified, Base64.fromNumber(json.block_num)); //update last modified
             let royalties = parseInt((listing.p * set.r) / 10000);
-            let fee = parseInt((listing.p * config.hive_service_fee) / 10000);
+            let fee = parseInt((listing.p * Config("hive_service_fee")) / 10000);
             let total = listing.p - royalties - fee;
             const Transfer = [
               "transfer",
               {
-                from: config.msaccount,
+                from: Config("msaccount"),
                 to: listing.o,
                 amount: parseFloat(total / 1000).toFixed(3) + ` ${listing.h}`,
                 memo: `${item} sold to ${json.from}.`,
@@ -980,8 +1019,7 @@ exports.transfer = (json, pc) => {
                 json.block_num,
                 `roy_${json.transaction_id}`,
                 `n:${set.n}`,
-                json.timestamp,
-                config.TOKEN
+                json.timestamp
               ).then((empty) => {
                 DEX.buyTokenFromDex(
                   fee,
@@ -989,8 +1027,7 @@ exports.transfer = (json, pc) => {
                   json.block_num,
                   `fee_${json.transaction_id}`,
                   `rn`,
-                  json.timestamp,
-                  config.TOKEN
+                  json.timestamp
                 ).then((emp) => {
                   finish(set, json, listing, uid, item, Transfer, nft, pc);
                 });
@@ -1002,8 +1039,7 @@ exports.transfer = (json, pc) => {
                 json.block_num,
                 `fee_${json.transaction_id}`,
                 `rn`,
-                json.timestamp,
-                config.TOKEN
+                json.timestamp
               ).then((emp) => {
                 finish(set, json, listing, uid, item, Transfer, nft, pc);
               });
@@ -1039,7 +1075,7 @@ exports.transfer = (json, pc) => {
                 path: ["msa", `${json.block_num}:vop_${json.transaction_id}`],
                 data: stringify(Transfer),
               });
-              if (config.hookurl)
+              if (Config("hookurl"))
                 postToDiscord(
                   msg,
                   `${json.block_num}:vop_${json.transaction_id}`
@@ -1058,7 +1094,6 @@ exports.transfer = (json, pc) => {
                   data: set,
                 });
               ops.push({ type: "del", path: ["ls", item] });
-              if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
               store.batch(ops, promise);
             }
           } else {
@@ -1066,7 +1101,7 @@ exports.transfer = (json, pc) => {
               "transfer",
               {
                 to: json.from,
-                from: config.msaccount,
+                from: Config("msaccount"),
                 amount: parseFloat(listing.b / 1000).toFixed(3) + ` ${type}`,
                 memo: `Failed to buy ${setname}:${uid}. ${json.transaction_id.substr(
                   0,
@@ -1082,7 +1117,7 @@ exports.transfer = (json, pc) => {
               data: stringify(transfer),
             });
             let msg = `@${json.from} buy of ${set}:${uid} didn't go well.`;
-            if (config.hookurl || config.status)
+            if (Config("hookurl") || Config("status"))
               postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
             if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
             store.batch(ops, pc);
@@ -1092,17 +1127,15 @@ exports.transfer = (json, pc) => {
           console.log(e);
         });
     } else {
-      //console.log(json)
       let order = {
-          type: "LIMIT",
-          token: "SPK"
-        },
+        type: "LIMIT",
+      },
         path = "",
         waiting = Promise.resolve(""),
         contract = "";
       try {
         order = JSON.parse(json.memo);
-      } catch (e) {}
+      } catch (e) { }
       if (!order.rate) {
         order.type = "MARKET";
         order.rate = 0;
@@ -1116,11 +1149,9 @@ exports.transfer = (json, pc) => {
       }
       order.pair = json.amount.nai == "@@000000021" ? "hive" : "hbd";
       order.amount = parseInt(json.amount.amount);
-      //console.log({order})
       if (order.type == "MARKET" || order.type == "LIMIT") {
-        if(order.token != 'SPK')order.token = 'LARYNX'
-        let pDEX = getPathObj([`dex${order.token == 'SPK' ? 's' : (order.token == 'BROCA' ? 'b' : '')}}`, order.pair]),
-          pBal = getPathNum([order.token == 'SPK' ? 'spk' : 'balances', json.from]),
+        let pDEX = getPathObj(["dex", order.pair]),
+          pBal = getPathNum(["balances", json.from]),
           pInv = getPathNum(["balances", "ri"]),
           pStats = getPathObj(["stats"]);
         Promise.all([pDEX, pBal, pInv, pStats]).then((mem) => {
@@ -1135,10 +1166,10 @@ exports.transfer = (json, pc) => {
             fee = 0,
             i = 0;
           if (typeof order.rate != "string") order.rate = dex.tick;
-          if(order.token == 'SPK')stats.multiSigCollateralValue = parseInt(stats.multiSigCollateral * dex.tick)
           stats.MSHeld[json.amount.nai == "@@000000021" ? "HIVE" : "HBD"] +=
             parseInt(json.amount.amount);
           while (remaining) {
+            //console.log('while')
             i++;
             var price = dex.sellBook
               ? parseFloat(dex.sellBook.split("_")[0]).toFixed(6)
@@ -1146,32 +1177,25 @@ exports.transfer = (json, pc) => {
             let item = "";
             if (price) item = dex.sellBook.split("_")[1].split(",")[0];
             else price = dex.tick;
-            if(order.token == 'SPK')stats.multiSigCollateralValue = parseInt(stats.multiSigCollateral * dex.tick)
-            console.log("Matching...", { order, price, item });
+            //console.log("Matching...", { order, price, item });
             if (
               item &&
               (order.pair == "hbd" ||
                 (order.pair == "hive" &&
-                  (order.token == 'SPK' || order.token == 'BROCA' || price <= stats.icoPrice / 1000 || !config.features.ico))) &&
+                  (price <= stats.icoPrice / 1000 || !Config("features").ico))) &&
               (order.type == "MARKET" ||
                 (order.type == "LIMIT" && order.rate >= price))
             ) {
               var next = dex.sellOrders?.[`${price}:${item}`];
-              console.log("Matched order", { next });
+              //console.log("Matched order", { next });
               if (next && next[order.pair] <= remaining) {
                 if (next[order.pair]) {
-                  console.log("Partial Fill");
-                  if(order.token == 'BROCA' && stats.broca_clawback){
-                    newClawback = parseInt((remaining / next.amount) * stats.broca_clawback / 10000)
-                    clawback += newClawback
-                    next.amount = Math.max(0, next.amount - newClawback);
-                  }
+                  //console.log("Partial Fill");
                   filled += next.amount - next.fee;
                   bal += next.amount - next.fee; //update the balance
                   fee += next.fee; //add the fees
                   remaining -= next[order.pair];
                   dex.tick = next.rate;
-                  if(order.token == 'SPK')stats.multiSigCollateralValue = parseInt(stats.multiSigCollateral * dex.tick)
                   his[`${json.block_num}:${i}:${json.transaction_id}`] = {
                     type: "buy",
                     t: Date.parse(json.timestamp),
@@ -1187,7 +1211,7 @@ exports.transfer = (json, pc) => {
                   const transfer = [
                     "transfer",
                     {
-                      from: config.msaccount,
+                      from: Config("msaccount"),
                       to: next.from,
                       amount:
                         parseFloat(next[order.pair] / 1000).toFixed(3) +
@@ -1198,11 +1222,10 @@ exports.transfer = (json, pc) => {
                   ];
                   let msg = `@${json.from} bought ${parseFloat(
                     parseInt(next.amount) / 1000
-                  ).toFixed(3)} ${config.TOKEN} with ${parseFloat(
+                  ).toFixed(3)} ${Config("TOKEN")} with ${parseFloat(
                     parseInt(next[order.pair]) / 1000
-                  ).toFixed(3)} ${order.pair.toUpperCase()} from ${
-                    next.from
-                  } (${item})`;
+                  ).toFixed(3)} ${order.pair.toUpperCase()} from ${next.from
+                    } (${item})`;
                   ops.push({
                     type: "put",
                     path: [
@@ -1214,7 +1237,7 @@ exports.transfer = (json, pc) => {
                   if (Object.keys(his).length)
                     ops.push({
                       type: "put",
-                      path: [order.token == 'SPK' ? 'dexs' : (order.token == 'BROCA' ? 'dexb' : 'dex') , order.pair, "his"],
+                      path: ["dex", order.pair, "his"],
                       data: his,
                     });
                   ops.push({
@@ -1224,7 +1247,7 @@ exports.transfer = (json, pc) => {
                   }); //send HIVE out via MS
                   ops.push({
                     type: "del",
-                    path: [order.token == 'SPK' ? 'dexs' : (order.token == 'BROCA' ? 'dexb' : 'dex'), order.pair, "sellOrders", `${price}:${item}`],
+                    path: ["dex", order.pair, "sellOrders", `${price}:${item}`],
                   }); //remove the order
                   ops.push({
                     type: "del",
@@ -1232,14 +1255,14 @@ exports.transfer = (json, pc) => {
                   }); //remove the contract
                   ops.push({ type: "del", path: ["chrono", next.expire_path] }); //remove the chrono
                 } else {
-                  console.log("Only fees left...");
+                  //console.log("Only fees left...");
                   fee += next.fee;
                   fee += next.amount;
                   dex.sellBook = DEX.remove(item, dex.sellBook); //adjust the orderbook
                   delete dex.sellOrders[`${price}:${item}`];
                   ops.push({
                     type: "del",
-                    path: [order.token == 'SPK' ? 'dexs' : (order.token == 'BROCA' ? 'dexb' : 'dex'), order.pair, "sellOrders", `${price}:${item}`],
+                    path: ["dex", order.pair, "sellOrders", `${price}:${item}`],
                   }); //remove the order
                   ops.push({
                     type: "del",
@@ -1251,12 +1274,7 @@ exports.transfer = (json, pc) => {
                 console.log("Sell Book Error:", dex.sellBook);
                 dex.sellBook = DEX.remove(item, dex.sellBook);
               } else {
-                console.log("Filled");
-                if(order.token == 'BROCA' && stats.broca_clawback){
-                  newClawback = parseInt((remaining / next.amount) * stats.broca_clawback / 10000)
-                  clawback += newClawback
-                  next.amount -= newClawback
-                }
+                //console.log("Filled");
                 next[order.pair] = next[order.pair] - remaining; // modify the contract
                 const tokenAmount = parseInt(remaining / parseFloat(next.rate));
                 const feeAmount = parseInt(
@@ -1291,12 +1309,11 @@ exports.transfer = (json, pc) => {
                   };
                 }
                 dex.tick = next.rate;
-                if(order.token == 'SPK')stats.multiSigCollateralValue = parseInt(stats.multiSigCollateral * dex.tick)
                 dex.sellOrders[`${price}:${item}`] = next;
                 const transfer = [
                   "transfer",
                   {
-                    from: config.msaccount,
+                    from: Config("msaccount"),
                     to: next.from,
                     amount:
                       parseFloat(remaining / 1000).toFixed(3) +
@@ -1307,11 +1324,10 @@ exports.transfer = (json, pc) => {
                 ];
                 let msg = `@${json.from} bought ${parseFloat(
                   parseInt(tokenAmount) / 1000
-                ).toFixed(3)} ${config.TOKEN} with ${parseFloat(
+                ).toFixed(3)} ${Config("TOKEN")} with ${parseFloat(
                   parseInt(remaining) / 1000
-                ).toFixed(3)} ${order.pair.toUpperCase()} from ${
-                  next.from
-                } (${item})`;
+                ).toFixed(3)} ${order.pair.toUpperCase()} from ${next.from
+                  } (${item})`;
                 remaining = 0;
                 ops.push({
                   type: "put",
@@ -1323,12 +1339,12 @@ exports.transfer = (json, pc) => {
                 });
                 ops.push({
                   type: "put",
-                  path: [order.token == 'SPK' ? 'spk' : 'balances', json.from],
+                  path: ["balances", json.from],
                   data: bal,
                 });
                 ops.push({
                   type: "put",
-                  path: [order.token == 'SPK' ? 'dexs' : (order.token == 'BROCA' ? 'dexb' : 'dex'), order.pair, "his"],
+                  path: ["dex", order.pair, "his"],
                   data: his,
                 });
                 ops.push({
@@ -1345,109 +1361,111 @@ exports.transfer = (json, pc) => {
               }
             } else {
               if (
-                config.features.ico &&
-                ( order.token != 'SPK' || order.token != 'BROCA')  &&
+                Config("features").ico &&
                 order.pair == "hive" &&
                 (order.type == "MARKET" ||
-                  order.type == "AUCTION")
+                  (order.type == "LIMIT" &&
+                    order.rate >= stats.icoPrice / 1000))
               ) {
-                console.log("Auction");
-                let purchase = 0
-                // const transfer = [
-                //   "transfer",
-                //   {
-                //     from: config.msaccount,
-                //     to: config.mainICO,
-                //     amount:
-                //       parseFloat(remaining / 1000).toFixed(3) +
-                //       " " +
-                //       order.pair.toUpperCase(),
-                //     memo: `ICO Buy from ${json.from}:${json.transaction_id}`,
-                //   },
-                // ];
-                // ops.push({
-                //   type: "put",
-                //   path: [
-                //     "msa",
-                //     `ICO@${json.from}:${json.transaction_id}:${json.block_num}`,
-                //   ],
-                //   data: stringify(transfer),
-                // }); //send HIVE out via MS
-                //dex.tick = parseFloat(stats.icoPrice / 1000).toFixed(6);
-                if (false) { //stats.outonblock
-                  // purchase = parseInt((remaining / stats.icoPrice) * 1000);
-                  // filled += purchase;
-                  // if (purchase < inv) {
-                  //   inv -= purchase;
-                  //   bal += purchase;
-                  //   his[`${json.block_num}:${i}:${json.transaction_id}`] = {
-                  //     type: "buy",
-                  //     t: Date.parse(json.timestamp),
-                  //     block: json.block_num,
-                  //     base_vol: purchase,
-                  //     target_vol: remaining,
-                  //     target: order.pair,
-                  //     price: parseFloat(stats.icoPrice / 1000).toFixed(6),
-                  //     id: json.transaction_id + i,
-                  //   };
-                  //   const msg = `@${json.from}| bought ${parseFloat(
-                  //     purchase / 1000
-                  //   ).toFixed(3)} ${order.token == 'SPK' ? 'SPK' : (order.token == 'BROCA' ? 'BROCA' : 'LARYNX')} with ${parseFloat(
-                  //     remaining / 1000
-                  //   ).toFixed(3)} HIVE`;
-                  //   ops.push(
-                  //     {
-                  //       type: "put",
-                  //       path: [
-                  //         "feed",
-                  //         `${json.block_num}:${json.transaction_id}:${i}`,
-                  //       ],
-                  //       data: msg,
-                  //     },
-                  //     { type: "put", path: [order.token == 'SPK' ? 'spk' : 'balances', "ri"], data: inv }
-                  //   );
-                  // } else {
-                  //   bal += inv;
-                  //   const left = purchase - inv;
-                  //   stats.outOnBlock = json.block_num;
-                  //   his[`${json.block_num}:${i}:${json.transaction_id}`] = {
-                  //     type: "buy",
-                  //     t: Date.parse(json.timestamp),
-                  //     block: json.block_num,
-                  //     base_vol: inv,
-                  //     target_vol: remaining,
-                  //     target: order.pair,
-                  //     price: parseFloat(stats.icoPrice / 1000).toFixed(6),
-                  //     id: json.transaction_id + i,
-                  //   };
-                  //   const msg = `@${json.from}| bought ALL ${parseFloat(
-                  //     parseInt(purchase - left)
-                  //   ).toFixed(3)} ${order.token == 'SPK' ? 'SPK' : (order.token == 'BROCA' ? 'BROCA' : 'LARYNX')} with ${parseFloat(
-                  //     parseInt(order.amount) / 1000
-                  //   ).toFixed(3)} HIVE. And bid in the over-auction`;
-                  //   ops.push(
-                  //     {
-                  //       type: "put",
-                  //       path: ["ico", `${json.block_num}`, json.from],
-                  //       data: parseInt((order.amount * left) / purchase),
-                  //     },
-                  //     { type: "put", path: [order.token == 'SPK' ? 'spk' : 'balances', "ri"], data: 0 },
-                  //     {
-                  //       type: "put",
-                  //       path: [
-                  //         "feed",
-                  //         `${json.block_num}:${json.transaction_id}`,
-                  //       ],
-                  //       data: msg,
-                  //     }
-                  //   );
-                  // }
-                  // remaining = 0;
+                //console.log("ICO");
+                let purchase;
+                const transfer = [
+                  "transfer",
+                  {
+                    from: Config("msaccount"),
+                    to: Config("mainICO"),
+                    amount:
+                      parseFloat(remaining / 1000).toFixed(3) +
+                      " " +
+                      order.pair.toUpperCase(),
+                    memo: `ICO Buy from ${json.from}:${json.transaction_id}`,
+                  },
+                ];
+                ops.push({
+                  type: "put",
+                  path: [
+                    "msa",
+                    `ICO@${json.from}:${json.transaction_id}:${json.block_num}`,
+                  ],
+                  data: stringify(transfer),
+                }); //send HIVE out via MS
+                dex.tick = parseFloat(stats.icoPrice / 1000).toFixed(6);
+                if (!stats.outOnBlock) {
+                  purchase = parseInt((remaining / stats.icoPrice) * 1000);
+                  filled += purchase;
+                  if (purchase < inv) {
+                    inv -= purchase;
+                    bal += purchase;
+                    his[`${json.block_num}:${i}:${json.transaction_id}`] = {
+                      type: "buy",
+                      t: Date.parse(json.timestamp),
+                      block: json.block_num,
+                      base_vol: purchase,
+                      target_vol: remaining,
+                      target: order.pair,
+                      price: parseFloat(stats.icoPrice / 1000).toFixed(6),
+                      id: json.transaction_id + i,
+                    };
+                    const msg = `@${json.from}| bought ${parseFloat(
+                      purchase / 1000
+                    ).toFixed(3)} ${Config("TOKEN")} with ${parseFloat(
+                      remaining / 1000
+                    ).toFixed(3)} HIVE`;
+                    ops.push(
+                      {
+                        type: "put",
+                        path: [
+                          "feed",
+                          `${json.block_num}:${json.transaction_id}:${i}`,
+                        ],
+                        data: msg,
+                      },
+                      { type: "put", path: ["balances", "ri"], data: inv }
+                    );
+                  } else {
+                    bal += inv;
+                    const left = purchase - inv;
+                    stats.outOnBlock = json.block_num;
+                    his[`${json.block_num}:${i}:${json.transaction_id}`] = {
+                      type: "buy",
+                      t: Date.parse(json.timestamp),
+                      block: json.block_num,
+                      base_vol: inv,
+                      target_vol: remaining,
+                      target: order.pair,
+                      price: parseFloat(stats.icoPrice / 1000).toFixed(6),
+                      id: json.transaction_id + i,
+                    };
+                    const msg = `@${json.from}| bought ALL ${parseFloat(
+                      parseInt(purchase - left)
+                    ).toFixed(3)} ${Config("TOKEN")} with ${parseFloat(
+                      parseInt(amount) / 1000
+                    ).toFixed(3)} HIVE. And bid in the over-auction`;
+                    ops.push(
+                      {
+                        type: "put",
+                        path: ["ico", `${json.block_num}`, json.from],
+                        data: parseInt((amount * left) / purchase),
+                      },
+                      { type: "put", path: ["balances", "ri"], data: 0 },
+                      {
+                        type: "put",
+                        path: [
+                          "feed",
+                          `${json.block_num}:${json.transaction_id}`,
+                        ],
+                        data: msg,
+                      }
+                    );
+                  }
+                  remaining = 0;
                 } else {
-                  const msg = `@${json.from}|  Entered LARYNX Auction with ${parseFloat(
+                  const msg = `@${json.from}| bought ALL ${parseFloat(
+                    parseInt(purchase - left)
+                  ).toFixed(3)} ${Config("TOKEN")} with ${parseFloat(
                     parseInt(amount) / 1000
-                  ).toFixed(3)} HIVE.`;
-                  if (config.hookurl || config.status)
+                  ).toFixed(3)} HIVE. And bid in the over-auction`;
+                  if (Config("hookurl") || Config("status"))
                     postToDiscord(
                       msg,
                       `${json.block_num}:${json.transaction_id}`
@@ -1455,7 +1473,7 @@ exports.transfer = (json, pc) => {
                   ops = [
                     {
                       type: "put",
-                      path: ["auction", `${json.block_num}`, json.from],
+                      path: ["ico", `${json.block_num}`, json.from],
                       data: parseInt(amount),
                     },
                     {
@@ -1475,7 +1493,7 @@ exports.transfer = (json, pc) => {
               } else {
                 console.log("Building contract");
                 const txid =
-                    config.TOKEN + hashThis(json.from + json.transaction_id),
+                  Config("TOKEN") + hashThis(json.from + json.transaction_id),
                   crate = parseFloat(order.rate) > 0 ? order.rate : dex.tick,
                   toRefund = maxAllowed(stats, dex.tick, remaining, crate);
                 remaining = remaining - toRefund;
@@ -1486,7 +1504,7 @@ exports.transfer = (json, pc) => {
                   const transfer = [
                     "transfer",
                     {
-                      from: config.msaccount,
+                      from: Config("msaccount"),
                       to: json.from,
                       amount:
                         parseFloat(toRefund / 1000).toFixed(3) +
@@ -1517,12 +1535,13 @@ exports.transfer = (json, pc) => {
                   hive_id: json.transaction_id,
                 };
                 contract.amount = parseInt(remaining / crate);
-                contract.fee = parseFloat(stats.dex_fee) > 0
+                (contract.fee =
+                  parseFloat(stats.dex_fee) > 0
                     ? parseInt(
-                        parseInt(contract.amount) * parseFloat(stats.dex_fee)
-                      ) + 1
-                    : parseInt(contract.amount * 0.005) + 1,
-                contract[order.pair] = remaining;
+                      parseInt(contract.amount) * parseFloat(stats.dex_fee)
+                    ) + 1
+                    : parseInt(contract.amount * 0.005) + 1),
+                  (contract[order.pair] = remaining);
                 if (remaining) {
                   dex.buyBook = DEX.insert(txid, crate, dex.buyBook, "buy");
                   path = chronAssign(expBlock, {
@@ -1542,15 +1561,15 @@ exports.transfer = (json, pc) => {
             msg = `@${json.from} set a buy order at ${contrate.rate}.`;
           } else if (json.from != "rn") {
             msg = `@${json.from} | order received.`;
-            waiting = order.token == 'SPK' ? addSpk("u", fee) : (  order.token == 'BROCA' ? addBroca("u", fee) : add("rn", fee) )
+            waiting = add("rn", fee);
           } else {
             console.log({ fee });
             msg = `@${json.from} | order received.`;
             bal += fee;
           }
-          if (config.hookurl || config.status)
+          if (Config("hookurl") || Config("status"))
             postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
-          ops.push({ type: "put", path: [order.token == 'SPK' ? "spk" : ( order.token == 'BROCA' ? "Broca" : "balances"), json.from], data: bal });
+          ops.push({ type: "put", path: ["balances", json.from], data: bal });
           ops.push({
             type: "put",
             path: ["feed", `${json.block_num}:${json.transaction_id}.${i++}`],
@@ -1559,12 +1578,12 @@ exports.transfer = (json, pc) => {
           if (Object.keys(his).length)
             ops.push({
               type: "put",
-              path: [`dex${order.token == 'SPK' ? 's' : (order.token == 'BROCA' ? 'b' : '')}`, order.pair, "his"],
+              path: ["dex", order.pair, "his"],
               data: his,
             });
           if (!path) {
-            Promise.all([waiting, burnBroca(clawback)]).then((empty) => {
-              ops.push({ type: "put", path: [`dex${order.token == 'SPK' ? 's' : (order.token == 'BROCA' ? 'b' : '')}`, order.pair], data: dex });
+            Promise.all([waiting]).then((empty) => {
+              ops.push({ type: "put", path: ["dex", order.pair], data: dex });
               ops.push({ type: "put", path: ["stats"], data: stats });
               if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
               store.batch(ops, pc);
@@ -1586,12 +1605,11 @@ exports.transfer = (json, pc) => {
               }
               let msg = `@${json.from} is buying ${parseFloat(
                 parseInt(contract.amount) / 1000
-              ).toFixed(3)} ${order.token == 'SPK' ? 'SPK' : (order.token == 'BROCA' ? 'BROCA' : 'LARYNX')} for ${parseFloat(
+              ).toFixed(3)} ${Config("TOKEN")} for ${parseFloat(
                 parseInt(contract[order.pair]) / 1000
-              ).toFixed(3)} ${order.pair.toUpperCase()}(${contract.rate}:${
-                contract.txid
-              })`;
-              ops.push({ type: "put", path: [order.token == 'SPK' ? 'dexs' : (order.token == 'BROCA' ? 'dexb' : 'dex'), order.pair], data: dex });
+              ).toFixed(3)} ${order.pair.toUpperCase()}(${contract.rate}:${contract.txid
+                })`;
+              ops.push({ type: "put", path: ["dex", order.pair], data: dex });
               ops.push({
                 type: "put",
                 path: ["feed", `${json.block_num}:${json.transaction_id}.${i}`],
@@ -1607,13 +1625,13 @@ exports.transfer = (json, pc) => {
         const transfer = [
           "transfer",
           {
-            from: config.msaccount,
+            from: Config("msaccount"),
             to: json.from,
             amount: json.amount,
-            memo: `This doesn't appear to be formatted correctly to buy ${config.TOKEN}`,
+            memo: `This doesn't appear to be formatted correctly to buy ${Config("TOKEN")}`,
           },
         ];
-        let msg = `@${json.from} sent a weird transaction to ${config.msaccount}: refunding`;
+        let msg = `@${json.from} sent a weird transaction to ${Config("msaccount")}: refunding`;
         ops.push({
           type: "put",
           path: ["feed", `${json.block_num}:${json.transaction_id}.${i}`],
@@ -1632,7 +1650,7 @@ exports.transfer = (json, pc) => {
         store.batch(ops, pc);
       }
     }
-  } else if (config.features.dex && json.from == config.msaccount) {
+  } else if (Config("features").dex && json.from == Config("msaccount")) {
     var Pmss = getPathObj(["mss"]),
       Pstats = getPathObj(["stats"]);
 
@@ -1653,104 +1671,18 @@ exports.transfer = (json, pc) => {
       store.batch(ops, pc);
     });
   } else {
-    store.get(
-      ["escrow", json.from, json.memo.split(" ")[0] + ":transfer"],
-      function (e, a) {
-        var ops = [];
-        if (!e && !isEmpty(a)) {
-          let auth = true,
-            terms = Object.keys(a[1]);
-          for (i = 0; i < terms.length; i++) {
-            if (json[terms[i]] !== a[1][terms[i]]) {
-              auth = false;
-            }
-          }
-          console.log("authed " + auth);
-          if (auth) {
-            const msg = `@${json.from}| sent @${json.to} ${nai(
-              json.amount
-            )} for ${json.memo.split(" ")[0]}`;
-            if (config.hookurl || config.status)
-              postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
-            ops.push({
-              type: "put",
-              path: ["feed", `${json.block_num}:${json.transaction_id}`],
-              data: msg,
-            });
-            let addr = json.memo.split(" ")[0],
-              co = json.memo.split(" ")[2],
-              cp = getPathObj(["contracts", co, addr]),
-              sp = getPathObj(["contracts", json.to, addr]),
-              gp = getPathNum(["gov", json.from]);
-            Promise.all([cp, gp, sp])
-              .then((ret) => {
-                let d = ret[1],
-                  c = ret[0];
-                if (!c.escrow_id) {
-                  c = ret[2];
-                  co = c.co;
-                }
-                (eo = c.buyer), (g = c.escrow);
-                if (c.type === "sb" || c.type === "db") eo = c.from;
-                console.log(c);
-                let lil_ops = [
-                  addGov(json.from, parseInt(c.escrow)),
-                  addCol(json.from, -parseInt(c.escrow)),
-                  add(json.from, parseInt(c.fee / 3)),
-                  deletePointer(c.escrow_id, eo),
-                  credit(json.from),
-                ];
-                console.log(json.from, parseInt(c.fee / 3));
-                ops.push({
-                  type: "del",
-                  path: ["escrow", json.from, addr + ":transfer"],
-                });
-                ops.push({ type: "del", path: ["contracts", co, addr] });
-                ops.push({ type: "del", path: ["chrono", c.expire_path] });
-                if (json.from == config.username) {
-                  //delete plasma.pending[i + ':transfer']
-                  let NodeOps = GetNodeOps();
-                  for (var i = 0; i < NodeOps.length; i++) {
-                    if (
-                      NodeOps[i][1][1].from == json.from &&
-                      NodeOps[i][1][1].to == json.to &&
-                      NodeOps[i][1][0] == "transfer" &&
-                      NodeOps[i][1][1].hive_amount == json.hive_amount &&
-                      NodeOps[i][1][1].hbd_amount == json.hbd_amount
-                    ) {
-                      spliceOp(i);
-                    }
-                  }
-                }
-                Promise.all(lil_ops)
-                  .then((empty) => {
-                    if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-                    store.batch(ops, pc);
-                  })
-                  .catch((e) => {
-                    reject(e);
-                  });
-              })
-              .catch((e) => {
-                console.log(e);
-              });
-          } else {
-            pc[0](pc[2]);
-          }
-        } else {
-          pc[0](pc[2]);
-        }
-      }
-    );
+    console.log('Else continue')
+    pc[0](pc[2]);
   }
 };
 
-exports.dex_clear = (json, from, active, pc) => {
+export const dex_clear = (json, from, active, pc) => {
   if (active) {
     var q = [];
     if (typeof json.txid == "string") {
       q.push(json.txid);
     } else {
+      console.log('Else continue dex_clear')
       pc[0](pc[2]);
     }
     // else {
@@ -1766,6 +1698,7 @@ exports.dex_clear = (json, from, active, pc) => {
                 ["dex", "hive", "sellOrders", `${b.rate}:${b.txid}`],
                 function (e, a) {
                   if (e) {
+                    console.log('Error Continue')
                     pc[0](pc[2]);
                   } else if (isEmpty(a)) {
                     console.log("Nothing here" + b.txid);
@@ -1861,7 +1794,7 @@ function buildSplitTransfers(amount, pair, ds, memos) {
       "transfer",
       {
         to: tos[i].split("_")[0],
-        from: config.msaccount,
+        from: Config("msaccount"),
         amount: `${parseFloat(dis / 1000).toFixed(3)} ${pair.toUpperCase()}`,
         memo:
           memos +
@@ -1909,7 +1842,7 @@ function postVerify(str, from, loc){
     })
 }
 */
-const release = (from, txid, bn, tx_id) => {
+export const release = (from, txid, bn, tx_id) => {
   return new Promise((resolve, reject) => {
     store.get(["contracts", from, txid], function (er, a) {
       if (er) {
@@ -1944,13 +1877,12 @@ const release = (from, txid, bn, tx_id) => {
                         `${a.rate}:${a.txid}`,
                       ],
                     });
-                    if (tx_id && config.hookurl) {
+                    if (tx_id && Config("hookurl")) {
                       postToDiscord(
                         `@${from} has canceled ${txid}`,
                         `${bn}:${tx_id}`
                       );
                     }
-                    if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
                     store.batch(ops, [resolve, reject]);
                   })
                   .catch((e) => {
@@ -1981,13 +1913,12 @@ const release = (from, txid, bn, tx_id) => {
                       type: "del",
                       path: ["dex", "hbd", "sellOrders", `${a.rate}:${a.txid}`],
                     });
-                    if (tx_id && config.hookurl) {
+                    if (tx_id && Config("hookurl")) {
                       postToDiscord(
                         `@${from} has canceled ${txid}`,
                         `${bn}:${tx_id}`
                       );
                     }
-                    if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
                     store.batch(ops, [resolve, reject]);
                   })
                   .catch((e) => {
@@ -2014,10 +1945,10 @@ const release = (from, txid, bn, tx_id) => {
                 const Transfer = [
                   "transfer",
                   {
-                    from: config.msaccount,
+                    from: Config("msaccount"),
                     to: a.from,
                     amount: parseFloat(a.hive / 1000).toFixed(3) + " HIVE",
-                    memo: `Canceled ${config.TOKEN} buy ${a.txid}`,
+                    memo: `Canceled ${Config("TOKEN")} buy ${a.txid}`,
                   },
                 ];
                 ops.push({
@@ -2030,13 +1961,12 @@ const release = (from, txid, bn, tx_id) => {
                   type: "del",
                   path: ["dex", "hive", "buyOrders", `${a.rate}:${a.txid}`],
                 });
-                if (tx_id && config.hookurl) {
+                if (tx_id && Config("hookurl")) {
                   postToDiscord(
                     `@${from} has canceled ${txid}`,
                     `${bn}:${tx_id}`
                   );
                 }
-                if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
                 store.batch(ops, [resolve, reject]);
               }
             });
@@ -2059,10 +1989,10 @@ const release = (from, txid, bn, tx_id) => {
                 const Transfer = [
                   "transfer",
                   {
-                    from: config.msaccount,
+                    from: Config("msaccount"),
                     to: a.from,
                     amount: parseFloat(a.hbd / 1000).toFixed(3) + " HBD",
-                    memo: `Canceled ${config.TOKEN} buy ${a.txid}`,
+                    memo: `Canceled ${Config("TOKEN")} buy ${a.txid}`,
                   },
                 ];
                 ops.push({
@@ -2075,13 +2005,12 @@ const release = (from, txid, bn, tx_id) => {
                   type: "del",
                   path: ["dex", "hbd", "buyOrders", `${a.rate}:${a.txid}`],
                 });
-                if (tx_id && config.hookurl) {
+                if (tx_id && Config("hookurl")) {
                   postToDiscord(
                     `@${from} has canceled ${txid}`,
                     `${bn}:${tx_id}`
                   );
                 }
-                if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
                 store.batch(ops, [resolve, reject]);
               }
             });
@@ -2093,11 +2022,10 @@ const release = (from, txid, bn, tx_id) => {
     });
   });
 };
-exports.release = release;
 
 //change stats to msheld {}
 
-exports.margins = function (bn) {
+export const margins = function (bn) {
   return new Promise((resolve, reject) => {
     var Pstats = getPathObj(["stats"]),
       Pdex = getPathObj(["dex"]),
@@ -2136,11 +2064,16 @@ exports.margins = function (bn) {
               }
             });
         }
-      var allowedHive = parseInt( stats.multiSigCollateralValue ),
-        allowedHBD = parseInt( stats.multiSigCollateralValue ),
-        changed = [];
-      promises = [];
-      if (stats.MSHeld.HIVE > allowedHive && !config.mirrorNet)
+      var allowedHive = parseInt(
+        stats.multiSigCollateral * parseFloat(dex.hive.tick)
+      ),
+        allowedHBD = parseInt(
+          stats.multiSigCollateral * parseFloat(dex.hbd.tick)
+        ),
+        changed = [],
+        promises = [];
+      //console.log(stats)
+      if (stats.MSHeld.HIVE > allowedHive)
         console.log(stats.MSHeld.HIVE, { allowedHive });
       if (stats.MSHeld.HIVE > allowedHive) {
         var p = dex.hive.buyBook.split(","),
@@ -2204,19 +2137,19 @@ function removeItems(arr, p) {
       if (arr[i][1] == "hive") hive = DEX.remove(arr[i][0], hive);
       if (arr[i][1] == "hbd") hbd = DEX.remove(arr[i][0], hbd);
     }
-    const ops = [
-      { type: "put", path: ["dex", "hive", "buyBook"], data: hive },
-      { type: "put", path: ["dex", "hbd", "buyBook"], data: hbd },
-    ]
-    if (process.env.npm_lifecycle_event == "test")store.batch(ops, [p,"error", ops])
-    else store.batch(ops, [p, "error", "Pruned"]);
+    store.batch(
+      [
+        { type: "put", path: ["dex", "hive", "buyBook"], data: hive },
+        { type: "put", path: ["dex", "hbd", "buyBook"], data: hbd },
+      ],
+      [p, "error", "Pruned"]
+    );
   });
 }
 
 function nai(obj) {
-  return `${parseFloat(obj.amount.amount / Math.pow(10, obj.precision))} ${
-    obj.amount.nai == "@@000000021" ? "HIVE" : "HBD"
-  }`;
+  return `${parseFloat(obj.amount.amount / Math.pow(10, obj.precision))} ${obj.amount.nai == "@@000000021" ? "HIVE" : "HBD"
+    }`;
 }
 function naizer(obj) {
   if (typeof obj.amount != "string") return obj;
@@ -2240,7 +2173,7 @@ function maxAllowed(stats, tick, remaining, crate) {
   const max =
     stats.safetyLimit *
     tick *
-    (1 - (crate < tick ? (crate / tick) : 0 ) * (stats.dex_slope / 100)) *
+    (1 - (crate < tick ? crate / tick : 0) * (stats.dex_slope / 100)) *
     (stats.dex_max / 100);
   return max > remaining ? 0 : parseInt(remaining - max);
 }

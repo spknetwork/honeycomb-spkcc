@@ -1,14 +1,14 @@
-const config = require('./../config')
-const { store } = require("./../index");
-const { getPathObj, getPathNum } = require("./../getPathObj");
-const { postToDiscord } = require('./../discord')
+// import config from "./../index"
+// const { store } = require("./../index");
+// const { getPathObj, getPathNum } = require("./../getPathObj");
+// const { postToDiscord } = require('./../discord')
 
 // the oracle problem is notoriously dificult, several options exist but this is an
 // attempt to acquire the wisdom of the crowd in a dlux fashion
 // this is an attempt to make a predection market using sports scores
 
 /*
-exports.pm_make = (json, from, active, pc) => {
+export pm_make = (json, from, active, pc) => {
     if (active) {
         let promise_from_bal = getPathNum(['balances', from])
         let promise_stats = getPathObj(['stats'])
@@ -30,7 +30,7 @@ exports.pm_make = (json, from, active, pc) => {
     }
 }
 
-exports.pm_place = (json, from, active, pc) => {
+export pm_place = (json, from, active, pc) => {
     if (active) {
         let promise_from_bal = getPathNum(['balances', from])
         let promise_stats = getPathObj(['stats'])
@@ -52,7 +52,7 @@ exports.pm_place = (json, from, active, pc) => {
     }
 }
 
-exports.pm_settle = (json, from, active, pc) => {
+export pm_settle = (json, from, active, pc) => {
     if (active) {
         let promise_from_bal = getPathNum(['balances', from])
         let promise_stats = getPathObj(['stats'])
@@ -74,7 +74,7 @@ exports.pm_settle = (json, from, active, pc) => {
     }
 }
 
-exports.pm_ = (json, from, active, pc) => {
+export pm_ = (json, from, active, pc) => {
     if (active) {
         let promise_from_bal = getPathNum(['balances', from])
         let promise_stats = getPathObj(['stats'])

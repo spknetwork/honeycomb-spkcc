@@ -1,12 +1,11 @@
-const config = require('./../config')
-const { store } = require("./../index");
-const { getPathObj, getPathNum, deleteObjs } = require('./../getPathObj')
-const { updatePostVotes } = require('./../edb');
+import { store, Config } from "../index.mjs"
+import { getPathObj, getPathNum, deleteObjs } from './../getPathObj.js'
+import { updatePostVotes } from './../edb.js'
 
-exports.vote = (json, pc) => {
-    if (json.voter == config.leader) {
+export const vote = (json, pc) => {
+    if (json.voter == Config("leader") ) {
         deleteObjs([
-                ['escrow', config.leader, `vote:${json.author}/${json.permlink}`]
+                ['escrow', Config("leader"), `vote:${json.author}/${json.permlink}`]
             ])
             .then(empty => pc[0](pc[2]))
             .catch(e => console.log(e))
@@ -53,7 +52,7 @@ exports.vote = (json, pc) => {
                                 b: json.block_num,
                                 v: weights.vote
                             }
-                            if(config.dbcs){
+                            if(Config("dbcs")){
                                 updatePostVotes(p)
                             }
                             ops.push({ type: 'put', path: ['up', json.voter], data: weights.up })
@@ -70,7 +69,7 @@ exports.vote = (json, pc) => {
 }
 
 /*
-exports.vote_content = (json, from, active, pc) => {
+export vote_content = (json, from, active, pc) => {
     var powPromise = getPathNum(['pow', from]),
         postPromise = getPathObj(['posts', `${json.author}/${json.permlink}`]),
         rollingPromise = getPathNum(['rolling', from]),
@@ -103,7 +102,7 @@ exports.vote_content = (json, from, active, pc) => {
                     ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: `@${from}| tried to vote for an unknown post` });
                 }
             } else {
-                ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: `@${from}| doesn't have the ${config.TOKEN} POWER to vote` });
+                ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: `@${from}| doesn't have the ${Config("TOKEN")} POWER to vote` });
             }
             store.batch(ops, pc);
         })

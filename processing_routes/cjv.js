@@ -1,9 +1,7 @@
-const { store } = require("./../index");
-const { getPathObj } = require("./../getPathObj");
-const config = require("../config");
-//const { postToDiscord } = require('./../discord')
+import { Config, store } from "../index.mjs"
+import  { getPathObj } from "./../getPathObj.js"
 
-exports.cjv = (json, from, active, pc) => {
+export const cjv = (json, from, active, pc) => {
     var postPromise = getPathObj(['posts', `${json.a}/${json.p}`]);
     Promise.all([postPromise])
         .then(function(v) {
@@ -11,7 +9,7 @@ exports.cjv = (json, from, active, pc) => {
             ops = [],
                 auth = false;
             if (Object.keys(post).length) {
-                if (from == config.leader) { //centralized pinning report
+                if (from == Config("leader") ) { //centralized pinning report
                     post.b = json.b
                     ops.push({ type: 'put', path: ['posts', `${json.a}/${json.p}`], data: post });
                     store.batch(ops, pc);

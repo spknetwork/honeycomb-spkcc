@@ -1,10 +1,9 @@
-const config = require('./../config')
-const { store, Owners } = require("./../index");
-const { getPathObj } = require("./../getPathObj");
-const { verify_broadcast, verify_tx_sig } = require("./../tally");
+import { Config, store, Owners } from "../index.mjs"
+import { getPathObj } from "./../getPathObj.js"
+import { verify, isValidTxSig } from "./../tally.js"
 
-exports.account_update = (json, pc) => {
-    if(json.account == config.msaccount){
+export const account_update = (json, pc) => {
+    if(json.account == Config("msaccount")) {
         store.batch([{type:'del', path:['stats', 'ms']}], [after, pc[1], 'del'])
         function after() {
             var ops = []
@@ -36,15 +35,15 @@ exports.account_update = (json, pc) => {
             ops.push({type:'del', path:['msso']})
             store.batch(ops, pc)
         } 
-    } else if (json.active && Owners.is(json.account)) {
-        Owners.activeUpdate(json.account, json.active.account_auths[0][0]);
+    } else if (json.active && Owners.is(json.account) && json.active.key_auths[0]?.[0]) {
+        Owners.activeUpdate(json.account, json.active.key_auths[0][0]);
         pc[0](pc[2])
     } else {
         pc[0](pc[2])
     }
 }
 
-exports.sig_submit = (json, from, active, pc) => {
+export const sig_submit = (json, from, active, pc) => {
     var Pop = getPathObj(['mss', `${json.sig_block}`]),
         Psigs = getPathObj(['mss', `${json.sig_block}:sigs`]),
         Pstats = getPathObj(['stats'])
@@ -52,15 +51,15 @@ exports.sig_submit = (json, from, active, pc) => {
         .then(got => {
             let msop = got[0],
                 stats = got[1],
-                sigs = got[2]
+                sigs = got[2],
                 ops = []
                 try{
                     msop = JSON.parse(msop)
                 } catch (e){}
             if (active && stats.ms.active_account_auths[from] && msop.expiration) {
-                if(config.mode == 'verbose')console.log({sigs, from}, msop, json.sig, Owners.getKey(from))
-                if (verify_tx_sig(msop, json.sig, Owners.getKey(from))){
-                    if (config.mode == "verbose") console.log("VERIFIED");
+                if(Config("mode") == 'verbose')console.log({sigs, from}, msop, json.sig, Owners.getKey(from))
+                if (isValidTxSig(msop, json.sig, Owners.getKey(from))){
+                    if (Config("mode") == "verbose") console.log("VERIFIED");
                     ops.push({
                       type: "put",
                       path: ["mss", `${json.sig_block}:sigs`],
@@ -72,7 +71,7 @@ exports.sig_submit = (json, from, active, pc) => {
                       for (var i in sigs) {
                         sigarr.push(sigs[i]);
                       }
-                      verify_broadcast(msop, sigarr, stats.ms.active_threshold);
+                      verify(msop, sigarr, stats.ms.active_threshold);
                     }
                 }
                 store.batch(ops, pc);
@@ -84,7 +83,7 @@ exports.sig_submit = (json, from, active, pc) => {
         .catch(e => { console.log(e); });
 }
 
-exports.osig_submit = (json, from, active, pc) => {
+export const osig_submit = (json, from, active, pc) => {
     var Pop = getPathObj(['msso', `${json.sig_block}`]),
         Psigs = getPathObj(['msso', `${json.sig_block}:sigs`]),
         Pstats = getPathObj(['stats'])
@@ -92,7 +91,7 @@ exports.osig_submit = (json, from, active, pc) => {
         .then(got => {
             let msop = got[0],
                 stats = got[1],
-                sigs = got[2]
+                sigs = got[2],
                 ops = []
                 try{
                     msop = JSON.parse(msop)
@@ -104,7 +103,7 @@ exports.osig_submit = (json, from, active, pc) => {
                     for(var i in sigs){
                         sigarr.push(sigs[i])
                     }
-                    verify_broadcast(msop, sigarr, stats.ms.owner_threshold)
+                    verify(msop, sigarr, stats.ms.owner_threshold)
                 }
                 ops.push({ type: 'put', path: ['msso', `${json.sig_block}:sigs`], data: sigs })
                 store.batch(ops, pc);

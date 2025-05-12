@@ -1,6 +1,6 @@
-const { store } = require("./index");
+import { store } from "./index.mjs"
 
-function getPathObj(path) {
+export const getPathObj = function (path) {
     return new Promise(function(resolve, reject) {
         store.get(path, function(err, obj) {
             if (err) {
@@ -12,9 +12,8 @@ function getPathObj(path) {
         });
     });
 }
-exports.getPathObj = getPathObj;
 
-function getPathNum(path) {
+export const getPathNum = function (path) {
     return new Promise(function(resolve, reject) {
         store.get(path, function(err, obj) {
             if (err) {
@@ -29,9 +28,8 @@ function getPathNum(path) {
         });
     });
 }
-exports.getPathNum = getPathNum;
 
-function getPathSome(path, arg) {
+export const getPathSome = function (path, arg) {
     return new Promise(function(resolve, reject) {
         store.someChildren(path, arg, function(err, obj) {
             if (err) {
@@ -43,12 +41,11 @@ function getPathSome(path, arg) {
         });
     });
 }
-exports.getPathSome = getPathSome;
 
-exports.deleteObjs = (paths) => {
+export const deleteObjs = (paths) => {
     return new Promise((resolve, reject) => {
         var ops = [];
-        for (i = 0; i < paths.length; i++) {
+        for (var i = 0; i < paths.length; i++) {
             ops.push({ type: 'del', path: paths[i] });
         }
         store.batch(ops, [resolve, reject, paths.length]);

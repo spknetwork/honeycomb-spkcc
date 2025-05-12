@@ -1,10 +1,9 @@
-const config = require('./../config')
-const { store } = require("../index");
-const { getPathObj, getPathNum } = require('../getPathObj')
-const { chronAssign } = require('../lil_ops')
-const { postToDiscord } = require('./../discord')
+import { Config, store } from "../index.mjs"
+import { getPathObj, getPathNum } from '../getPathObj.js'
+import { chronAssign } from '../lil_ops.js'
+import { postToDiscord } from './../discord.js'
 
-exports.gov_up = (json, from, active, pc) => {
+export const gov_up = (json, from, active, pc) => {
     var amount = parseInt(json.amount),
         Pliquid = getPathNum(['balances', from]),
         Pgovt = getPathNum(['gov', 't']),
@@ -21,8 +20,8 @@ exports.gov_up = (json, from, active, pc) => {
                 ops.push({ type: 'put', path: ['balances', from], data: lbal - amount });
                 ops.push({ type: 'put', path: ['gov', from], data: gbal + amount });
                 ops.push({ type: 'put', path: ['gov', 't'], data: govt + amount });
-                const msg = `@${from}| Locked ${parseFloat(json.amount / 1000).toFixed(3)} ${config.TOKEN} for Governance`
-                if (config.hookurl || config.status) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
+                const msg = `@${from}| Locked ${parseFloat(json.amount / 1000).toFixed(3)} ${Config("TOKEN")} for Governance`
+                if (Config("hookurl") || Config("status")) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
                 ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
             } else {
                 ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: `@${from}| Invalid gov up` });
@@ -34,15 +33,15 @@ exports.gov_up = (json, from, active, pc) => {
 
 }
 
-exports.gov_down = (json, from, active, pc) => {
+export const gov_down = (json, from, active, pc) => {
     var amount = parseInt(json.amount),
         Pgov = getPathNum(['gov', from]),
         Pgovd = getPathObj(['govd', from])
     Promise.all([Pgov, Pgovd, ])
         .then(o => {
             let gov = o[0],
-                downs = o[1] || {}
-            ops = [],
+                downs = o[1] || {},
+                ops = [],
                 assigns = [];
             if (typeof amount == 'number' && amount >= 0 && gov >= amount && active) {
                 var odd = parseInt(amount % 4),
@@ -68,8 +67,8 @@ exports.gov_down = (json, from, active, pc) => {
                         for (i in downs) {
                             ops.push({ type: 'del', path: ['chrono', downs[i]] });
                         }
-                        const msg = `@${from}| Set withdrawl of ${parseFloat(amount / 1000).toFixed(3)} ${config.TOKEN} from Governance`
-                        if (config.hookurl || config.status) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
+                        const msg = `@${from}| Set withdrawl of ${parseFloat(amount / 1000).toFixed(3)} ${Config("TOKEN")} from Governance`
+                        if (Config("hookurl") || Config("status")) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
                         ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
                         if (process.env.npm_lifecycle_event == 'test') pc[2] = ops
                         store.batch(ops, pc);
@@ -80,7 +79,7 @@ exports.gov_down = (json, from, active, pc) => {
                 }
                 const msg = `@${from}| Canceled Governance withdrawl`
                 ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
-                if (config.hookurl || config.status) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
+                if (Config("hookurl") || Config("status")) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
                 if (process.env.npm_lifecycle_event == 'test') pc[2] = ops
                 store.batch(ops, pc);
             } else {

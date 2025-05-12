@@ -1,6 +1,6 @@
-const { store } = require('./../index')
+import { store } from '../index.mjs'
 
-exports.nomention = (json, from, active, pc) => {
+export const nomention = (json, from, active, pc) => {
     if (typeof json.nomention == 'boolean') {
         store.get(['delegations', from], function(e, a) {
             var ops = []

@@ -1,14 +1,13 @@
-const config = require('./config');
-const { getPathObj, getPathNum } = require("./getPathObj");
-const { store } = require("./index");
-const { isEmpty, addMT } = require('./lil_ops')
-const { sortBuyArray } = require('./helpers');
-const stringify = require('json-stable-stringify');
+import { store, Config } from "./index.mjs";
+import { getPathObj, getPathNum } from "./getPathObj.js"
+import { isEmpty, addMT } from './lil_ops.js'
+import { sortBuyArray } from './helpers.js'
+import stringify from 'json-stable-stringify'
 
 //the daily post, the inflation point for tokennomics
-function dao(num) {
+export function dao(num) {
     return new Promise((resolve, reject) => {
-        let post = `## SPK Network Daily Report\n`,
+        let post = `## ${Config("TOKEN")} DAO REPORT\n`,
             news = '',
             daops = [],
             Pnews = new Promise(function(resolve, reject) {
@@ -31,36 +30,28 @@ function dao(num) {
             Pnodes = getPathObj(['markets', 'node']),
             Pstats = getPathObj(['stats']),
             Pdelegations = getPathObj(['delegations']),
-            Pico = getPathObj(['auction']),
+            Pico = getPathObj(['ico']),
             Pdex = getPathObj(['dex']),
             Pbr = getPathObj(['br']),
-            Ppbal = getPathNum(['gov', 't']),
-            Pgov = getPathObj(['gov']),
+            Ppbal = getPathNum(['pow', 't']),
             Pnomen = getPathObj(['nomention']),
             Pposts = getPathObj(['posts']),
             Pfeed = getPathObj(['feed']),
             Ppaid = getPathObj(['paid']),
-            Pvals = getPathObj(['val']),
-            Pgranting = getPathObj(['granting']),
-            PcBroca = getPathObj(['cbroca']),
-            PvBroca = getPathObj(['vbroca']),
-            PSpk = getPathObj(['spk']),
-            PcSpk = getPathObj(['cspk']),
-            PcBpow = getPathObj(['bpow']),
-            Pgranted = getPathObj(['granted']),
-            Pservices = getPathObj(['services'])
-        Promise.all([Pnews, Pbals, Prunners, Pnodes, Pstats, Pdelegations, Pico, Pdex, Pbr, Ppbal, Pnomen, Pposts, Pfeed, Ppaid, Pgranting, Pgranted, Pcbals, Pgov, Pvals, PcBroca, PSpk, PvBroca, Pservices, PcSpk, PcBpow]).then(function(v) {
+            Prnfts = getPathObj(['rnfts']);
+            Pgov = getPathObj(['gov']);
+            Pdistro = Distro()
+        Promise.all([Pnews, Pbals, Prunners, Pnodes, Pstats, Pdelegations, Pico, Pdex, Pbr, Ppbal, Pnomen, Pposts, Pfeed, Ppaid, Prnfts, Pdistro, Pcbals, Pgov]).then(function(v) {
             daops.push({ type: 'del', path: ['postQueue'] });
             daops.push({ type: 'del', path: ['br'] });
             daops.push({ type: 'del', path: ['rolling'] });
-            daops.push({ type: 'del', path: ['auction'] });
-            daops.push({ type: 'del', path: ['cBroca'] });
-            daops.push({ type: 'del', path: ['vBroca'] });
-            // daops.push({ type: 'del', path: ['markets', 'node'] })
+            daops.push({ type: 'del', path: ['ico'] });
+            daops.push({ type: 'del', path: ['stats'] });
             news = v[0] + '*****\n';
             const header = post + news;
             var bals = v[1],
                 cbals = v[16],
+                gov = v[17],
                 runners = v[2],
                 mnode = v[3],
                 stats = v[4],
@@ -73,25 +64,25 @@ function dao(num) {
                 cpost = v[11],
                 feedCleaner = v[12],
                 paidCleaner = v[13],
-                granting = v[14];
-                granted = v[15],
-                gov = v[17],
-                vals = v[18],
-                cbroca = v[19],
-                spk = v[20],
-                vbroca = v[21],
-                services = v[22],
-                cspk = v[23],
-                bpow = v[24]
-            // for(var i = 0; i < dist.length;i++){
-            //     if(dist[i][0].split('div:')[1]){
-            //         addMT(['div', dist[i][0].split('div:')[1], 'b'], dist[i][1] )
-            //     } else {
-            //         cbals[dist[i][0]] ? cbals[dist[i][0]] += dist[i][1] : cbals[dist[i][0]] = dist[i][1]
-            //     }
-            // }
+                rnftsCleaner = v[14];
+                dist = v[15]
+            for(var i = 0; i < dist.length;i++){
+                if(dist[i][0].split('div:')[1]){
+                    addMT(['div', dist[i][0].split('div:')[1], 'b'], dist[i][1] )
+                } else {
+                    cbals[dist[i][0]] ? cbals[dist[i][0]] += dist[i][1] : cbals[dist[i][0]] = dist[i][1]
+                }
+            }
             feedKeys = Object.keys(feedCleaner);
             paidKeys = Object.keys(paidCleaner);
+            for(var set in rnftsCleaner){
+                rnftKeys = Object.keys(rnftsCleaner[set]);
+                for (var rnfti = 0; rnfti < rnftKeys.length; rnfti++) {
+                    if (rnftsCleaner[set][rnftKeys[rnfti]] == 0) {
+                        daops.push({ type: 'del', path: ['rnfts', set, rnftKeys[rnfti]] });
+                    }
+                }
+            }
             for (feedi = 0; feedi < feedKeys.length; feedi++) {
                 if (feedKeys[feedi].split(':')[0] < num - 30240) {
                     daops.push({ type: 'del', path: ['feed', feedKeys[feedi]] });
@@ -108,72 +99,46 @@ function dao(num) {
             var i = 0,
                 j = 0,
                 b = 0,
-                t = parseInt(bals.ra),
-                ts = parseInt(spk.ra)
+                t = 0;
+            t = parseInt(bals.ra);
             for (var node in runners) { //node rate
-                b = parseInt(b) + parseInt(mnode?.[node].marketingRate) || 2500;
-                j = parseInt(j) + parseInt(mnode?.[node].bidRate) || 2500;
+                // replace marketingRate with daoRate
+                b = parseInt(b) + parseInt(mnode[node].daoRate) || 2500;
+                j = parseInt(j) + parseInt(mnode[node].bidRate) || 2500;
                 i++;
                 console.log(b, j, i);
             }
             if (!i) {
-                b = mnode[config.leader].marketingRate;
-                j = mnode[config.leader].bidRate;
+                b = mnode[Config("leader")].daoRate;
+                j = mnode[Config("leader")].bidRate;
                 i++;
             }
-            // fast search array to get biggest values
-            var new_vals = [], done = false
-            stats.val_threshold = 0
-            for(var code in vals){
-                if (new_vals.length < parseInt(stats.validators)){
-                    new_vals.push([vals[code], code])
-                    if(new_vals.length == parseInt(stats.validators))new_vals = new_vals.sort((a, b) => a[0] - b[0] )
-                } else if(vals[code] > new_vals[0][0]){
-                    new_vals = new_vals.shift()
-                    for(var i = 0; i < parseInt(stats.validators) - 2; i++){
-                        if(vals[code] < new_vals[i][0]){
-                            new_vals.splice(i, 0, [vals[code], code])
-                            done = true
-                            break
-                        }
-                    }
-                    stats.val_threshold = new_vals[0][0]
-                    if(!done)new_vals.push([vals[code], code])
-                }
-            }
-            stats.marketingRate = parseInt(b / i);
+            stats.daoRate = parseInt(b / i);
             stats.nodeRate = parseInt(j / i);
-            post = `![${config.TOKEN} Banner](${config.adverts[bals.ra % (config.adverts.length - 1)]})\n#### Daily Accounting\n`;
-            post = post + `Total Supply: ${parseFloat(parseInt(stats.larynxSupply) / 1000).toFixed(3)} ${config.TOKEN}\n* ${parseFloat(parseInt(stats.larynxSupply - powBal - (bals.ra + bals.rc + bals.rd + bals.ri + bals.rn + bals.rm)) / 1000).toFixed(3)} ${config.TOKEN} liquid\n`;
-            post = post + `* ${parseFloat(parseInt(powBal) / 1000).toFixed(3)} ${config.TOKEN} Locked to Govern\n`;
-            post = post + `* ${parseFloat(parseInt(bals.ra + bals.rc + bals.rd + bals.ri + bals.rn + bals.rm) / 1000).toFixed(3)} ${config.TOKEN} in distribution accounts\n`;
-            if(config.features.inflation)post = post + `${parseFloat(parseInt(t) / 1000).toFixed(3)} ${config.TOKEN} has been generated today.\n${parseFloat(stats.marketingRate / 10000).toFixed(4)} is the marketing rate.\n${parseFloat(stats.nodeRate / 10000).toFixed(4)} is the node rate.\n`;
-            console.log(`DAO Accounting In Progress:\n${t} has been generated today\n${stats.marketingRate} is the marketing rate.\n${stats.nodeRate} is the node rate.`);
-    // if collateral providers have less a penalty
-    // this can also take in to account dex fees   
-            const fees_collected = bals.rn
-            bals.rn += parseInt(t * parseInt(stats.multiSigCollateral) / parseInt(stats.larynxSupply));
-            bals.ra = parseInt(bals.ra) - parseInt(t * parseInt(stats.multiSigCollateral) / parseInt(stats.larynxSupply));
-            //bals.rm += parseInt(t * stats.marketingRate / 10000);
-            //if(stats.marketingRate)post = post + `${parseFloat(parseInt(t * stats.marketingRate / 10000) / 1000).toFixed(3)} ${config.TOKEN} moved to Marketing Allocation.\n`;
-            // if (bals.rm > 1000000000) {
-            //     bals.rc += bals.rm - 1000000000;
-            //     post = post + `${parseFloat((bals.rm - 1000000000) / 1000).toFixed(3)} moved from Marketing Allocation to Content Allocation due to Marketing Holdings Cap of 1,000,000.000 ${config.TOKEN}\n`;
-            //     bals.rm = 1000000000;
-            // }
-            //bals.ra = parseInt(bals.ra) - parseInt(t * stats.marketingRate / 10000);
+            post = `![${Config("TOKEN")} Advert](${Config("adverts")[num.toString().split('').reduce((a, c) => parseInt(a) + c, 0) % Config("adverts").length]})\n#### Daily Accounting\n`;
+            post = post + `Total Supply: ${parseFloat(parseInt(stats.tokenSupply) / 1000).toFixed(3)} ${Config("TOKEN")}\n* ${parseFloat(parseInt(stats.tokenSupply - powBal - (bals.ra + bals.rc + bals.rd + bals.ri + bals.rn + bals.rm)) / 1000).toFixed(3)} ${Config("TOKEN")} liquid\n`;
+            post = post + `* ${parseFloat(parseInt(powBal) / 1000).toFixed(3)} ${Config("TOKEN")} Powered up for Voting\n`;
+            post = post + `* ${parseFloat(parseInt(bals.ra + bals.rc + bals.rd + bals.ri + bals.rn + bals.rm) / 1000).toFixed(3)} ${Config("TOKEN")} in distribution accounts\n`;
+            post = post + `${parseFloat(parseInt(t) / 1000).toFixed(3)} ${Config("TOKEN")} has been generated today. 5% APY.\n${parseFloat(stats.daoRate / 10000).toFixed(4)} is the marketing rate.\n${parseFloat(stats.nodeRate / 10000).toFixed(4)} is the node rate.\n`;
+            console.log(`DAO Accounting In Progress:\n${t} has been generated today\n${stats.daoRate} is the DAO allocation rate.\n${stats.nodeRate} is the node rate.`);
+            bals.rn += parseInt(t * parseInt(stats.nodeRate) / 10000);
+            bals.ra = parseInt(bals.ra) - parseInt(t * parseInt(stats.nodeRate) / 10000);
+            bals.rm += parseInt(t * stats.daoRate / 10000);
+            if(stats.daoRate)post = post + `${parseFloat(parseInt(t * stats.daoRate / 10000) / 1000).toFixed(3)} ${Config("TOKEN")} moved to Marketing Allocation.\n`;
+            if (bals.rm > 1000000000) {
+                bals.rc += bals.rm - 1000000000;
+                post = post + `${parseFloat((bals.rm - 1000000000) / 1000).toFixed(3)} moved from Marketing Allocation to Content Allocation due to Marketing Holdings Cap of 1,000,000.000 ${Config("TOKEN")}\n`;
+                bals.rm = 1000000000;
+            }
+            bals.ra = parseInt(bals.ra) - parseInt(t * stats.daoRate / 10000);
             
             i = 0, j = 0;
-            //if(bals.rm && config.features.inflation)post = post + `${parseFloat(parseInt(bals.rm) / 1000).toFixed(3)} ${config.TOKEN} is in the Marketing Allocation.\n`
-            if(bals.rn)post = post + `##### Node Rewards\n`;
-            console.log(num + `:${bals.rm} is availible in the marketing account\n${bals.rn} ${config.TOKEN} set aside to distribute to nodes`);
-            stats.validators = {}
+            if(bals.rm)post = post + `${parseFloat(parseInt(bals.rm) / 1000).toFixed(3)} ${Config("TOKEN")} is in the Marketing Allocation.\n##### Node Rewards for Elected Reports and Escrow Transfers\n`;
             for (var node in mnode) { //tally the wins
                 j = j + parseInt(mnode[node].wins);
-                mnode[node].votes = vals[mnode[node].val_code] || 0
-                if(vals[mnode[node].val_code] >= stats.val_threshold)stats.validators[node] = vals[mnode[node].val_code]
             }
             b = bals.rn;
+
             function _atfun(node) {
                 if (nomention[node]) {
                     return '@_';
@@ -181,7 +146,7 @@ function dao(num) {
                     return '@';
                 }
             }
-            var newOwners = {}, dexfeea = 0, dexfeed = 1, dexmaxa = 0, dexslopea = 0, dexmaxd = 1, dexsloped = 1, dva = 0, dvd = 1
+            var newOwners = {}, dexfeea = 0, dexfeed = 1, dexmaxa = 0, dexslopea = 0, dexmaxd = 1, dexsloped = 1
             if(j){
                 for (var node in mnode) { //and pay them
                     const wins = mnode[node].wins
@@ -191,17 +156,31 @@ function dao(num) {
                     mnode[node].ty = mnode[node].ty > 0 ? mnode[node].ty + mnode[node].yays : mnode[node].yays
                     mnode[node].yays = 0
                     const gbal = gov[node] || 0
+                    mnode[node].g = gbal
+                    const feevote = mnode[node].bidRate > 1000 || mnode[node].bidRate < 0 || typeof mnode[node].bidRate != 'number' ? 1000 : mnode[node].bidRate
+                    const dmvote = typeof mnode[node].dm != 'number' ? 10000 : mnode[node].dm
+                    const dsvote = typeof mnode[node].ds != 'number' ? 0 : mnode[node].ds
+                    mnode[node].ds = dsvote
+                    mnode[node].dm = dmvote
+                    dexfeea += parseInt(wins * gbal * feevote);
+                    dexfeed += parseInt(wins * gbal * 1000);
+                    dexmaxa += parseInt(wins * gbal * dmvote);
+                    dexmaxd += parseInt(wins * gbal * 10000);
+                    dexslopea += parseInt(wins * gbal * dsvote);
+                    dexsloped += parseInt(wins * gbal * 10000);
                     i = parseInt(wins / j * b);
                     cbals[node] = cbals[node] ? cbals[node] += i : cbals[node] = i;
                     bals.rn -= i;
                     const _at = _atfun(node);
                     if (i) {
-                        post = post + `* ${_at}${node} awarded ${parseFloat(i / 1000).toFixed(3)} ${config.TOKEN} for ${wins} credited transaction(s)\n`;
-                        console.log(num + `:@${node} awarded ${parseFloat(i / 1000).toFixed(3)} ${config.TOKEN} for ${wins} credited transaction(s)`);
+                        post = post + `* ${_at}${node} awarded ${parseFloat(i / 1000).toFixed(3)} ${Config("TOKEN")} for ${wins} credited transaction(s)\n`;
+                        console.log(num + `:@${node} awarded ${parseFloat(i / 1000).toFixed(3)} ${Config("TOKEN")} for ${wins} credited transaction(s)`);
                     }
                 }
             }
-            
+            stats.dex_fee = parseFloat((dexfeea / dexfeed)/100).toFixed(5);
+            stats.dex_max = parseFloat((dexmaxa / dexmaxd)*100).toFixed(2);
+            stats.dex_slope = parseFloat((dexslopea / dexsloped)*100).toFixed(2);
             for(var node in newOwners){
                 newOwners[node].g = runners[node]?.g ? runners[node].g : 0;
             }
@@ -233,13 +212,13 @@ function dao(num) {
                 }
                 return out
             }
-            //bals.rd += parseInt(t * stats.delegationRate / 10000); // 10% to delegators
-            if(config.features.delegate){
-                post = post + `### ${parseFloat(parseInt(bals.rd) / 1000).toFixed(3)} ${config.TOKEN} set aside for @${config.delegation} delegators\n`;
+            bals.rd += parseInt(t * stats.delegationRate / 10000); // 10% to delegators
+            if(Config("features").delegate){
+                post = post + `### ${parseFloat(parseInt(bals.rd) / 1000).toFixed(3)} ${Config("TOKEN")} set aside for @${Config("delegation")} delegators\n`;
                 bals.ra -= parseInt(t * stats.delegationRate / 10000);
                 b = bals.rd;
                 j = 0;
-                console.log(num + `:${b} ${config.TOKEN} to distribute to delegators`);
+                console.log(num + `:${b} ${Config("TOKEN")} to distribute to delegators`);
                 for (i in deles) { //count vests
                     j += deles[i];
                 }
@@ -248,34 +227,75 @@ function dao(num) {
                     cbals[i] ? cbals[i] += k : cbals[i] = k;
                     bals.rd -= k;
                     const _at = _atfun(i);
-                    post = post + `* ${parseFloat(parseInt(k) / 1000).toFixed(3)} ${config.TOKEN} for ${_at}${i}'s ${parseFloat(deles[i] / 1000000).toFixed(1)} Mvests.\n`;
-                    console.log(num + `:${k} ${config.TOKEN} awarded to ${i} for ${deles[i]} VESTS`);
+                    post = post + `* ${parseFloat(parseInt(k) / 1000).toFixed(3)} ${Config("TOKEN")} for ${_at}${i}'s ${parseFloat(deles[i] / 1000000).toFixed(1)} Mvests.\n`;
+                    console.log(num + `:${k} ${Config("TOKEN")} awarded to ${i} for ${deles[i]} VESTS`);
                 }
-                stats[`${config.jsonTokenName}PerDel`] = parseFloat(k / j).toFixed(6);
+                stats[`${Config("jsonTokenName")}PerDel`] = parseFloat(k / j).toFixed(6);
             }
-            if(config.features.ico && stats.inAuction){
-                post = post + `*****\n`;
-
-                // here we could find the price of the tokens and include either side of the DEX 
-                    var dailyICODistrobution = bals.ra,
-                        y = stats.inAuction;
-                        stats.inAuction = 0
-                        //AMM here to settle DEX orders favorable to this price
-                    post = post + `### LARYNX Auction Results:\n${parseFloat(dailyICODistrobution / 1000).toFixed(3)} LARYNX has been minted and purchased with ${parseFloat(y / 1000).toFixed(3)} HIVE today.\n`;
-                    var auctionEntries = Object.keys(ico), iico = 0, ihive = 0
-                    for (var node in ico) {
-                        ihive += ico[node]
-                        cbals[node] = cbals[node] ? cbals[node] + parseInt(ico[node] / y * dailyICODistrobution) :  parseInt(ico[node] / y * dailyICODistrobution);
-                        dailyICODistrobution -= parseInt(ico[node] / y * dailyICODistrobution);
-                        post = post + `* @${node} purchased  ${parseFloat(parseInt(ico[node] / y * dailyICODistrobution) / 1000).toFixed(3)} LARYNX\n`;
-                        console.log(num + `:${node} purchased  ${parseInt(ico[node] / y * dailyICODistrobution)} LARYNX`);
-                        if (iico == auctionEntries.length - 1) {
-                            bals.ra = dailyICODistrobution
+            if(Config("features").ico){
+                post = post + `*****\n ## ICO Status\n`;
+                if (bals.ri < 100000000 && stats.tokenSupply < 100000000000) {
+                    stats.icoRound++;
+                    if (bals.ri == 0) {
+                        stats.tokenSupply += 100000000;
+                        bals.ri = 100000000;
+                        var ago = num - stats.outOnBlock,
+                            dil = ' seconds';
+                        if (ago !== num) {
+                            bals.rl = parseInt(ago / 30240 * 50000000);
+                            bals.ri = 100000000 - parseInt(ago / 30240 * 50000000);
+                            stats.icoPrice = stats.icoPrice * (1 + (ago / 30240) / 2);
+                        }
+                        if (ago > 20) {
+                            dil = ' minutes';
+                            ago = parseFloat(ago / 20)
+                                .toFixed(1);
+                        } else {
+                            ago = ago * 3;
+                        }
+                        if (ago > 60) {
+                            dil = ' hours';
+                            ago = parseFloat(ago / 60)
+                                .toFixed(1);
+                        }
+                        post = post + `### We sold out ${ago}${dil}\nThere are now ${parseFloat(bals.ri / 1000).toFixed(3)} ${Config("TOKEN")} for sale from @${Config("mainICO")} for ${parseFloat(stats.icoPrice / 1000).toFixed(3)} HIVE each.\n`;
+                    } else {
+                        var left = bals.ri;
+                        stats.tokenSupply += 100000000 - left;
+                        bals.ri = 100000000;
+                        stats.icoPrice = stats.icoPrice - (left / 1000000000); //10% max decrease
+                        if (stats.icoPrice < 1000)
+                            stats.icoPrice = 1000;
+                        post = post + `### We Sold out ${100000000 - left} today.\nThere are now ${parseFloat(bals.ri / 1000).toFixed(3)} ${Config("TOKEN")} for sale from @${Config("mainICO")} for ${parseFloat(stats.icoPrice / 1000).toFixed(3)} HIVE each.\n`;
+                    }
+                } else {
+                    post = post + `### We have ${parseFloat(parseInt(bals.ri - 100000000) / 1000).toFixed(3)} ${Config("TOKEN")} left for sale at ${parseFloat(stats.icoPrice / 1000).toFixed(3)} HIVE in our Pre-ICO. Send your HIVE to @${Config("mainICO")} to own a piece of the community.\n`;
+                }
+                if (bals.rl) {
+                    var dailyICODistrobution = bals.rl,
+                        y = 0;
+                    for (i = 0; i < ico.length; i++) {
+                        for (var node in ico[i]) {
+                            y += ico[i][node];
                         }
                     }
-                    stats.hive_pool = ihive + stats.hive_pool
-                    dailyICODistrobution = 0;
-                    ico = {}
+                    post = post + `### ICO Over Auction Results:\n${parseFloat(bals.rl / 1000).toFixed(3)} ${Config("TOKEN")} was set aside from today's ICO to divide between people who didn't get a chance at fixed price tokens and donated ${parseFloat(y / 1000).toFixed(3)} HIVE today.\n`;
+                    for (i = 0; i < ico.length; i++) {
+                        for (var node in ico[i]) {
+                            cbals[node] ? cbals[node] += parseInt(ico[i][node] / y * bals.rl) : cbals[node] = parseInt(ico[i][node] / y * bals.rl);
+                            dailyICODistrobution -= parseInt(ico[i][node] / y * bals.rl);
+                            post = post + `* @${node} awarded  ${parseFloat(parseInt(ico[i][node] / y * bals.rl) / 1000).toFixed(3)} ${Config("TOKEN")} for ICO auction\n`;
+                            console.log(num + `:${node} awarded  ${parseInt(ico[i][node] / y * bals.rl)} ${Config("TOKEN")} for ICO auction`);
+                            if (i == ico.length - 1) {
+                                cbals[node] ? cbals[node] += dailyICODistrobution : cbals[node] = dailyICODistrobution
+                                post = post + `* @${node} awarded  ${parseFloat(parseInt(dailyICODistrobution) / 1000).toFixed(3)} ${Config("TOKEN")} for ICO auction\n`;
+                                console.log(num + `:${node} given  ${dailyICODistrobution} remainder`);
+                            }
+                        }
+                    }
+                    bals.rl = 0;
+                    ico = [];
+                }
             }
             var vol = 0,
                 volhbd = 0,
@@ -284,13 +304,13 @@ function dao(num) {
                 hisb = [],
                 hi = {},
                 hib = {};
-            if(config.features.dex){
+            if(Config("features").dex){
                 for (var int in dex.hive.his) {
                     if (dex.hive.his[int].block < num - 60480) {
                         his.push(dex.hive.his[int]);
                         daops.push({ type: 'del', path: ['dex', 'hive', 'his', int] });
                     } else {
-                        vol += parseInt(dex.hive.his[int].base_vol);
+                        vol = parseInt(parseInt(dex.hive.his[int].base_vol) + vol);
                         vols = parseInt(parseInt(dex.hive.his[int].target_vol) + vols);
                     }
                 }
@@ -299,7 +319,7 @@ function dao(num) {
                         hisb.push(dex.hbd.his[int]);
                         daops.push({ type: 'del', path: ['dex', 'hbd', 'his', int] });
                     } else {
-                        vol += parseInt(dex.hbd.his[int].base_vol);
+                        vol = parseInt(parseInt(dex.hbd.his[int].amount) + vol);
                         volhbd = parseInt(parseInt(dex.hbd.his[int].target_vol)  + volhbd);
                     }
                 }
@@ -346,7 +366,7 @@ function dao(num) {
                         dex.hbd.days = {};
                     dex.hbd.days[num] = hib;
                 }
-                let liqt = config.features.liquidity ? parseInt((bals.rm/365)*(stats.liq_reward/100)) : 0
+                let liqt = Config("features").liquidity ? parseInt((bals.rm/365)*(stats.liq_reward/100)) : 0
                 if (liqt > 0){
                     let liqa = 0
                     for (var acc in dex.liq){
@@ -354,134 +374,20 @@ function dao(num) {
                     }
                     for (var acc in dex.liq){
                         thisd = parseInt(liqt*(dex.liq[acc]/liqa))
-                        if (!bals[acc]) bals[acc] = 0;
-                        bals[acc] += thisd;
-                        bals.rm -= thisd;
+                        if(!bals[acc])bals[acc] = 0
+                        bals[acc] += thisd
+                        bals.rm -= thisd
                     }
                 }
-                //calculates to integer values for distributions, remainder is carried to next day to be distributed
                 delete dex.liq
                 daops.push({type: 'del', path: ['dex', 'liq']})
-                post = post + `*****\n### DEX Report\n#### Prices:\n* ${parseFloat(dex.hive.tick).toFixed(3)} HIVE per ${config.TOKEN}\n* ${parseFloat(dex.hbd.tick).toFixed(3)} HBD per ${config.TOKEN}\n#### Daily Volume:\n* ${parseFloat(vol / 1000).toFixed(3)} ${config.TOKEN}\n* ${parseFloat(vols / 1000).toFixed(3)} HIVE\n* ${parseFloat(parseInt(volhbd) / 1000).toFixed(3)} HBD\n*****\n`;
+                post = post + `*****\n### DEX Report\n#### Prices:\n* ${parseFloat(dex.hive.tick).toFixed(3)} HIVE per ${Config("TOKEN")}\n* ${parseFloat(dex.hbd.tick).toFixed(3)} HBD per ${Config("TOKEN")}\n#### Daily Volume:\n* ${parseFloat(vol / 1000).toFixed(3)} ${Config("TOKEN")}\n* ${parseFloat(vols / 1000).toFixed(3)} HIVE\n* ${parseFloat(parseInt(volhbd) / 1000).toFixed(3)} HBD\n*****\n`;
             }
+            if(!stats.movingWeight)stats.movingWeight = {}
             stats.movingWeight.dailyPool = bals.ra
-            const inflationHedge = parseInt(( bals.ra * (gov.t / stats.larynxSupply))) // reward gov holders with inflation to balance inflationary forces
-            bals.rn = bals.rn + inflationHedge
-            bals.ra -= inflationHedge
-            bals.rb += bals.ra
-            bals.ra = 0
-            var totBroca = 0
-            var totC = 0
-            for(var acc in cbroca){
-                totBroca += typeof cbroca[acc] == "number" ? cbroca[acc] : 0
-                totC += typeof cbals[acc] == "number" ? cbals[acc] : 0
-            }
-            for(var acc in vbroca){
-                totBroca += typeof vbroca[acc] == "number" ? vbroca[acc] : 0
-            }
-            const oldEMA = stats.broca_daily_ema
-            const oldDailyTrend = stats.broca_daily_trend
-            stats.broca_daily_ema = parseInt((totBroca - oldEMA) * 0.1 + oldEMA) 
-            stats.broca_daily_trend = parseInt(stats.broca_daily_ema - oldEMA) // use this number to increase or decrease the max broca size
-            stats.utilization = parseInt((totBroca * 10000) / (bpow.t * 100000) / stats.vals_target) // 51408 assumes 1/2 long tail rewards, 95.2% of checks accepted, and staking reawrds are equlized
-            if(!stats.target_utilization)stats.target_utilization = stats.utilization * 2 //ramp up to target utilization
-            if(!stats.staking_rewards)stats.staking_rewards = 2500
-            else if (stats.target_utilization < 5000)stats.target_utilization += 10
-            else if (stats.target_utilization > 5000)stats.target_utilization = 5000
-            const diff = stats.utilization - stats.target_utilization
-            if (diff > 500) { //utilization
-                stats.broca_clawback = 0
-                stats.spk_interest_rate = 50000 * (240 - parseInt(diff-500 / 20)) // Growing SPK Size comiserate with network utilization.
-                if(stats.spk_interest_rate < 50000)stats.spk_interest_rate = 50000
-            } else if(diff > -500 || stats.broca_daily_trend > - 100000){
-                stats.spk_interest_rate = 100000 * 24 // Assumes Storage Size will double in 24 months.
-                stats.broca_clawback = 0
-            } else {
-                stats.spk_interest_rate = totBroca + 1 // off
-                stats.broca_clawback = parseInt(diff / -10) // .5% clawback minimum 5% maximum
-            }
-            var newSPK = parseInt(totBroca / stats.spk_interest_rate)
-            stats.spk_minted_today = newSPK
-            spk.t += newSPK
-            spk.u += newSPK //unissued
-            const StakingRewards = parseInt(spk.u * stats.staking_rewards / 10000)
-            var StakingDist = 0
-            spk.u -= StakingRewards
-            const StorageRewards = spk.u
-            var StorageDist = 0
-            var SpkShares = {}
-            spk.u -= StorageRewards
-            for (var acc in cbroca){
-                const share = parseInt(StorageRewards * cbroca[acc] / totBroca)
-                cspk[acc] = cspk[acc] ? cspk[acc] + share : share
-                SpkShares[acc] = share
-                StorageDist += share
-            }
-            for (var acc in vbroca){
-                const share = parseInt(StorageRewards * vbroca[acc] / totBroca)
-                cspk[acc] = cspk[acc] ? cspk[acc] + share : share
-                StorageDist += share
-            }
-            const rewardedServices = Object.keys(cspk).length
-            spk.u = spk.u + StorageRewards - StorageDist
-            var ihive = stats.hive_pool
-            var thive = 0
-
-            for( var acc in SpkShares){
-                
-                const share = parseInt( StakingRewards * SpkShares[acc] / StorageDist)
-                const payout = parseInt( ihive * ((cbroca[acc] || 0) + (vbroca[acc] || 0)) / totBroca)
-                thive += payout
-                if(!(share || payout))continue
-                if(acc == "undefined")continue
-                const theirShare = services[acc] && granted[acc] ? parseInt((services[acc].s.c * 5)/(granted[acc].t + (services[acc].s.c * 5)) * share) : 0
-                const forDist = share - theirShare
-                cspk[acc] += theirShare
-                var thisDist = theirShare
-                 const transfer = [
-                  "transfer",
-                  {
-                    from: config.msaccount,
-                    to: acc,
-                    amount:
-                      parseFloat(payout / 1000).toFixed(3) +" HIVE",
-                    memo: `Auction Distro`,
-                  },
-                ];
-                if(payout)daops.push({
-                  type: "put",
-                  path: [
-                    "msa",
-                    `Auction@${acc}`,
-                  ],
-                  data: stringify(transfer),
-                }); //send HIVE out via MS
-                for (var acc2 in granted[acc]){
-                    if (acc2 == "t")continue
-                    cspk[acc2] = cspk[acc2] ? cspk[acc2] + parseInt(forDist * granted[acc][acc2] / granted[acc].t) : parseInt(forDist * granted[acc][acc2] / granted[acc].t)
-                    thisDist -= parseInt(forDist * granted[acc][acc2] / granted[acc].t)
-                }
-                spk.u += forDist - thisDist
-            }
-            stats.hive_pool = ihive - thive
-            if(!stats.paid_val_count)stats.paid_val_count = 0
-            const rewardedAccounts = Object.keys(cspk).length
-            post = post + `*****\n### SPK Report\n* ${(stats.spk_minted_today / 1000).toFixed(3)} SPK minted today.\n* ${stats.val_count - stats.paid_val_count} file verifications today.\n* ${rewardedServices} accounts rewarded for storage and validation.\n* ${rewardedAccounts} accounts rewarded for staking LARYNX to the above service providers.\n* ${fancyBytes(stats.total_bytes)} stored in network.\n${stats.total_files} files in network.`
-            stats.paid_val_count = stats.val_count
-            //const BrocaPerSpk = spk.u > totBroca ? parseInt(spk.u / totBroca) : parseInt(totBroca / spk.u)
-            //const SpkBig = spk.u > totBroca
-            // const rewardBig = bals.rb > totBroca
-            // const brocaPerMil = bals.rb > totBroca ? parseInt(bals.rb / totBroca) : parseInt(totBroca / bals.rb)
-            
-            // for(var acc in cbroca){
-            //     //const fromMint = rewardBig ? parseInt(cbroca[acc] * brocaPerMil) : parseInt(brocaPerMil / cbroca[acc])
-            //     const fromSPK = SpkBig ? parseInt(cbroca[acc] * BrocaPerSpk) : parseInt(BrocaPerSpk / cbroca[acc])
-            //     //cbals[acc] = cbals[acc] ? cbals[acc] + fromMint : fromMint
-            //     spk[acc] = spk[acc] ?  spk[acc] + fromSPK : fromSPK
-            //     //bals.rb -= fromMint
-            //     spk.u -= fromSPK
-            //     //cbroca[acc] -= rewardBig ? parseInt( fromMint / brocaPerMil) : parseInt(brocaPerMil / fromMint)
-            // }
+            if(Config("features").pob)bals.rc = bals.rc + bals.ra;
+            else bals.rn = bals.rn + bals.ra
+            bals.ra = 0;
             var q = 0,
                 r = bals.rc;
             for (var i in br) {
@@ -510,8 +416,9 @@ function dao(num) {
                     };
                     cpost[`s/${br[i].post.author}/${br[i].post.permlink}`] = cpost[i];
                     delete cpost[i];
-                    contentRewards = contentRewards + `* [${br[i].post.title || `${config.TOKEN} Content`}](https://www.${config.mainFE}/@${br[i].post.author}/${br[i].post.permlink}) by @${br[i].post.author} awarded ${parseFloat(parseInt(dif - bucket) / 1000).toFixed(3)} ${config.TOKEN}\n`;
+                    contentRewards = contentRewards + `* [${br[i].post.title || `${Config("TOKEN")} Content`}](https://www.${Config("mainFE")}/@${br[i].post.author}/${br[i].post.permlink}) by @${br[i].post.author} awarded ${parseFloat(parseInt(dif - bucket) / 1000).toFixed(3)} ${Config("TOKEN")}\n`;
                 }
+                console.log({bucket})
                 bals.rc += bucket;
                 contentRewards = contentRewards + `\n*****\n`;
             }
@@ -532,10 +439,10 @@ function dao(num) {
                     weight = 10000;
                 daops.push({
                     type: 'put',
-                    path: ['escrow', config.delegation, `vote:${vo[oo].author}:${vo[oo].permlink}`],
+                    path: ['escrow', Config("delegation"), `vote:${vo[oo].author}:${vo[oo].permlink}`],
                     data: [
                         "vote", {
-                            "voter": config.delegation,
+                            "voter": Config("delegation"),
                             "author": vo[oo].author,
                             "permlink": vo[oo].permlink,
                             "weight": weight
@@ -543,39 +450,41 @@ function dao(num) {
                     ]
                 });
                 cpost[`s/${vo[oo].author}/${vo[oo].permlink}`].b = weight;
-                hiveVotes = hiveVotes + `* [${vo[oo].title || `${config.TOKEN} Content`}](https://www.${config.mainFE}/@${vo[oo].author}/${vo[oo].permlink}) by @${vo[oo].author} | ${parseFloat(weight / 100).toFixed(2)}% \n`;
+                hiveVotes = hiveVotes + `* [${vo[oo].title || `${Config("TOKEN")} Content`}](https://www.${Config("mainFE")}/@${vo[oo].author}/${vo[oo].permlink}) by @${vo[oo].author} | ${parseFloat(weight / 100).toFixed(2)}% \n`;
             }
-            const footer = `[Visit ${config.mainFE}](https://${config.mainFE})\n[Visit our DEX/Wallet](https://${config.mainFE}/dex)\n[Read LightPaper](/@spknetwork/spk-network-light-paper)\n[Stop @ Mentions - HiveSigner](https://hivesigner.com/sign/custom-json?authority=posting&required_auths=0&id=${config.prefix}nomention&json=%7B%22nomention%22%3Atrue%7D)\n${config.footer}`;
+            const footer = `[Visit ${Config("mainFE")}](https://${Config("mainFE")})\n[Visit our DEX/Wallet](https://${Config("mainFE")}/dex)\n[Learn how to use ${Config("TOKEN")}](https://github.com/dluxio/dluxio/wiki)\n[Stop @ Mentions - HiveSigner](https://hivesigner.com/sign/custom-json?authority=posting&required_auths=0&id=${Config("prefix")}nomention&json=%7B%22nomention%22%3Atrue%7D)\n${Config("footer")}`;
             if (hiveVotes)
-                hiveVotes = `#### Community Voted ${config.TOKEN} Posts\n` + hiveVotes + `*****\n`;
+                hiveVotes = `#### Community Voted ${Config("TOKEN")} Posts\n` + hiveVotes + `*****\n`;
             post = header + contentRewards + hiveVotes + post + footer;
             var op = ["comment",
                 {
                     "parent_author": "",
-                    "parent_permlink": config.tag,
-                    "author": config.leader,
-                    "permlink": config.tag + num,
-                    "title": `${config.TOKEN} DAO | Block Report ${num}`,
+                    "parent_permlink": Config("tag"),
+                    "author": Config("leader"),
+                    "permlink": Config("tag") + num,
+                    "title": `${Config("TOKEN")} DAO | Block Report ${num}`,
                     "body": post,
                     "json_metadata": JSON.stringify({
-                        tags: [config.tag]
+                        tags: [Config("tag")]
                     })
                 }
             ];
-            if(up_op){
-                daops.push({ type: 'del', path: ['mso']});
-                daops.push({ type: 'put', path: ['mso', `${num}:ac`], data: stringify(['account_update', up_op]) });
+            if (up_op) {
+              daops.push({ type: "del", path: ["mso"] });
+              daops.push({
+                type: "put",
+                path: ["mso", `${num}:ac`],
+                data: stringify(["account_update", up_op]),
+              });
             }
             daops.push({ type: 'put', path: ['dex'], data: dex });
             daops.push({ type: 'put', path: ['stats'], data: stats });
             daops.push({ type: 'put', path: ['balances'], data: bals });
             daops.push({ type: 'put', path: ['cbalances'], data: cbals });
-            daops.push({ type: 'put', path: ['cspk'], data: cspk });
-            daops.push({ type: 'put', path: ['spk'], data: spk });
             daops.push({ type: 'put', path: ['posts'], data: cpost });
             daops.push({ type: 'put', path: ['markets', 'node'], data: mnode });
             daops.push({ type: 'put', path: ['delegations'], data: deles });
-            if(config.features.daily)daops.push({ type: 'put', path: ['escrow', config.leader, 'comment'], data: stringify(op) });
+            if(Config("features").daily)daops.push({ type: 'put', path: ['escrow', Config("leader"), 'comment'], data: op });
             for (var i = daops.length - 1; i >= 0; i--) {
                 if (daops[i].type == 'put' && Object.keys(daops[i].data).length == 0 && typeof daops[i].data != 'number' && typeof daops[i].data != 'string') {
                     daops.splice(i, 1);
@@ -591,18 +500,7 @@ function dao(num) {
     });
 }
 
-exports.dao = dao;
-
-function fancyBytes(bytes, decimals = 0) {
-    var counter = 0, p = ['', 'K', 'M', 'G', 'T', 'P', 'E', 'Z', 'Y']
-    while (bytes > 1024) {
-        bytes = bytes / 1024
-        counter++
-    }
-    return `${bytes.toFixed(decimals)} ${p[counter]}B`
-}
-
-function Distro(){
+export function Distro(){
     return new Promise ((resolve, reject)=>{
         let Pbals = getPathObj(['balances']),
         Psets = getPathObj(['sets']),
@@ -647,9 +545,7 @@ function Distro(){
     }
 }
 
-exports.Distro = Distro;
-
-function Liquidity(){
+export function Liquidity(){
     return new Promise ((resolve, reject)=>{
         let Pmarket = getPathObj(['dex'])
         Promise.all([Pmarket]).then(mem =>{
@@ -677,7 +573,7 @@ function Liquidity(){
         })
     })
 }
-exports.Liquidity = Liquidity;
+
 function accountUpdate(stats, nodes, arr){
     //get runners by gov balance
     //ensure have public key
@@ -694,7 +590,7 @@ function accountUpdate(stats, nodes, arr){
     if(!differrent || arr.length < 3)return //don't send duplicate updates, don't reduce key holders below 3
     if(arr.length > 40)arr = arr.slice(0,40)
     var updateOp = {
-    "account": config.msaccount,
+    "account": Config("msaccount"),
     "active": {
       "weight_threshold": parseInt(arr.length/2 + 1),
       "account_auths": [],
@@ -707,11 +603,11 @@ function accountUpdate(stats, nodes, arr){
     },
     "posting": {
       "weight_threshold": 1,
-      "account_auths": [[config.leader, 1]],
+      "account_auths": [[Config("leader"), 1]],
       "key_auths": []
     },
-    "memo_key": config.msPubMemo,
-    "json_metadata": stringify(config.msmeta)
+    "memo_key": Config("msPubMemo"),
+    "json_metadata": stringify(Config("msmeta"))
 
   }
   for (var i = 0; i < arr.length; i++) {

@@ -1,17 +1,15 @@
 # HoneyComb
 
-This is a Decentralized Autonomous Organization built on the HIVE ecosystem.
+This is a Decentralized Autonomous Organization built on the HIVE ecosystem. Customize it as you need
 
-THIS BUILD IS PASSING BUT SEVERAL FEATURES ARE UNTESTED. DO NOT RECOMMEND USING ON ACCOUNT WITH HIGH BALANCES
+Powering: dlux.io (DLUX), and the 3speak.tv (SPK Claim Chain)
 
 This software builds a network of peers that use HIVE to post and interpret transactions. This allows these peers to come to a consensus and elect peers to run tasks. Distributing computing in this way allows a vast amount of potential applications, DeFi, and oracle services. By distributing authority to perform transactions we can have a frictionless(no intermediate tokens, no central authority, no intrinsic fees) way to cross asset boundaries(HIVE/COMB) with no information asymmetries, ie Finance without securities by definition... just free speech: As no party is required to perfom any function, or prevented from performing any function, no promises are made by peers. Network Incentives (COMB) alone are enough to maintain trust.
 
-These features are currently working and being tested for `0.9.0a`:
-
 * Send: Use custom_json with active permission, "ACJ" to send OPEN_TOEK tokens
-* Illiquid voting state. Power up and down OPEN_TOKEN for voting and delegation with ACJ
+* Illiquid voting state. Power up and down TOKEN for voting and delegation with ACJ
 * Illiquid governance token for determining consensus and collateral.
-* Chron to execute virtual operations: expire trades, powerdown stake, enforce penalties.
+* Chron to execute virtual operations: expire trades, powerdown stake, enforce penalties etc...
 * Hive posts that benefit the configured account at > the configured % are: 
    * entered into a voting eligible content pool
    * optionally have their IPFS content pinned with rtrades(3rd party service)
@@ -27,10 +25,10 @@ These features are currently working and being tested for `0.9.0a`:
 * automatic messaging to join network ad-hoc
 * ability to delete node from list(turn off escrow queue)
 * report consensus
-* distribute OPEN_TOKENS to configured account delegators and keep running total
+* distribute TOKENS to configured account delegators and keep running total
    * Used for auto voting on content with delegation
 * pay nodes for processing trusted state, facilitating an escrow/dex transaction or running a smart contract.
-   * Effectively mining OPEN_TOKENS with Hive Resource Credits
+   * Effectively mining TOKENS with Hive Resource Credits
 * establishes a 5%(configurable) inflation rate and distributes rewards to run the network
 * Automated accounting post from configured account or mirrors
 * Track interactions on a rolling feed via block_num and TXID.
@@ -40,14 +38,9 @@ These features are currently working and being tested for `0.9.0a`:
   * On state trade history with daily reductions to high/low/volume
   * Price/collateral controls from Volume Weighted Moving Average
   * Enforcement of collateral
-
-These features are works in progress:
 * Partial fills of DEX orders `1.0.0`
-* Multi-signature deterministic control of community capital `1.0.0`
-* Ban nodes to discourage bad action `1.0.0`
-* Smart contracts to build IPFS market `1.1`
-* Smart contract to build account creation token market `1.1`
-* NFT/smart contract system with fetch and consensus ie. distributed computer `1.1`
+* Multi-signature deterministic control of community capital
+* NFT/smart contract system
 
 ***
 
@@ -72,30 +65,27 @@ Deploy from heroku or similar and set ENV variables with a hive name and active 
 
 * This software has been tested on Node.js version 10 through 15
 * Node.js and git are required
-* Hive account with ~100 HP
-* Additional Hive Keypair
 
 ### Server Installation
 Detailed Instructions also at /docs/setup.md
 Which include Docker and IPFS linking
+
 * Clone this repository
 
-`git clone https://github.com/3speaknetwork/honeycomb-spkcc.git`
+`git clone https://github.com/disregardfiat/honeycomb.git`
 
 * Navigate to the root directory of token
 
-`cd honeycomb-spkcc`
+`cd honeycomb`
 
 * Set configuration variables
-
+Choose a community and install it's config file
+`cp <token>.config.js config.js`
+Then set your specifics
 `nano .env` or your favorite editor
 
-```
-account="hiveaccount"
-active=5JactivePrivateKey
-msowner=5KadditionalPrivateKey
-mspublic=STMpublickey
-```
+`account=hiveaccount
+active=hiveactivekey`
 
 * Quit editor and save changes
 
@@ -166,71 +156,6 @@ Then alter the `state.js` with balances and other starting information
 DLUX offers a decentralized protocol for minting and trading NFT's. These tokens can be minted, auctioned, transferred, sold, bought, held in escrow, bid on, or deleted. 
 
 # Actions Available
-
-## SPK Actions 1.1
-
-### Power Larynx
-
-This action will move your LARYNX into a locked state. These tokens can now be delegated to nodes running services. To unlock them for sale or transfer will take 4 weeks, in 4 equal parts, 1 at the end of each week.
-
-#### Params
-
-```
-
-[
-    "custom_json",
-    {
-      "required_auths": [
-        YOUR_HIVE_ACCOUNT
-      ],
-      "required_posting_auths": [],
-      "id": "spkcc_power_up",
-      "json": "{\"amount\":1}" // in millitokens => 0.001 LARYNX is 1. 1 LARYNX is 1000
-    }
-  ]
-```
-
-### Delegate Larynx Power
-
-Delegating LARYNX earned both your account and the receiver an account an equal amount. 50% higher than if you power up alone. To remove delegation to an account simply set the amount to 0
-
-#### Params
-
-```
-
-[
-    "custom_json",
-    {
-      "required_auths": [
-        YOUR_HIVE_ACCOUNT
-      ],
-      "required_posting_auths": [],
-      "id": "spkcc_power_grant",
-      "json": "{\"to\":VALID_NODE_SERVICE_ACCOUNT,\"amount\":1}" // in millitokens => 0.001 LARYNX is 1. 1 LARYNX is 1000
-    } // Transaction will fail if to is not a currently registered service provider
-  ]
-```
-
-### Send SPK
-
-Send earned SPK to a hive account. Ensure account is valid before send. Tokens can not be recovered.
-
-#### Params
-
-```
-
-[
-    "custom_json",
-    {
-      "required_auths": [
-        YOUR_HIVE_ACCOUNT
-      ],
-      "required_posting_auths": [],
-      "id": "spkcc_spk_send",
-      "json": "{\"to\": VALID_HIVE_ACCOUNT,\"amount\":1}" // amount in millitokens => 0.001 LARYNX is 1. 1 LARYNX is 1000
-    }
-  ]
-```
 
 ## NFT (non-fungible token) Actions
 

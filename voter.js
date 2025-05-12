@@ -1,9 +1,8 @@
-const { getPathObj, deleteObjs } = require("./getPathObj");
-const { store } = require("./index");
-const config = require('./config');
+import { getPathObj, deleteObjs } from "./getPathObj.js"
+import { Config, store } from "./index.mjs";
 
 //determine consensus... needs some work with memory management
-exports.voter = () => {
+export const voter = () => {
     return new Promise((resolve, reject) => {
         var Ppending = getPathObj(['pendingvote'])
         Promise.all([Ppending]).then(function(v) {
@@ -24,10 +23,10 @@ exports.voter = () => {
                             }
                             ops.push({
                                 type: 'put',
-                                path: ['escrow', config.leader, `vote:${b.author}/${b.permlink}`],
+                                path: ['escrow', Config("leader"), `vote:${b.author}/${b.permlink}`],
                                 data: ["vote",
                                     {
-                                        "voter": config.leader,
+                                        "voter": Config("leader"),
                                         "author": b.author,
                                         "permlink": b.permlink,
                                         "weight": parseInt((posts[post].v / totalWeight) * 10000)

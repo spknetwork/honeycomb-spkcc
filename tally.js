@@ -1,29 +1,26 @@
-const config = require("./config");
-const { getPathObj, getPathNum, deleteObjs } = require("./getPathObj");
-const { store, exit, hiveClient, plasma, Owners } = require("./index");
-const { updatePost } = require("./edb");
-const hiveTx = require("hive-tx");
-const { sha256 } = require("hive-tx/helpers/crypto");
-const {
+import { getPathObj, getPathNum, deleteObjs } from "./getPathObj.js"
+import { Config, store, hiveClient, plasma, Owners } from "./index.mjs"
+import { updatePost } from "./edb.js"
+import hiveTx from "hive-tx"
+import { sha256 } from "hive-tx/helpers/crypto.js"
+import {
     //add, addCol, addGov, deletePointer, credit, chronAssign, hashThis, isEmpty,
     addMT,
-} = require("./lil_ops");
-const stringify = require("json-stable-stringify");
+} from "./lil_ops.js"
+import stringify from "json-stable-stringify"
 
 //determine consensus... needs some work with memory management
-exports.tally = (num, plasma, isStreaming) => {
+export const tally = (num, plasma, isStreaming) => {
     return new Promise((resolve, reject) => {
         var Prunners = getPathObj(["runners"]),
             Pnode = getPathObj(["markets", "node"]),
             Pstats = getPathObj(["stats"]),
             Prb = getPathObj(["balances"]),
             Prcol = getPathObj(["col"]),
-            Prpow = getPathObj(["spow"]),
+            Prpow = getPathObj(["gov"]),
             Prqueue = getPathObj(["queue"]),
             Ppending = getPathObj(["pendingpayment"]),
-            Pmss = getPathObj(["mss"]),
-            Pspk = getPathObj(["spk"]),
-            Pbroca = getPathObj(["rb"])
+            Pmss = getPathObj(["mss"]);
         Promise.all([
             Prunners,
             Pnode,
@@ -34,8 +31,6 @@ exports.tally = (num, plasma, isStreaming) => {
             Prqueue,
             Ppending,
             Pmss,
-            Pbroca,
-            Pspk
         ]).then(function (v) {
             deleteObjs([["runners"], ["queue"], ["pendingpayment"]])
                 .then((empty) => {
@@ -47,9 +42,7 @@ exports.tally = (num, plasma, isStreaming) => {
                         rgov = v[5],
                         pending = v[7],
                         mssp = v[8],
-                        ms = v[9],
-                        broca = v[11],
-                        spk = v[10],
+                        ms = [9],
                         signatures = [],
                         tally = {
                             agreements: {
@@ -57,7 +50,6 @@ exports.tally = (num, plasma, isStreaming) => {
                                 runners: {},
                                 tally: {},
                                 votes: 0,
-                                poa: [],
                             },
                         },
                         consensus = undefined,
@@ -96,26 +88,22 @@ exports.tally = (num, plasma, isStreaming) => {
                             when = nodes[node].report.block_num;
                         } catch (e) { }
                         if (when > num - 50 && hash) {
-                            tally.agreements.poa[node] = nodes[node].report.PoAs || []
                             tally.agreements.hashes[node] = hash;
                             tally.agreements.tally[hash] = 0;
                         } //recent and signing
                     }
                     var promises = []; //[oracle(oracleArr, num)]
-                    if (runners[config.username] && mss.expiration)
+                    if (runners[Config("username")] && mss.expiration)
                         verify(mss, signatures, stats.ms.active_threshold);
-                    for (runner in runners) {
+                    for (var runner in runners) {
                         tally.agreements.votes++;
                         if (tally.agreements.hashes[runner]) {
                             tally.agreements.tally[tally.agreements.hashes[runner]]++;
                         }
                     }
                     let threshhold = tally.agreements.votes;
-                    let altThreshhold =
-                      tally.agreements.votes -
-                      (stats.chaos < tally.agreements.votes / 3
-                        ? stats.chaos
-                        : parseInt(tally.agreements.votes / 3));
+                    let altThreshhold = tally.agreements.votes -
+                      (stats.chaos > tally.agreements.votes / 3 ? parseInt((stats.chaos + tally.agreements.votes)/tally.agreements.votes) : parseInt(tally.agreements.votes / 3));
                     if (Object.keys(runners).length > threshhold)
                         threshhold = Object.keys(runners).length;
                     for (hash in tally.agreements.hashes) {
@@ -128,21 +116,10 @@ exports.tally = (num, plasma, isStreaming) => {
                         }
                     }
                     var owners = 0;
-                    var hive_check = stats.MSHeld.HBD
-                    var hbd_check = stats.MSHeld.HIVE
                     for (var owner in stats.ms.active_account_auths) {
-                        if(nodes[owner]?.report?.block % 10000 < 101 && nodes[owner]?.report?.hive_check == hive_check || (!owners && nodes[owner]?.report?.hive_check))hive_check = nodes[owner]?.report?.hive_check
-                        else hive_check = 0
-                        if(nodes[owner]?.report?.block % 10000 < 101 && nodes[owner]?.report?.hbd_check == hbd_check || (!owners && nodes[owner]?.report?.hbd_check))hbd_check = nodes[owner]?.report?.hbd_check
-                        else hbd_check = 0
-                        if (nodes[owner]?.report?.hash == consensus) {
+                        if (nodes[owner].report.hash == consensus) {
                             owners++;
                         }
-                    }
-                    // Adjusts amount with 100% agreement of keyholders
-                    if (owners == stats.ms.active_threshold){
-                        stats.MSHeld.HBD = hbd_check
-                        stats.MSHeld.HIVE = hive_check
                     }
                     if (owners < stats.ms.active_threshold) consensus = undefined; //ensure owners are part of consensus branch
                     if (!consensus && stats.chaos) {
@@ -156,7 +133,7 @@ exports.tally = (num, plasma, isStreaming) => {
                                 for (var owner in stats.ms
                                     .active_account_auths) {
                                     if (
-                                        nodes[owner]?.report?.hash ==
+                                        nodes[owner]?.report.hash ==
                                         tally.agreements.hashes[hash]
                                     ) {
                                         owners++;
@@ -203,7 +180,7 @@ exports.tally = (num, plasma, isStreaming) => {
                             highest_low_sum = 0,
                             optimal_number = 0;
                         counting_array.sort((a, b) => b - a);
-                        for (var j = 9; j < counting_array.length || j == parseInt(stats.max_coll_members); j++) {
+                        for (var j = 9; j < counting_array.length || j == 25; j++) {
                             low_sum = 0;
                             for (i = parseInt(j / 2) + 1; i < j; i++) {
                                 low_sum += counting_array[i];
@@ -215,7 +192,7 @@ exports.tally = (num, plasma, isStreaming) => {
                                 stats.gov_threshhold = last_bal;
                             }
                         }
-                        if (Object.keys(still_running).length < parseInt(stats.max_coll_members)) {
+                        if (Object.keys(still_running).length < 25) {
                             let winner = {
                                 node: "",
                                 g: 0,
@@ -292,7 +269,7 @@ exports.tally = (num, plasma, isStreaming) => {
                         still_running = runners;
                     }
                     let newPlasma = plasma;
-                    newPlasma.rep = still_running[config.username]?.g ? true : false;
+                    newPlasma.rep = still_running[Config("username")]?.g ? true : false;
                     (plasma.consensus = consensus || 0), (plasma.new_queue = new_queue);
                     plasma.still_running = still_running;
                     plasma.stats = stats;
@@ -300,14 +277,14 @@ exports.tally = (num, plasma, isStreaming) => {
                         newPlasma.potential = tally;
                     }
                     let this_payout;
-                    if (config.features.pob) {
+                    if (Config("features").pob) {
                         let weights = 0;
                         for (post in pending) {
                             weights += pending[post].t.totalWeight;
                         }
                         let inflation_floor =
                             parseInt((stats.movingWeight.running + weights / 140) / 2016) + 1; //minimum payout in time period
-                        running_weight = parseInt(stats.movingWeight.running / 2016);
+                        var running_weight = parseInt(stats.movingWeight.running / 2016);
                         if (running_weight < inflation_floor) {
                             running_weight = inflation_floor;
                         }
@@ -319,30 +296,24 @@ exports.tally = (num, plasma, isStreaming) => {
                             ((rbal.rc / 200 + stats.movingWeight.dailyPool) / 304) *
                             (this_weight / running_weight)
                         ); //subtract this from the rc account... 13300 is 70% of inflation
+                        console.log(stats.movingWeight)
                         stats.movingWeight.running = parseInt(
                             (stats.movingWeight.running * 2015) / 2016 + weights / 2016
                         ); //7 day average at 5 minute intervals
                         promises.unshift(payout(this_payout, weights, pending, num));
                     }
                     Promise.all(promises).then((change) => {
-                        const mint = config.features.inflation
-                            ? parseInt(stats.larynxSupply / stats.interestRate)
+                        const mint = Config("features").inflation
+                            ? parseInt(stats.tokenSupply / stats.interestRate)
                             : 0;
-                        stats.larynxSupply += mint;
+                        stats.tokenSupply += mint;
                         rbal.ra += mint;
-                        const mintSPK = config.features.inflation
-                            ? parseInt(stats.spkSupply / stats.spk_interest_rate)
-                            : 0;
-                        spk.ra += mintSPK;
-                        spk.t += mintSPK
-                        stats.spkSupply += spk.t
                         let ops = [
                             { type: "put", path: ["stats"], data: stats },
-                            { type: "put", path: ["spk"], data: spk },
                             { type: "put", path: ["markets", "node"], data: nodes },
                             { type: "put", path: ["balances", "ra"], data: rbal.ra },
                         ];
-                        if (config.features.pob)
+                        if (Config("features").pob)
                             ops.push({
                                 type: "put",
                                 path: ["balances", "rc"],
@@ -365,17 +336,16 @@ exports.tally = (num, plasma, isStreaming) => {
                         if (Object.keys(new_queue).length)
                             ops.push({ type: "put", path: ["queue"], data: new_queue });
                         //if (process.env.npm_lifecycle_event == 'test') newPlasma = ops
-                        //console.log(ops)
                         store.batch(ops, [resolve, reject, newPlasma]);
                         if (process.env.npm_lifecycle_event != "test") {
                             if (
                                 consensus &&
                                 (consensus != plasma.hashLastIBlock ||
-                                    (consensus != nodes[config.username]?.report?.hash &&
-                                        nodes[config.username]?.report?.block_num > num - 100)) &&
+                                    (consensus != nodes[Config("username")]?.report?.hash &&
+                                        nodes[Config("username")]?.report?.block_num > num - 100)) &&
                                 isStreaming
                             ) {
-                                exit(consensus, "Consensus Error");
+                                process.exit(consensus);
                                 //var errors = ['failed Consensus'];
                                 //const blockState = Buffer.from(JSON.stringify([num, state]))
                                 //plasma.hashBlock = '';
@@ -456,7 +426,7 @@ function oracle(oracleArr, num) {
                         data: stringify([
                             "transfer",
                             {
-                                from: config.msaccount,
+                                from: Config("msaccount"),
                                 to: from,
                                 amount: `${parseFloat(
                                     (qty * listing.h + qty * listing.b) / 1000
@@ -498,7 +468,6 @@ function cleanOracle(oracleArr) {
 }
 
 function payout(this_payout, weights, pending, num) {
-    console.log(this_payout, weights, pending, num);
     return new Promise((resolve, reject) => {
         let payments = {},
             out = 0;
@@ -540,7 +509,7 @@ function payout(this_payout, weights, pending, num) {
                     ops = [
                         { type: "put", path: ["paid", num.toString()], data: pending },
                     ];
-                if (config.dbcs) {
+                if (Config("dbcs")) {
                     for (i in pending) {
                         updatePost(pending[i]);
                     }
@@ -554,6 +523,9 @@ function payout(this_payout, weights, pending, num) {
                     i++;
                 }
                 let change = this_payout - out;
+                if (process.env.npm_lifecycle_event == 'test') {
+                    console.log(ops)
+                }
                 store.batch(ops, [resolve, reject, change]); //return the paid ammount so millitokens aren't lost
             } else {
                 resolve(this_payout);
@@ -562,32 +534,28 @@ function payout(this_payout, weights, pending, num) {
     });
 }
 
-function isValidSig(trx, sig, key) {
+export function isValidSig(trx, sig, key) {
     const publicKey = hiveTx.PublicKey.from(key);
     const message = sha256(trx);
     return publicKey.verify(message, hiveTx.Signature.from(sig));
 }
 
-exports.verify_sig = isValidSig;
-
-function isValidTxSig(trx, sig, key) {
+export function isValidTxSig(trx, sig, key) {
     const publicKey = hiveTx.PublicKey.from(key);
     const tx = new hiveTx.Transaction(trx);
     const message = tx.digest().digest
     const valid = publicKey.verify(message, hiveTx.Signature.from(sig));
-    if (config.mode == 'verbose') console.log({ trx, key, valid })
+    if (Config("mode") == 'verbose') console.log({ trx, key, valid })
     return valid
 }
 
-exports.verify_tx_sig = isValidTxSig;
-
-function verify(trx, sig, at, active = true) {
+export function verify(trx, sig, at, active = true) {
     if (trx?.operations?.[0][0] == "account_update") active = false
     return new Promise((resolve, reject) => {
         sendit(trx, sig, at);
 
         function sendit(tx, sg, t, f) {
-            if (config.mode == 'verbose') console.log(sg)
+            if (Config("mode") == 'verbose') console.log(sg)
             if (sg.length >= t || !f) {
                 var signatures = [];
                 if (active) {
@@ -613,7 +581,7 @@ function verify(trx, sig, at, active = true) {
                     tx.signatures = sg;
                 }
                 if (tx.signatures.length == t && tx.operations.length) {
-                    console.log('Attempting MS Broadcast...', tx, tx.operations[0][1])
+                    console.log('Attempting MS Broadcast...')
                     hiveClient.api.broadcastTransactionSynchronous(
                         tx,
                         function (err, result) {
@@ -638,7 +606,7 @@ function verify(trx, sig, at, active = true) {
                         }
                     );
                 } else {
-                    if (config.mode == 'verbose') {
+                    if (Config("mode") == 'verbose') {
                         console.log(tx)
                     }
                 }
@@ -649,7 +617,6 @@ function verify(trx, sig, at, active = true) {
         }
     });
 }
-exports.verify_broadcast = verify;
 
 function buildSplitTransfers(amount, pair, ds, memos) {
     console.log({ amount, pair, ds, memos });
@@ -665,7 +632,7 @@ function buildSplitTransfers(amount, pair, ds, memos) {
             "transfer",
             {
                 to: tos[i].split("_")[0],
-                from: config.msaccount,
+                from: Config("msaccount"),
                 amount: `${parseFloat(dis / 1000).toFixed(3)} ${pair.toUpperCase()}`,
                 memo:
                     memos +

@@ -1,16 +1,15 @@
-const { store, hiveClient } = require('./index')
-const { getPathObj } = require('./getPathObj')
-const config = require('./config')
-const stringify = require('json-stable-stringify');
-//const privateKey = hiveClient.PrivateKey.fromString(config.msprivatekey);
+import  { Config, store, hiveClient } from './index.mjs'
+import { getPathObj } from './getPathObj.js'
+import stringify from 'json-stable-stringify'
+//const privateKey = hiveClient.PrivateKey.fromString(Config("msprivatekey");
 
 
-exports.consolidate = (num, plasma, bh, owner) => {
+export const consolidate = (num, plasma, bh, owner) => {
     return new Promise((resolve, reject) => {
         var query = 'msa'
         if(owner == 'owner')query = 'mso'
         const queryf = query == 'msa' ? 'mss' : 'msso'
-        const sel_key = query == 'msa' ? config.active : config.msowner
+        const sel_key = query == 'msa' ? Config("active") : Config("msowner")
         store.get([query], (err, result) => {
             if (err || Object.keys(result).length === 0) {
                 resolve('NONE')
@@ -49,7 +48,7 @@ exports.consolidate = (num, plasma, bh, owner) => {
                             const transfer = [
                                     "transfer",
                                     {
-                                        "from": config.msaccount,
+                                        "from": Config("msaccount"),
                                         "to": account,
                                         "amount": parseFloat(hive/1000).toFixed(3) + ' HIVE',
                                         "memo": memohive
@@ -61,7 +60,7 @@ exports.consolidate = (num, plasma, bh, owner) => {
                             const transfer = [
                                     "transfer",
                                     {
-                                        "from": config.msaccount,
+                                        "from": Config("msaccount"),
                                         "to": account,
                                         "amount": parseFloat(hbd/1000).toFixed(3) + ' HBD',
                                         "memo": memohbd
@@ -84,18 +83,14 @@ exports.consolidate = (num, plasma, bh, owner) => {
                 op = {
                     ref_block_num: bh.block_number & 0xffff,
                     ref_block_prefix: Buffer.from(bh.block_id, 'hex').readUInt32LE(4),
-                    expiration: new Date(now + 3660000).toISOString().slice(0, -5),
+                    expiration: new Date(now + 300000).toISOString().slice(0, -5),
                     operations: txs,
                     extensions: [],
                 }
                 ops.push({type: 'put', path: [queryf, `${num}`], data: stringify(op)})
-                if(config.msowner && config.active && txs.length){
-                    try{
+                if(Config("msowner") && Config("active") && txs.length){
                     const stx = hiveClient.auth.signTransaction(op, [sel_key])
                     sig.sig = stx.signatures[0]
-                    } catch(e){
-                        console.log(op.operations[0])
-                    }
                 }
                 store.batch(ops, [resolve, reject, sig])
             }
@@ -103,7 +98,7 @@ exports.consolidate = (num, plasma, bh, owner) => {
     })
 }
 
-exports.osign = (num, type, missed, bh) => {
+export const osign = (num, type, missed, bh) => {
     return new Promise((resolve, reject) => {
         if(bh) {
             let Pmissed = getPathObj([type, `${type == 'mso' ? missed[0] : missed[0].replace(':sigs', '')}`]),
@@ -115,11 +110,11 @@ exports.osign = (num, type, missed, bh) => {
                     },
                     obj = typeof mem[0] == 'string' ? JSON.parse(mem[0]) : mem[0],
                     ops = [],
-                    now = Date.parse(bh.timestamp + '.000Z')
+                    now = Date.parse(bh.timestamp + '.000Z'),
                     op = {
                         ref_block_num: bh.block_number & 0xffff,
                         ref_block_prefix: Buffer.from(bh.block_id, 'hex').readUInt32LE(4),
-                        expiration: new Date(now + 3660000).toISOString().slice(0, -5),
+                        expiration: new Date(now + 300000).toISOString().slice(0, -5),
                         operations: obj.length ? [obj] : obj.operations,
                         extensions: [],
                     }
@@ -127,8 +122,8 @@ exports.osign = (num, type, missed, bh) => {
                         ops.push({type:'del', path:[type, `${missed[i]}`]})
                     }
                     if(op.operations)ops.push({type: 'put', path: ['msso', `${num}`], data: stringify(op)})
-                    if(op.operations && mem[1].ms.active_account_auths[config.username]  && config.msowner){
-                        const stx = hiveClient.auth.signTransaction(op, [config.msowner])
+                    if(op.operations && mem[1].ms.active_account_auths[Config("username")]  && Config("msowner")){
+                        const stx = hiveClient.auth.signTransaction(op, [Config("msowner")])
                         sig.sig = stx.signatures[0]
                     }
                     store.batch(ops, [resolve, reject, sig])
@@ -142,7 +137,7 @@ exports.osign = (num, type, missed, bh) => {
     })
 }
 
-exports.sign = (num, plasma, missed, bh) => {
+export const sign = (num, plasma, missed, bh) => {
     return new Promise((resolve, reject) => {
         if(bh){
             let Pmissed = getPathObj(['mss', `${missed}`]),
@@ -165,8 +160,8 @@ exports.sign = (num, plasma, missed, bh) => {
                     ops.push({type:'del', path:['mss', `${missed}`]})
                     ops.push({type:'del', path:['mss', `${missed}:sigs`]})
                     ops.push({type: 'put', path: ['mss', `${num}`], data: stringify(op)})
-                    if(mem[1].ms.active_account_auths[config.username]  && config.active){
-                        const stx = hiveClient.auth.signTransaction(op, [config.active])
+                    if(mem[1].ms.active_account_auths[Config("username")]  && Config("active")){
+                        const stx = hiveClient.auth.signTransaction(op, [Config("active")])
                         sig.sig = stx.signatures[0]
                     }
                     store.batch(ops, [resolve, reject, sig])
@@ -181,14 +176,14 @@ exports.sign = (num, plasma, missed, bh) => {
 }
 
 /*
-exports.createAccount = (creator, account) => {
+export createAccount = (creator, account) => {
     return new Promise((resolve, reject) => {
-        if (creator = config.username){
+        if (creator = Config("username")){
             var ops = []
             const op = [
                 "create_claimed_account",
                 {
-                    "creator": config.username,
+                    "creator": Config("username"),
                     "new_account_name": "dlux-cc",
                     "owner": {
                     "weight_threshold": 2,
@@ -251,7 +246,7 @@ exports.createAccount = (creator, account) => {
                 ops.push(op)
             hiveClient.broadcast.send({
                 extensions: [],
-                operations: ops}, [config.active], (err, result) => {
+                operations: ops}, [Config("active")], (err, result) => {
                 console.log(err, result);
             });
         } else {
@@ -262,7 +257,7 @@ exports.createAccount = (creator, account) => {
 
 */
 
-exports.updateAccount = (accounts) => {
+export const updateAccount = (accounts) => {
     return new Promise((resolve, reject) => {
         hiveClient.broadcast.accountCreate(wif, fee, creator, newAccountName, owner, active, posting, memoKey, jsonMetadata, function(err, result) {
         console.log(err, result);

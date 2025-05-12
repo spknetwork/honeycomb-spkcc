@@ -1,6 +1,6 @@
-const fetch = require("node-fetch");
-const { TXID } = require("./index");
-module.exports = function (
+import fetch from "node-fetch"
+import { TXID, runtimeContext } from "./index.mjs"
+export function hiveState (
   client,
   nextBlock = 1,
   prefix = "dlux_",
@@ -185,7 +185,7 @@ module.exports = function (
         }
       })
       .catch((e) => {
-        //console.log("getBlockNumber Error: ", e, bln);
+        console.log("getBlockNumber Error: ", e);
       });
   }
 
@@ -211,7 +211,7 @@ module.exports = function (
         .catch((err) => {
           if (at < 3) {
             setTimeout(() => {
-              gb(bln, at + 1);
+              gbr(bln, at + 1);
             }, Math.pow(10, at + 1));
           } else {
             console.log("Get block attempt:", at, client.currentAddress);
@@ -227,7 +227,6 @@ module.exports = function (
     if (!at && blocks.requests.last_range > bln) return;
     console.log({ bln, count, at });
     if (!at) blocks.requests.last_range = bln + count - 1;
-    console.log(client.currentAddress)
     fetch(client.currentAddress, {
       body: `{"jsonrpc":"2.0", "method":"block_api.get_block_range", "params":{"starting_block_num": ${bln}, "count": ${count}}, "id":1}`,
       headers: {
@@ -319,7 +318,7 @@ module.exports = function (
       beginBlockComputing();
       stream = undefined;
       console.log("This place:", err);
-      beginBlockStreaming()
+      //throw err;
     });
   }
 
@@ -405,10 +404,10 @@ module.exports = function (
             resolve,
             reject,
             pc,
-          ]);
+          ], runtimeContext);
           //console.log(op[0])
         } else if (op.length == 2) {
-          onOperation[op[0]](op[1], [resolve, reject, pc]);
+          onOperation[op[0]](op[1], [resolve, reject, pc], runtimeContext);
           //console.log(op[0])
         }
       });

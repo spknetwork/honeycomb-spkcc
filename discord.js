@@ -1,11 +1,9 @@
-const { Webhook, MessageBuilder } = require('discord-webhook-node');
-const config = require('./config');
-const { TXID } = require ('./index')
-const hook = new Webhook(config.hookurl);
-const fetch = require('node-fetch')
+import { Webhook, MessageBuilder } from 'discord-webhook-node'
+import { Config, TXID } from "./index.mjs";
+import fetch from 'node-fetch'
+const hook = Config("hookurl") ? new Webhook(Config("hookurl")) : null
 
-
-exports.contentToDiscord = (author, permlink) => {
+export const contentToDiscord = (author, permlink) => {
     let params = [author, permlink];
     let method = 'condenser_api.get_content'
     let body = {
@@ -14,7 +12,7 @@ exports.contentToDiscord = (author, permlink) => {
         params,
         id: 1
     };
-    fetch(config.clientURL, {
+    fetch(Config("clientURL"), {
             body: JSON.stringify(body),
             headers: {
                 "Content-Type": "application/x-www-form-urlencoded"
@@ -25,10 +23,10 @@ exports.contentToDiscord = (author, permlink) => {
         .then(result => {
             r = result.result
             const embed = new MessageBuilder()
-                .setTitle(`New ${config.TOKEN} content!`)
-                .setAuthor(author, 'https://cdn.discordapp.com/embed/avatars/0.png', `https://${config.mainFE}/@${author}`)
-                .setURL(`https://${config.mainFE}/${config.tag}/@${author}/${permlink}`)
-                .addField(r.title, (JSON.parse(r.json_metadata).description || `View this on ${config.mainFE}`), true)
+                .setTitle(`New ${Config("TOKEN")} content!`)
+                .setAuthor(author, 'https://cdn.discordapp.com/embed/avatars/0.png', `https://${Config("mainFE")}/@${author}`)
+                .setURL(`https://${Config("mainFE")}/${Config("tag")}/@${author}/${permlink}`)
+                .addField(r.title, (JSON.parse(r.json_metadata).description || `View this on ${Config("mainFE")}`), true)
                 //.addField('Second field', 'this is not inline')
                 .setColor('#00b0f4')
                 //.setThumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
@@ -43,17 +41,17 @@ exports.contentToDiscord = (author, permlink) => {
 
 }
 
-exports.renderNFTtoDiscord = (script, uid, owner, set) => {
+export const renderNFTtoDiscord = (script, uid, owner, set) => {
     const embed = new MessageBuilder()
                 .setTitle(`New ${set} NFT minted!`)
-                .setAuthor(owner, 'https://cdn.discordapp.com/embed/avatars/0.png', `https://${config.mainFE}/@${owner}`)
-                .setURL(`https://${config.mainFE}/@${owner}#inventory/`)
-                .addField(`${set}:${uid}`, `View this on ${config.mainFE}`, true)
+                .setAuthor(owner, 'https://cdn.discordapp.com/embed/avatars/0.png', `https://${Config("mainFE")}/@${owner}`)
+                .setURL(`https://${Config("mainFE")}/@${owner}#inventory/`)
+                .addField(`${set}:${uid}`, `View this on ${Config("mainFE")}`, true)
                 //.addField('Second field', 'this is not inline')
                 .setColor('#00b0f4')
                 //.setThumbnail('https://cdn.discordapp.com/embed/avatars/0.png')
                 //.setDescription('Oh look a description :)')
-                .setImage(`https://${config.mainRender}/render/${script}/${uid}`)
+                .setImage(`https://${Config("mainRender")}/render/${script}/${uid}`)
                 //.setFooter('Hey its a footer', 'https://cdn.discordapp.com/embed/avatars/0.png')
                 .setTimestamp();
 
@@ -62,9 +60,11 @@ exports.renderNFTtoDiscord = (script, uid, owner, set) => {
 
 }
 
-//exports.contentToDiscord('disregardfiat', 'dlux-development-update-jan-15')
+//export contentToDiscord('disregardfiat', 'dlux-development-update-jan-15')
 
-exports.postToDiscord = (msg, id) => {
-    if(config.hookurl)hook.send(msg)
-    if(config.status)TXID.store(msg, id)
+export const postToDiscord = (msg, id) => {
+    if(Config("hookurl"))hook.send(msg)
+    if(Config("status"))TXID.store(msg, id)
 }
+
+//great place to build a feed function to edb

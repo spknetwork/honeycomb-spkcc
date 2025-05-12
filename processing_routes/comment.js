@@ -1,18 +1,30 @@
-const config = require('./../config')
-const { store } = require('./../index')
-const { chronAssign } = require('./../lil_ops')
-const { getPathObj } = require('../getPathObj')
-const { contentToDiscord } = require('./../discord')
-const { insertNewPost } = require('./../edb');
+import { store, Config } from "../index.mjs"
+import { chronAssign } from './../lil_ops.js'
+import { getPathObj } from '../getPathObj.js'
+import { contentToDiscord } from './../discord.js'
+import { insertNewPost, updateRating, moderate } from './../edb.js'
 
-exports.comment = (json, pc) => {
+export const comment = (json, pc) => {
     let meta = {}
     try { meta = JSON.parse(json.json_metadata) } catch (e) {}
-    if (json.author == config.leader && parseInt(json.permlink.split(config.tag)[1]) > json.block_num - 31000) {
-        var ops = [{ type: 'del', path: ['escrow', json.author, 'comment'] }]
-        if (process.env.npm_lifecycle_event == 'test') pc[2] = ops
-        store.batch(ops, pc)
-    } else if (config.features.pob && (meta.arHash || meta.vrHash || meta.appHash || meta.audHash)) {
+    let community_post = false
+    if (json.author == Config("leader") && parseInt(json.permlink.split(Config("tag"))[1]) > json.block_num - 31000) {
+        //console.log('leader post')
+        store.get(['escrow', json.author], function(e, a) {
+            if (!e) {
+                var ops = []
+                for (b in a) {
+                    if (a[b][1].permlink == json.permlink && b == 'comment') {
+                        ops.push({ type: 'del', path: ['escrow', json.author, b] })
+                    }
+                }
+                if (process.env.npm_lifecycle_event == 'test') pc[2] = ops
+                store.batch(ops, pc)
+            } else {
+                console.log(e)
+            }
+        })
+    } else if (Config("features").pob && meta.arHash || meta.vrHash || meta.appHash || meta.audHash) {
         Ppost = getPathObj(['posts', `${json.author}/${json.permlink}`])
         Promise.all([Ppost])
             .then(postarray => {
@@ -52,134 +64,121 @@ exports.comment = (json, pc) => {
                 store.batch(ops, pc)
             })
             .catch(e => { console.log(e) })
-            /*
-                }
-                
-
-                    //tag search for -LEO Community
-                    for (tag in meta.tags) {
-                        if (community_post) { break; }
-                        for (i = 0; i < config.community_tags.length; i++) {
-                            if (tag == config.community_tags[i]) {
-                                community_post = true
+            
+    } else if (Config("features").pob && (Config("features").pobTag && meta.tags.includes(Config("tag")))) {
+        var assigns = []
+                    assigns.push(chronAssign(json.block_num + 201600, {
+                        block: parseInt(json.block_num + 201600),
+                        op: 'post_reward',
+                        author: json.author,
+                        permlink: json.permlink
+                    }))
+                    assigns.push(chronAssign(parseInt(json.block_num + 20000), {
+                        block: parseInt(json.block_num + 20000),
+                        op: 'post_vote',
+                        author: json.author,
+                        permlink: json.permlink
+                    }))
+                    ops.push({
+                        type: 'put',
+                        path: ['posts', `${json.author}/${json.permlink}`],
+                        data: {
+                            block: json.block_num,
+                            author: json.author,
+                            permlink: json.permlink,
+                            customJSON: a.meta
+                        }
+                    })
+                    if(Config("dbcs")){
+                        var type = "Blog";
+                        for(var typeDef in Config("typeDefs")){
+                            if(Config("typeDefs")[typeDef].includes(a.meta.vrHash)){
+                                type = typeDef;
                                 break;
                             }
+
                         }
+                        if(type == "Blog"){
+                        if (
+                          a.meta.vrHash
+                        )
+                          type = "VR";
+                        else if (
+                          a.meta.arHash
+                        )
+                          type = "AR";
+                        else if (
+                          a.meta.appHash
+                        )
+                          type = "APP";
+                        else if (
+                          a.meta.audHash
+                        )
+                          type = "Audio";
+                        else if (
+                          a.meta.vidHash
+                        )
+                          type = "Video";
                     }
-
-                    
-                if (community_post) {
-
-                    //tag picker only -LEO Community
-                    var exp_path = chronAssign(json.block_num + 201600, { op: 'post_reward', a: json.author, p: json.permlink })
-                    promies.all([exp_path])
-                        .then(r => {
-                            const post = {
-                                author: json.author,
-                                permlink: json.permlink,
-                                expire_path: r[0],
-                                block: json.block_num
-                            }
-                            var ops = [{ type: 'put', path: ['posts', json.author, json.permlink], data: post }]
-                            store.batch(ops, pc)
+                        insertNewPost({
+                            block: json.block_num,
+                            author: json.author,
+                            permlink: json.permlink,
+                            type: type,
                         })
-                        .catch(e => console.log(e))
-            */
+                    }
+                    const msg = `@${json.author}|${json.permlink} added to ${Config("TOKEN")} rewardable content`
+                    if (Config("hookurl")) contentToDiscord(json.author, json.permlink)
+                    ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg })
+                    if (process.env.npm_lifecycle_event == 'test') pc[2] = ops
+                    Promise.all(assigns)
+                    .then(v=>{
+                        store.batch(ops, pc)
+                    })
+    } else if (
+      Config("dbcs") && json.parent_author &&
+      json.parent_permlink &&
+      meta?.review?.rating &&
+        meta.review.rating >= 1 &&
+        meta.review.rating <= 5
+    ) {
+      updateRating(
+        json.parent_author,
+        json.parent_permlink,
+        json.author,
+        meta.review.rating
+      );
+      pc[0](pc[2]);
+    } else if (
+      Config("dbcs") &&
+      Config("dbmods").includes(json.author) &&
+      json.parent_author &&
+      json.parent_permlink &&
+      meta?.review?.moderate 
+    ) {
+        moderate(
+          meta?.review?.moderate.hide,
+          meta?.review?.moderate.reason,
+          json.parent_author,
+          json.parent_permlink
+        );
+      pc[0](pc[2]);
     } else {
-        pc[0](pc[2])
+      pc[0](pc[2]);
     }
 }
 
-exports.comment_options = (json, pc) => {
+export const comment_options = (json, pc) => {
     //console.log(json)
     try {
-        var filter = json.extensions?.[0]?.[1]?.beneficiaries ? json.extensions[0][1].beneficiaries : json.extensions[0].value.beneficiaries
+        var filter = json.extensions[0][1].beneficiaries
     } catch (e) {
         pc[0](pc[2])
         return
     }
-    var ops = [],
-        promises = []
-    
+    var ops = []
     for (var i = 0; i < filter.length; i++) {
-        promises.push(getPathObj(['ben', `${json.author}`, `${filter[i].account}`])) // filter[i].account
-    }
-    if(promises.length){
-        Promise.all(promises)
-        .then(q => {
-            var contractPointers = []
-            for (var i = 0; i < q.length; i++){
-                if(q[i]){
-                    contractPointers.push([i, q[i]])
-                }
-            }
-            promises = []
-            if(contractPointers.length){
-                for (var j = 0; j < contractPointers.length; j++){
-                    if(typeof contractPointers[j][1] == "string")promises.push(getPathObj(['contract', json.author, contractPointers[j][1] ]))
-                }
-                Promise.all(promises)
-                .then(contracts => {
-                    promises = []
-                    for(var k = 0; k < contracts.length; k++){
-                        if(contracts[k].s && 
-                            contracts[k].s.split(',')[0] == filter[contractPointers[k][0]].account && 
-                            contracts[k].s.split(',')[1] <= filter[contractPointers[k][0]].weight){
-                                promises.push(exp_path(contracts[k], json.author, contractPointers[k][1]))
-                                ops.push({
-                                    type: 'del',
-                                    path: ['ben', json.author, filter[contractPointers[k][0]].account ]
-                                })
-                                ops.push({
-                                    type: 'del',
-                                    path: ['chrono', contracts[k].e ]
-                                })
-                                ops.push({
-                                    type: 'del',
-                                    path: ['proffer', json.author, contracts[k].f, "1" ]
-                                })
-                                ops.push({
-                                    type: 'del',
-                                    path: ['contract', json.author, contractPointers[k][1], 'exp']
-                                })
-                            }
-                    }
-                    Promise.all(promises).then(cons =>{
-                        ops = [...ops, ...cons]
-                        store.batch(ops, pc)
-                    })
-                    function exp_path(Contract, author, pointer){
-                        return new Promise((res,rej)=>{
-                        chronAssign(Contract.exp + (28800 * 29), {
-                            block: Contract.exp + (28800 * 29),
-                            op: 'contract_close',
-                            fo: Contract.t,
-                            id: Contract.i
-                          }).then(exp_path =>{
-                            Contract.e = exp_path
-                            Contract.c++
-                            delete Contract.exp
-                                res({
-                                    type: 'put',
-                                    path: ['contract', author, pointer ],
-                                    data: Contract
-                                })
-                          })
-                        })
-                    }
-                })
-            } else {
-                pc[0](pc[2])
-            }
-        })
-    } else {
-        pc[0](pc[2])
-    }
-}
-
-/*
-for (var i = 0; i < filter.length; i++) {
-        if (config.features.pob && filter[i].account == config.ben && filter[i].weight >= config.delegationWeight) {
+        if (filter[i].account == Config("ben") && filter[i].weight >= Config("delegationWeight") ) {
             store.get(['pend', `${json.author}/${json.permlink}`], function(e, a) {
                 if (e) { console.log(e) }
                 if (Object.keys(a).length) {
@@ -206,85 +205,48 @@ for (var i = 0; i < filter.length; i++) {
                             customJSON: a.meta
                         }
                     })
-                    if(config.dbcs){
-                                insertNewPost({
+                    if(Config("dbcs")){
+                        var type = "Blog";
+                        for(var typeDef in Config("typeDefs")){
+                            if(Config("typeDefs")[typeDef].includes(a.meta.vrHash)){
+                                type = typeDef;
+                                break;
+                            }
+
+                        }
+                        if(type == "Blog"){
+                        if (
+                          a.meta.vrHash
+                        )
+                          type = "VR";
+                        else if (
+                          a.meta.arHash
+                        )
+                          type = "AR";
+                        else if (
+                          a.meta.appHash
+                        )
+                          type = "APP";
+                        else if (
+                          a.meta.audHash
+                        )
+                          type = "Audio";
+                        else if (
+                          a.meta.vidHash
+                        )
+                          type = "Video";
+                    }
+                        insertNewPost({
                             block: json.block_num,
                             author: json.author,
-                            permlink: json.permlink
+                            permlink: json.permlink,
+                            type: type,
                         })
                     }
-                    var pins = {}
-                    for (i in a.meta.assets) {
-                            if (a.meta.assets[i].pin) {
-                                pins[a.meta.assets[i].hash] = { 
-                                    h: a.meta.assets[i].hash, //hash
-                                    b: 0, //bytes
-                                    v: 0  //verifies
-                                }
-                            }
-                            if (a.meta.assets[i].pin && a.meta.assets[i].thumbHash && a.meta.assets[i].thumbHash != a.meta.assets[i].hash){
-                                pins[a.meta.assets[i].thumbHash] = { 
-                                    h: a.meta.assets[i].thumbHash, //hash
-                                    b: 0, //bytes
-                                    v: 0  //verifies
-                                }
-                            }
-                    }
-                    if(Object.keys(pins).length)ops.push({ type: 'put', path: ['ipfs', 'unbundled', `${json.author}:${json.permlink}`], data: pins })
-                    if(config.pintoken){
-                        //ipfsVerify(`${json.author}:${json.permlink}`, pins)
-                    }
-                    
-                    // if (config.pintoken) {
-                    //     var pins = []
-                    //     for (i in a.meta.assets) {
-                    //         if (a.meta.assets[i].pin) pins.push({ hash: a.meta.assets[i].hash })
-                    //         if (a.meta.assets[i].pin && a.meta.assets[i].thumbHash && a.meta.assets[i].thumbHash != a.meta.assets[i].hash) pins.push({ hash: a.meta.assets[i].hash })
-                    //     }
-                    //     if (pins.length) {
-                    //         var options = {
-                    //             'method': 'POST',
-                    //             'url': config.pinurl,
-                    //             'headers': {
-                    //                 'Content-Type': 'application/json'
-                    //             },
-                    //             formData: {
-                    //                 'items': JSON.stringify(pins),
-                    //                 'secret': config.pintoken,
-                    //                 'by': json.author,
-                    //                 'block': json.block_num.toString()
-                    //             }
-                    //         };
-                    //         request(options, function(error, response) {
-                    //             if (error) throw new Error(error);
-                    //             console.log(response.body);
-                    //         });
-                    //     }
-                    // }
-                    
-                    // if (config.username == config.leader) {
-                    //     var bytes = rtrades.checkNpin(a.meta.assets)
-                    //     bytes.then(function(value) {
-                    //         var op = ["custom_json", {
-                    //             required_auths: [config.username],
-                    //             required_posting_auths: [],
-                    //             id: `${config.prefix}cjv`,
-                    //             json: JSON.stringify({
-                    //                 a: json.author,
-                    //                 p: json.permlink,
-                    //                 b: value //amount of bytes posted
-                    //             })
-                    //         }]
-                    //         unshiftOp([
-                    //             [0, 0], op
-                    //         ])
-                    //     })
-                    // }
-                    
                     ops.push({ type: 'del', path: ['pend', `${json.author}/${json.permlink}`] })
                     ops.push({ type: 'del', path: ['chrono', `${a.block_num + 28800}:pend:${json.author}/${json.permlink}`] })
-                    const msg = `@${json.author}|${json.permlink} added to ${config.TOKEN} rewardable content`
-                    if (config.hookurl) contentToDiscord(json.author, json.permlink)
+                    const msg = `@${json.author}|${json.permlink} added to ${Config("TOKEN")} rewardable content`
+                    if (Config("hookurl")) contentToDiscord(json.author, json.permlink)
                     ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg })
                     if (process.env.npm_lifecycle_event == 'test') pc[2] = ops
                     Promise.all(assigns)
@@ -302,4 +264,4 @@ for (var i = 0; i < filter.length; i++) {
             pc[0](pc[2])
         }
     }
-*/
+}

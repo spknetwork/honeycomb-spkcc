@@ -1,6 +1,6 @@
-const { ipfs } = require("./index");
+import { ipfs } from "./index.mjs"
 
-exports.ipfsSaveState = (blocknum, buffer, ipfsc, tries) => {
+export const ipfsSaveState = (blocknum, buffer, ipfsc, tries) => {
   return new Promise((resolve, reject) => {
     if (tries) console.log("Retry IPFS Save:", tries);
     ipfs.add(buffer, (err, ipfs_return) => {
@@ -30,7 +30,7 @@ exports.ipfsSaveState = (blocknum, buffer, ipfsc, tries) => {
   });
 };
 
-exports.ipfsPeerConnect = (peerid) => {
+export const ipfsPeerConnect = (peerid) => {
   return new Promise((resolve, reject) => {
     //ipfs.swarm.addrs().then((addrs) => {console.log(addrs)})
     ipfs.swarm.connect(`/p2p/${peerid}`, (err, res) => {

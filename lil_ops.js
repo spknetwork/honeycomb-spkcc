@@ -1,45 +1,249 @@
-const { store } = require('./index')
-const { getPathObj, getPathNum } = require('./getPathObj')
-const crypto = require('crypto');
-const bs58 = require('bs58');
+import { store } from './index.mjs'
+import { getPathObj, getPathNum } from './getPathObj.js'
+import { DEX } from './helpers.js'
+import { postToDiscord } from './discord.js'
+import crypto from 'crypto'
+import  bs58 from 'bs58'
 const hashFunction = Buffer.from('12', 'hex');
-const stringify = require('json-stable-stringify');
-const { postToDiscord } = require('./discord');
-const config = require('./config');
+import  stringify from 'json-stable-stringify'
 
-const burn = (amount) => {
+export const burn = (amount) => {
     return new Promise((resolve, reject) => {
-        getPathNum(['stats', 'larynxSupply'])
-            .then(sup => {
-                store.batch([{ type: 'put', path: ['stats', 'larynxSupply'], data: sup - amount }], [resolve, reject, 1])
-            })
+        getPathNum(['stats', 'tokenSupply'])
+        .then(sup => {
+            store.batch([{ type: 'put', path: ['stats', 'tokenSupply'], data: sup - amount }], [resolve, reject, 1])
+        })
     })
 }
-exports.burn = burn
-const forceCancel = (rate, type, block_num) => {
+export function naizer(obj) {
+    if (typeof obj.amount != "string") return obj;
+    else {
+      const nai =
+        obj.amount.split(" ")[1] == "HIVE" ? "@@000000021" : "@@000000013";
+      const amount = parseInt(
+        parseFloat(obj.amount.split(" ")[0]) * 1000
+      ).toString();
+      const precision = 3;
+      obj.amount = {
+        amount,
+        nai,
+        precision,
+      };
+      return obj;
+    }
+  }
+
+export function nai(obj) {
+    return `${parseFloat(obj.amount.amount / Math.pow(10, obj.precision))} ${
+      obj.amount.nai == "@@000000021" ? "HIVE" : "HBD"
+    }`;
+  }
+
+export const release = (from, txid, bn, tx_id, dex = 'dex', ltoken = "balance") => {
+    return new Promise((resolve, reject) => {
+      store.get(["contracts", from, txid], function (er, a) {
+        if (er) {
+          console.log(er);
+        } else {
+          var ops = [];
+          switch (a.type) {
+            case "hive:sell":
+              store.get([dex, "hive"], function (e, res) {
+                if (e) {
+                  console.log(e);
+                } else if (isEmpty(res)) {
+                  console.log("Nothing here" + a.txid);
+                } else {
+                  r = res.sellOrders[`${a.rate}:${a.txid}`];
+                  res.sellBook = DEX.remove(a.txid, res.sellBook);
+                  ops.push({
+                    type: "put",
+                    path: [dex, "hive", "sellBook"],
+                    data: res.sellBook,
+                  });
+                  addMT([ltoken, r.from], r.amount)
+                    .then((empty) => {
+                      ops.push({ type: "del", path: ["contracts", from, txid] });
+                      ops.push({ type: "del", path: ["chrono", a.expire_path] });
+                      ops.push({
+                        type: "del",
+                        path: [
+                          dex,
+                          "hive",
+                          "sellOrders",
+                          `${a.rate}:${a.txid}`,
+                        ],
+                      });
+                      if (tx_id && config.hookurl) {
+                        postToDiscord(
+                          `@${from} has canceled ${txid}`,
+                          `${bn}:${tx_id}`
+                        );
+                      }
+                      store.batch(ops, [resolve, reject]);
+                    })
+                    .catch((e) => {
+                      reject(e);
+                    });
+                }
+              });
+              break;
+            case "hbd:sell":
+              store.get([dex, "hbd"], function (e, res) {
+                if (e) {
+                  console.log(e);
+                } else if (isEmpty(res)) {
+                  console.log("Nothing here" + a.txid);
+                } else {
+                  r = res.sellOrders[`${a.rate}:${a.txid}`];
+                  res.sellBook = DEX.remove(a.txid, res.sellBook);
+                  ops.push({
+                    type: "put",
+                    path: [dex, "hbd", "sellBook"],
+                    data: res.sellBook,
+                  });
+                  addMT([ltoken, r.from], r.amount)
+                    .then((empty) => {
+                      ops.push({ type: "del", path: ["contracts", from, txid] });
+                      ops.push({ type: "del", path: ["chrono", a.expire_path] });
+                      ops.push({
+                        type: "del",
+                        path: [dex, "hbd", "sellOrders", `${a.rate}:${a.txid}`],
+                      });
+                      if (tx_id && config.hookurl) {
+                        postToDiscord(
+                          `@${from} has canceled ${txid}`,
+                          `${bn}:${tx_id}`
+                        );
+                      }
+                      store.batch(ops, [resolve, reject]);
+                    })
+                    .catch((e) => {
+                      reject(e);
+                    });
+                }
+              });
+              break;
+            case "hive:buy":
+              store.get([dex, "hive"], function (e, res) {
+                if (e) {
+                  console.log(e);
+                } else if (isEmpty(res)) {
+                  console.log("Nothing here" + a.txid);
+                } else {
+                  r = res.buyOrders[`${a.rate}:${a.txid}`];
+                  res.buyBook = DEX.remove(a.txid, res.buyBook);
+                  ops.push({
+                    type: "put",
+                    path: [dex, "hive", "buyBook"],
+                    data: res.buyBook,
+                  });
+                  a.cancel = true;
+                  const Transfer = [
+                    "transfer",
+                    {
+                      from: config.msaccount,
+                      to: a.from,
+                      amount: parseFloat(a.hive / 1000).toFixed(3) + " HIVE",
+                      memo: `Canceled ${config.TOKEN} buy ${a.txid}`,
+                    },
+                  ];
+                  ops.push({
+                    type: "put",
+                    path: ["msa", `refund@${a.from}:${a.txid}:${bn}`],
+                    data: stringify(Transfer),
+                  });
+                  ops.push({ type: "del", path: ["contracts", from, a.txid] });
+                  ops.push({
+                    type: "del",
+                    path: [dex, "hive", "buyOrders", `${a.rate}:${a.txid}`],
+                  });
+                  if (tx_id && config.hookurl) {
+                    postToDiscord(
+                      `@${from} has canceled ${txid}`,
+                      `${bn}:${tx_id}`
+                    );
+                  }
+                  store.batch(ops, [resolve, reject]);
+                }
+              });
+              break;
+            case "hbd:buy":
+              store.get([dex, "hbd"], function (e, res) {
+                if (e) {
+                  console.log(e);
+                } else if (isEmpty(res)) {
+                  console.log("Nothing here" + a.txid);
+                } else {
+                  r = res.buyOrders[`${a.rate}:${a.txid}`];
+                  res.buyBook = DEX.remove(a.txid, res.buyBook);
+                  ops.push({
+                    type: "put",
+                    path: [dex, "hbd", "buyBook"],
+                    data: res.buyBook,
+                  });
+                  a.cancel = true;
+                  const Transfer = [
+                    "transfer",
+                    {
+                      from: config.msaccount,
+                      to: a.from,
+                      amount: parseFloat(a.hbd / 1000).toFixed(3) + " HBD",
+                      memo: `Canceled ${config.TOKEN} buy ${a.txid}`,
+                    },
+                  ];
+                  ops.push({
+                    type: "put",
+                    path: ["msa", `refund@${a.from}:${a.txid}:${bn}`],
+                    data: stringify(Transfer),
+                  });
+                  ops.push({ type: "del", path: ["contracts", from, a.txid] });
+                  ops.push({
+                    type: "del",
+                    path: [dex, "hbd", "buyOrders", `${a.rate}:${a.txid}`],
+                  });
+                  if (tx_id && config.hookurl) {
+                    postToDiscord(
+                      `@${from} has canceled ${txid}`,
+                      `${bn}:${tx_id}`
+                    );
+                  }
+                  store.batch(ops, [resolve, reject]);
+                }
+              });
+              break;
+            default:
+              resolve();
+          }
+        }
+      });
+    });
+  };
+
+export const forceCancel = (rate, type, block_num, dex = 'dex', ltoken = "balance") => {
     return new Promise((resolve, reject) => {
         const price = parseFloat(rate)
-        let Ps = getPathObj(['dex', type, 'sellOrders'])
-        let Pb = getPathObj(['dex', type, 'buyOrders'])
+        let Ps = getPathObj([dex, type, 'sellOrders'])
+        let Pb = getPathObj([dex, type, 'buyOrders'])
         Promise.all([Ps, Pb])
             .then(s => {
                 let gone = 0
                 for (o in s[0]) {
                     if (parseFloat(o.split(":")[0]) < (price * .6)) {
                         gone++
-                        release(o.from, o.split(":")[1], block_num)
+                        release(o.from, o.split(":")[1], block_num, dex, ltoken)
                     } else if (parseFloat(o.split(":")[0]) > (price * 1.4)) {
                         gone++
-                        release(o.from, o.split(":")[1], block_num)
+                        release(o.from, o.split(":")[1], block_num, dex, ltoken)
                     }
                 }
                 for (o in s[1]) {
                     if (parseFloat(o.split(":")[0]) < (price * .6)) {
                         gone++
-                        release(o.from, o.split(":")[1], block_num)
+                        release(o.from, o.split(":")[1], block_num, dex, ltoken)
                     } else if (parseFloat(o.split(":")[0]) > (price * 1.4)) {
                         gone++
-                        release(o.from, o.split(":")[1], block_num)
+                        release(o.from, o.split(":")[1], block_num, dex, ltoken)
                     }
                 }
                 resolve(gone)
@@ -47,110 +251,14 @@ const forceCancel = (rate, type, block_num) => {
             .catch(e => { reject(e) })
     })
 }
-exports.forceCancel = forceCancel
 
-const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-    if(typeof last != "string")last = '0,0'
-    const last_calc = require('./helpers').Base64.toNumber(last.split(',')[1])
-    const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc))/(pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
-    var total = parseInt(last.split(',')[0]) + accured + add
-    if(total > (pow * 1000))total = (pow * 1000)
-    return `${total},${require("./helpers").Base64.fromNumber(bn)}`
-}
-
-exports.broca_calc = broca_calc
-
-const reward_spk = (acc, bn) => {
-    return new Promise((res, rej) => {
-        const Pblock = getPathNum(["spkb", acc]);
-        const Pstats = getPathObj(["stats"]);
-        const Ppow = getPathNum(["pow", acc]);
-        const Pgranted = getPathNum(["granted", acc, "t"]);
-        const Pgranting = getPathNum(["granting", acc, "t"]);
-        const Pgov = getPathNum(["gov", acc]);
-        const Pspk = getPathNum(['spk', acc])
-        const Pspkt = getPathNum(['spk', 't'])
-        Promise.all([Pblock, Pstats, Ppow, Pgranted, Pgranting, Pgov, Pspk, Pspkt]).then(
-            (mem) => {
-                var block = mem[0],
-                    diff = bn - block,
-                    stats = mem[1],
-                    pow = mem[2],
-                    granted = mem[3],
-                    granting = mem[4],
-                    gov = mem[5],
-                    spk = mem[6],
-                    spkt = mem[7],
-                    r = 0, a = 0, b = 0, c = 0, t = 0
-                if (!block){
-                    store.batch(
-                      [
-                        {
-                          type: "put",
-                          path: ["spkb", acc],
-                          data: bn,
-                        },
-                      ],
-                      [res, rej, 0]
-                    );
-                } else if(diff < 28800){ //min claim period
-                    res(r)
-                } else {
-                    t = parseInt(diff/28800)
-                    a = simpleInterest(gov, t, stats.spk_rate_lgov)
-                    b = simpleInterest(pow, t, stats.spk_rate_lpow);
-                    c = simpleInterest(
-                      (granted + granting),
-                      t,
-                      stats.spk_rate_ldel
-                    );
-                    const i = a + b + c
-                    if(i){
-                        store.batch(
-                          [
-                            {
-                              type: "put",
-                              path: ["spk", acc],
-                              data: spk + i,
-                            },
-                            {
-                              type: "put",
-                              path: ["spk", "t"],
-                              data: spkt + i,
-                            },
-                            {
-                              type: "put",
-                              path: ["spkb", acc],
-                              data: bn - (diff % 28800),
-                            },
-                          ],
-                          [res, rej, i]
-                        );
-                    } else {
-                        res(0)
-                    }
-                }
-
-            }
-        );
-    })
-}
-
-//exports.reward_spk = reward_spk
-
-const simpleInterest = (p, t, r) => {
-  const amount = p * (1 + r / 365);
-  const interest = amount - p;
-  return parseInt(interest * t);
-};
-
-const add = (node, amount) => {
+export const add = (node, amount) => {
     return new Promise((resolve, reject) => {
-        store.get(['balances', node], function (e, a) {
+        store.get(['balances', node], function(e, a) {
             if (!e) {
                 console.log(amount + ' to ' + node)
                 const a2 = typeof a != 'number' ? amount : a + amount
-                console.log('final balance ' + a2)
+                console.log('final balance ' +a2)
                 store.batch([{ type: 'put', path: ['balances', node], data: a2 }], [resolve, reject, 1])
             } else {
                 console.log(e)
@@ -158,75 +266,14 @@ const add = (node, amount) => {
         })
     })
 }
-exports.add = add
 
-const addSpk = (node, amount) => {
+export const addc = (node, amount) => {
     return new Promise((resolve, reject) => {
-        store.get(['spk', node], function (e, a) {
+        store.get(['cbalances', node], function(e, a) {
             if (!e) {
                 console.log(amount + ' to ' + node)
                 const a2 = typeof a != 'number' ? amount : a + amount
-                console.log('final balance ' + a2)
-                store.batch([{ type: 'put', path: ['spk', node], data: a2 }], [resolve, reject, 1])
-            } else {
-                console.log(e)
-            }
-        })
-    })
-}
-exports.addSpk = addSpk
-
-const burnSpk = (node, amount = 0) => {
-    return new Promise((resolve, reject) => {
-        store.get(['spk', 't'], function (e, a) {
-            if (!e) {
-                const a2 = typeof a != 'number' ? amount : a - amount
-                store.batch([{ type: 'put', path: ['spk', node], data: a2 }], [resolve, reject, 1])
-            } else {
-                console.log(e)
-            }
-        })
-    })
-}
-exports.burnSpk = burnSpk
-
-const addBroca = (node, amount) => {
-    return new Promise((resolve, reject) => {
-        store.get(['lbroca', node], function (e, a) {
-            if (!e) {
-                console.log(amount + ' to ' + node)
-                const a2 = typeof a != 'number' ? amount : a + amount
-                console.log('final balance ' + a2)
-                store.batch([{ type: 'put', path: ['lbroca', node], data: a2 }], [resolve, reject, 1])
-            } else {
-                console.log(e)
-            }
-        })
-    })
-}
-exports.addBroca = addBroca
-
-const burnBroca = (node, amount = 0) => {
-    return new Promise((resolve, reject) => {
-        store.get(['lbroca', 't'], function (e, a) {
-            if (!e) {
-                const a2 = typeof a != 'number' ? amount : a - amount
-                store.batch([{ type: 'put', path: ['lbroca', node], data: a2 }], [resolve, reject, 1])
-            } else {
-                console.log(e)
-            }
-        })
-    })
-}
-exports.burnBroca = burnBroca
-
-const addc = (node, amount) => {
-    return new Promise((resolve, reject) => {
-        store.get(['cbalances', node], function (e, a) {
-            if (!e) {
-                console.log(amount + ' to ' + node)
-                const a2 = typeof a != 'number' ? amount : a + amount
-                console.log('final balance ' + a2)
+                console.log('final balance ' +a2)
                 store.batch([{ type: 'put', path: ['cbalances', node], data: a2 }], [resolve, reject, 1])
             } else {
                 console.log(e)
@@ -234,14 +281,13 @@ const addc = (node, amount) => {
         })
     })
 }
-exports.addc = addc
 
-const addMT = (path, amount) => {
+export const addMT = (path, amount) => {
     return new Promise((resolve, reject) => {
-        store.get(path, function (e, a) {
+        store.get(path, function(e, a) {
             if (!e) {
                 const a2 = typeof a != 'number' ? parseInt(amount) : parseInt(a) + parseInt(amount)
-                console.log(`MTo:${a},add:${amount},final:${a2}`,)
+                console.log(`MTo:${a},add:${amount},final:${a2}`, )
                 store.batch([{ type: 'put', path, data: a2 }], [resolve, reject, 1])
             } else {
                 console.log(e)
@@ -249,11 +295,10 @@ const addMT = (path, amount) => {
         })
     })
 }
-exports.addMT = addMT
 
-const addCol = (node, amount) => {
+export const addCol = (node, amount) => {
     return new Promise((resolve, reject) => {
-        store.get(['col', node], function (e, a) {
+        store.get(['col', node], function(e, a) {
             if (!e) {
                 const a2 = typeof a != 'number' ? amount : a + amount
                 console.log({ node, a })
@@ -264,11 +309,10 @@ const addCol = (node, amount) => {
         })
     })
 }
-exports.addCol = addCol
 
-const addGov = (node, amount) => {
+export const addGov = (node, amount) => {
     return new Promise((resolve, reject) => {
-        store.get(['gov', node], function (e, a) {
+        store.get(['gov', node], function(e, a) {
             if (!e) {
                 const a2 = typeof a != 'number' ? amount : a + amount
                 console.log({ node, a })
@@ -279,12 +323,11 @@ const addGov = (node, amount) => {
         })
     })
 }
-exports.addGov = addGov
 
-const deletePointer = (escrowID, user) => {
+export const deletePointer = (escrowID, user) => {
     return new Promise((resolve, reject) => {
         const escrow_id = typeof escrowID == 'string' ? escrowID : escrowID.toString()
-        store.get(['escrow', escrow_id], function (e, a) {
+        store.get(['escrow', escrow_id], function(e, a) {
             if (!e) {
                 var found = false
                 const users = Object.keys(a)
@@ -303,9 +346,8 @@ const deletePointer = (escrowID, user) => {
         })
     })
 }
-exports.deletePointer = deletePointer
 
-const credit = (node) => {
+export const credit = (node) => {
     return new Promise((resolve, reject) => {
         getPathNum(['markets', 'node', node, 'wins'])
             .then(a => {
@@ -316,12 +358,10 @@ const credit = (node) => {
             })
     })
 }
-exports.credit = credit
 
-
-const nodeUpdate = (node, op, val) => {
+export const nodeUpdate = (node, op, val) => {
     return new Promise((resolve, reject) => {
-        store.get(['markets', 'node', node], function (e, a) {
+        store.get(['markets', 'node', node], function(e, a) {
             if (!e) {
                 if (!a.strikes)
                     a.strikes = 0
@@ -332,11 +372,11 @@ const nodeUpdate = (node, op, val) => {
                 switch (op) {
                     case 'strike':
                         a.strikes++
-                        a.burned += val
+                            a.burned += val
                         break
                     case 'ops':
                         a.escrows++
-                        a.moved += val
+                            a.moved += val
                         break
                     default:
                 }
@@ -348,9 +388,8 @@ const nodeUpdate = (node, op, val) => {
         })
     })
 }
-exports.nodeUpdate = nodeUpdate
 
-const penalty = (node, amount) => {
+export const penalty = (node, amount) => {
     console.log('penalty: ', { node, amount })
     return new Promise((resolve, reject) => {
         pts = getPathNum(['gov', node])
@@ -370,29 +409,25 @@ const penalty = (node, amount) => {
         })
     })
 }
-exports.penalty = penalty
 
-const chronAssign = (block, op) => {
+export const chronAssign = (block, op) => {
     return new Promise((resolve, reject) => {
         const t = block + ':' + hashThis(stringify(op))
         store.batch([{ type: 'put', path: ['chrono', t], data: op }], [resolve, reject, t])
     })
 }
-exports.chronAssign = chronAssign
 
-function hashThis(data) {
+export function hashThis(data) {
     const digest = crypto.createHash('sha256').update(data).digest()
     const digestSize = Buffer.from(digest.byteLength.toString(16), 'hex')
     const combined = Buffer.concat([hashFunction, digestSize, digest])
     const multihash = bs58.encode(combined)
     return multihash.toString()
 }
-exports.hashThis = hashThis
 
-function isEmpty(obj) {
+export function isEmpty(obj) {
     for (var key in obj) {
         if (obj.hasOwnProperty(key)) return false;
     }
     return true
 }
-exports.isEmpty = isEmpty;

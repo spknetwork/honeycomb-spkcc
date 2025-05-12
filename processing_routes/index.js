@@ -1,43 +1,19 @@
-const { onStreamingStart } = require('./onStreamingStart')
-const { 
-  rollup, 
-  register_authority,
-  channel_open,
-  channel_update,
-  store,
-  extend,
-  remove,
-  contract_close,
-  update_metadata,
-  delete_files,
-} = require("./rollups");
-const { spk_send, send, broca_send, shares_claim } = require('./send')
-const {
-  val_check,
-  val_report,
-  val_bundle,
-  val_bytes,
-  val_bytes_flag,
-  val_add,
-  val_reg,
-  poa,
-  PoA,
-} = require("./validators");
-const { gov_up, gov_down } = require('./gov')
-const { power_up, power_down, power_grant, spk_vote, val_vote, spk_up, spk_down, broca_up, broca_down } = require('./power')
-const { delegate_vesting_shares } = require('./delegate_vesting_shares')
-const { vote } = require('./vote')
-const { cert } = require('./cert')
-const { sig_submit, osig_submit, account_update } = require('./sig')
-const { cjv } = require('./cjv')
-const { nomention } = require('./nomention')
-const { q4d } = require('./q4d')
-const { node_add, register_service, register_service_type, validator_burn } = require("./nodes");
-const { dex_sell, dex_clear, transfer, margins } = require('./dex')
-const { spk_dex_sell, spk_dex_clear } = require('./dex_spk')
-const { comment, comment_options } = require('./comment')
-const { report } = require('./report')
-const { 
+import { onStreamingStart } from './onStreamingStart.js'
+import { send, claim } from './send.js'
+import { gov_up, gov_down } from './gov.js'
+import { power_up, power_down, power_grant } from './power.js'
+import { delegate_vesting_shares } from './delegate_vesting_shares.js'
+import { vote } from './vote.js'
+import { cert } from './cert.js'
+import { sig_submit, osig_submit, account_update } from './sig.js'
+import { cjv } from './cjv.js'
+import { nomention } from './nomention.js'
+import { q4d } from './q4d.js'
+import { node_add, node_delete } from './nodes.js'
+import { dex_sell, dex_clear, transfer, margins } from './dex.js'
+import { comment, comment_options } from './comment.js'
+import { report } from './report.js'
+import { 
     nft_pfp,
     ft_bid,
     ft_auction,
@@ -65,88 +41,61 @@ const {
     nft_reserve_complete,
     nft_transfer,
     nft_reserve_transfer 
-    } = require('./nft')
+    } from './nft.js'
 
-module.exports = {
-  spk_send,
-  val_check,
-  val_report,
-  val_bundle,
-  val_bytes,
-  val_bytes_flag,
-  val_add,
-  val_reg,
-  nft_pfp,
-  ft_bid,
-  ft_auction,
-  ft_sell_cancel,
-  nft_sell,
-  nft_sell_cancel,
-  nft_buy,
-  ft_buy,
-  ft_escrow_cancel,
-  ft_sell,
-  ft_escrow_complete,
-  ft_escrow,
-  ft_transfer,
-  fts_sell_h,
-  fts_sell_hcancel,
-  ft_airdrop,
-  nft_transfer,
-  nft_auction,
-  nft_hauction,
-  nft_bid,
-  nft_transfer_cancel,
-  nft_reserve_transfer,
-  nft_reserve_complete,
-  nft_delete,
-  nft_define,
-  nft_add_roy,
-  nft_div,
-  nft_mint,
-  cert,
-  cjv,
-  comment,
-  comment_options,
-  account_update,
-  delegate_vesting_shares,
-  dex_clear,
-  dex_sell,
-  spk_dex_clear,
-  spk_dex_sell,
-  margins,
-  gov_down,
-  gov_up,
-  node_add,
-  nomention,
-  onStreamingStart,
-  power_down,
-  power_grant,
-  power_up,
-  q4d,
-  report,
-  send,
-  shares_claim,
-  sig_submit,
-  osig_submit,
-  transfer,
-  vote,
-  spk_vote,
-  val_vote,
-  spk_up, 
-  spk_down,
-  register_authority,
-  channel_open,
-  channel_update,
-  store,
-  extend,
-  remove,
-  contract_close,
-  update_metadata,
-  register_service,
-  register_service_type,
-  validator_burn,
-  poa,
-  delete_files,
-  PoA
-};
+export const HR = {
+    nft_pfp,
+    ft_bid,
+    ft_auction,
+    ft_sell_cancel,
+    nft_sell,
+    nft_sell_cancel,
+    nft_buy,
+    ft_buy,
+    ft_escrow_cancel,
+    ft_sell,
+    ft_escrow_complete,
+    ft_escrow,
+    ft_transfer,
+    fts_sell_h,
+    fts_sell_hcancel,
+    ft_airdrop,
+    nft_transfer,
+    nft_auction,
+    nft_hauction,
+    nft_bid,
+    nft_transfer_cancel,
+    nft_reserve_transfer,
+    nft_reserve_complete,
+    nft_delete,
+    nft_define,
+    nft_add_roy,
+    nft_div,
+    nft_mint,
+    cert,
+    cjv,
+    comment,
+    comment_options,
+    account_update,
+    delegate_vesting_shares,
+    dex_clear,
+    dex_sell,
+    margins,
+    gov_down,
+    gov_up,
+    node_add,
+    node_delete,
+    nomention,
+    onStreamingStart,
+    power_down,
+    power_grant,
+    power_up,
+    q4d,
+    report,
+    send,
+    claim,
+    sig_submit,
+    osig_submit,
+    transfer,
+    vote
+}

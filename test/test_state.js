@@ -1,8 +1,11 @@
-module.exports = {
+export default {
     "balances": {
         "leader": 1000000,
         "test-from": 1000000, //additional distributions
         "test-to": 1000000,
+        "seller-a": 1000000,
+        "seller-b": 1000000,
+        "seller-c": 1000000,
         "ra": 0,
         "rb": 0,
         "rc": 0,
@@ -32,7 +35,7 @@ module.exports = {
                 "escrow": true,
                 "escrows": 0,
                 "lastGood": 1, //genesisblock
-                "marketingRate": 0,
+                "daoRate": 0,
                 "self": "leader",
                 "wins": 0,
                 "yays": 0
@@ -53,24 +56,35 @@ module.exports = {
         }
     },
     "stats": {
-        "IPFSRate": 2000,
-        "budgetRate": 2000,
-        "MSHeld":{
-            "HIVE": 0,
-            "HBD": 0
-        },
-        "currationRate": 2000,
         "delegationRate": 2000,
         "hashLastIBlock": "Genesis",
         "icoPrice": 100, //in millihive
         "interestRate": 2100000, //mints 1 millitoken per this many millitokens in your DAO period
         "lastBlock": "",
-        "marketingRate": 2500,
+        "daoRate": 2500,
         "maxBudget": 1000000000,
         "nodeRate": 2000,
         "outOnBlock": 0, //amm ICO pricing
-        "reblogReward": 10000, //unused
-        "savingsRate": 1000,
-        "larynxSupply": 203000000 //your starting token supply
+        "tokenSupply": 203000000, //your starting token supply
+        "ms": {
+            "active_account_auths": {
+                "leader": 1,
+            },
+            "active_threshold": 1,
+            "memo_key": "STM5GNM3jpjWh7Msts5Z37eM9UPfGwTMU7Ksats3RdKeRaP5SveR9",
+            "owner_key_auths": {
+                "STM5Rp1fWQMS7tAPVqatg8B22faeJGcKkfsez3mgUwGZPE9aqWd6X": 1,
+            },
+            "owner_threshold": 1,
+            "posting_threshold": 1
+        },
+        "movingWeight": {
+            "dailyPool": 1340762,
+            "running": 0
+        },
+        "MSHeld": {
+            "HIVE": 0,
+            "HBD": 0
+        }
     }
 }
