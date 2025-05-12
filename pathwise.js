@@ -93,10 +93,10 @@ Pathwise.prototype.get = function(path, fn) {
         let er = null
         try {
             data.forEach(function(kv) {
-                if(kv.value == "author")console.log(kv)
                 var segs = kv.key.slice(path.length);
                 if (segs.length) {
                     segs.forEach(function(seg, idx) {
+                        if(seg == "author")console.log(kv, el)
                         if (!el[seg]) {
                             if (idx == segs.length - 1) {
                                 el[seg] = kv.value;
