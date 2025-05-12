@@ -5844,13 +5844,13 @@ const CustomAPI = [
       );
     }
   },
-  {
-    path: "/services",
-    func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
-      //list services
-    }
-  },
+//   {
+//     path: "/services",
+//     func: function (req, res, next, context) {
+//       const { store, config, RAM, VERSION } = context;
+//       //list services
+//     }
+//   },
   {
     path: "/spk/dex",
     func: function (req, res, next, context) {
