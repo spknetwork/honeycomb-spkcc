@@ -351,6 +351,9 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
       if (err) { }
       if (res) plasma.id = res.id
     })
+    for (var i in state.stats.chain) {
+      config[i] = state.stats.chain[i]
+    }
     processor = hiveState(client, startingBlock, config.prefix, config.username);
     processor.on('send', HR.send);
     processor.on('claim', HR.claim);
@@ -898,6 +901,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                         hive_service_fee: config.hive_service_fee,
                         features: config.features,
                         customAPI: config.CustomAPI,
+                        govToken: config.govToken,
                         CustomJsonProcessing: config.CustomJsonProcessing,
                         CustomOperationsProcessing: config.CustomOperationsProcessing,
                         CustomChron: config.CustomChron
