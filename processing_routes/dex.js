@@ -2071,7 +2071,6 @@ export const margins = function (bn) {
         ),
         changed = [],
         promises = [];
-      console.log({stats})
       if (stats.MSHeld.HIVE > allowedHive)
         console.log(stats.MSHeld.HIVE, { allowedHive });
       if (stats.MSHeld.HIVE > allowedHive) {

@@ -482,7 +482,6 @@ export function dao(num) {
                     });
                 }
                 daops.push({ type: 'put', path: ['dex'], data: dex });
-                console.log({ stats })
                 daops.push({ type: 'put', path: ['stats'], data: stats });
                 daops.push({ type: 'put', path: ['balances'], data: bals });
                 daops.push({ type: 'put', path: ['cbalances'], data: cbals });
