@@ -110,7 +110,7 @@ Pathwise.prototype.get = function(path, fn) {
                     ret = kv.value;
                 }
             });
-        } catch (err) { er = err }
+        } catch (err) { er = err; data }
         fn(er, ret);
     });
 };
