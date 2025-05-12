@@ -477,6 +477,7 @@ export function dao(num) {
                 data: stringify(["account_update", up_op]),
               });
             }
+            console.log({stats})
             daops.push({ type: 'put', path: ['dex'], data: dex });
             daops.push({ type: 'put', path: ['stats'], data: stats });
             daops.push({ type: 'put', path: ['balances'], data: bals });
