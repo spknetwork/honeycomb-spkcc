@@ -257,7 +257,7 @@ const chart = (req, res, next) => {
         .then(function(v) {
             var his = [],
                 count = 0
-            if(v[0][pair].his)for(var item in v[0][pair].his){
+            if(v[0][pair]?.his)for(var item in v[0][pair].his){
                 const record = {        
                     "trade_id":v[0][pair].his[item].id,
                     "price":v[0][pair].his[item].price,
