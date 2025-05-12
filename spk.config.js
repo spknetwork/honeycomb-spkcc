@@ -5876,6 +5876,8 @@ const CustomAPI = [
       Promise.all([Pdex, Pstats, PQueue])
         .then(function (v) {
           var markets = v[0];
+          if (!markets.hive) markets.hive = {};
+          if (!markets.hbd) markets.hbd = {};
           markets.hive.sells = [];
           markets.hive.buys = [];
           markets.hbd.sells = [];
@@ -6028,6 +6030,8 @@ const CustomAPI = [
       Promise.all([Pdex, Pstats, PQueue])
         .then(function (v) {
           var markets = v[0];
+          if (!markets.hive) markets.hive = {};
+          if (!markets.hbd) markets.hbd = {};
           markets.hive.sells = [];
           markets.hive.buys = [];
           markets.hbd.sells = [];
@@ -7307,7 +7311,7 @@ const CustomAPI = [
           .then(function (v) {
             var his = [],
               count = 0;
-            if (v[0][pair].his)
+            if (v[0][pair]?.his)
               for (var item in v[0][pair].his) {
                 const record = {
                   trade_id: v[0][pair].his[item].id,
@@ -7395,7 +7399,7 @@ const CustomAPI = [
           .then(function (v) {
             var his = [],
               count = 0;
-            if (v[0][pair].his)
+            if (v[0][pair]?.his)
               for (var item in v[0][pair].his) {
                 const record = {
                   trade_id: v[0][pair].his[item].id,
