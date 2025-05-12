@@ -7746,6 +7746,7 @@ const CustomChron = [
                   data: `${contract.i} expired`,
                 });
                 ops.push({ type: "del", path: ["chrono", delkey] });
+                console.log(ops)
                 store.batch(ops, [resolve, reject]);
               }
             })
