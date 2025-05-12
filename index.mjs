@@ -60,8 +60,6 @@ import { Hive } from "./hive.js"
 import { Pathwise } from './pathwise.js';
 import level from 'level';
 export var store = new Pathwise(level('./db', { createIfEmpty: true }));
-store.myUniqueId = `store_initialized_at_${Date.now()}`;
-console.log(`Store initialized in index.mjs with ID: ${store.myUniqueId}`);
 config.startURL = checkAPIs(config.startURL, false)
 config.clientURL = checkAPIs(config.clientURL, true)
 import express from 'express';
