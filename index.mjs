@@ -200,38 +200,141 @@ function hotAPI(api) {
 
   return true;
 }
+function extractFunctionBody(funcString) {
+  // Find the first '{' and the last '}'
+  const bodyStart = funcString.indexOf('{');
+  const bodyEnd = funcString.lastIndexOf('}');
+  if (bodyStart === -1 || bodyEnd === -1 || bodyEnd <= bodyStart) {
+    // Fallback or error handling if the format is unexpected
+    console.warn("Could not extract function body from string:", funcString);
+    return funcString; // Return original, might still error
+  }
+  // Extract the content between the first '{' and last '}'
+  return funcString.substring(bodyStart + 1, bodyEnd).trim();
+}
+
 function hotCustom(processor) {
-  for (var i = 0; i < config.CustomOperationsProcessing.length; i++) {
-    var func = typeof config.CustomOperationsProcessing[i].func === 'function' ?
-      config.CustomOperationsProcessing[i].func :
-      new Function('json', 'from', 'active', 'pc', 'context', config.CustomOperationsProcessing[i].func);
-    processor[config.CustomOperationsProcessing[i].type](config.CustomOperationsProcessing[i].op, (json, from, active, pc) => {
-      return func(json, from, active, pc, runtimeContext);
-    });
+  // Assuming CustomOperationsProcessing was intended here, like in hotOps.
+  // Please confirm if CustomJsonProcessing is correct.
+  let CJP_Source = config.CustomOperationsProcessing;
+  let CJP_Array = [];
+
+  if (Array.isArray(CJP_Source)) {
+    CJP_Array = CJP_Source;
+  } else if (CJP_Source && typeof CJP_Source === 'object' && Object.keys(CJP_Source).length) {
+    // Convert object to array
+    for (const key in CJP_Source) {
+      if (Object.hasOwnProperty.call(CJP_Source, key)) {
+        CJP_Array.push(CJP_Source[key]);
+      }
+    }
+    console.log("Converted CustomOperationsProcessing from object to array for hotCustom");
+  } else {
+    // It's neither an array nor a convertible object, likely empty or invalid
+    return true; // Nothing to process
+  }
+
+  for (const customOp of CJP_Array) {
+    if (!customOp || typeof customOp.func !== 'string') continue; // Skip if invalid
+
+    const funcBody = extractFunctionBody(customOp.func);
+    const func = typeof customOp.func === 'function' ? // Check if it was already a function (unlikely if loaded from config string)
+      customOp.func :
+      new Function('json', 'from', 'active', 'pc', 'context', funcBody); // Use extracted body
+
+    // Ensure processor[customOp.type] exists before assigning
+    if (typeof processor[customOp.type] === 'function') {
+       processor[customOp.type](customOp.op, (json, from, active, pc, runtimeContext) => {
+         try {
+             return func(json, from, active, pc, runtimeContext);
+         } catch (e) {
+             console.error(`Error executing custom operation ${customOp.op} (type ${customOp.type}):`, e);
+             // Decide how to handle errors, maybe return a default or throw
+         }
+       });
+    } else {
+        console.error(`Processor type '${customOp.type}' not found for custom operation '${customOp.op}'.`);
+    }
   }
   return true;
 }
+
 function hotOps(processor) {
-  for (var i = 0; i < config.CustomOperationsProcessing.length; i++) {
-    var func = typeof config.CustomOperationsProcessing[i].func === 'function' ?
-      config.CustomOperationsProcessing[i].func :
-      new Function('json', 'from', 'active', 'pc', 'context', config.CustomOperationsProcessing[i].func);
-    processor.onOperation(config.CustomOperationsProcessing[i].op, (json, from, active, pc) => {
-      return func(json, from, active, pc, runtimeContext);
-    });
+  let COP_Source = config.CustomOperationsProcessing;
+  let COP_Array = [];
+
+  if (Array.isArray(COP_Source)) {
+    COP_Array = COP_Source;
+  } else if (COP_Source && typeof COP_Source === 'object' && Object.keys(COP_Source).length) {
+    // Convert object to array
+    for (const key in COP_Source) {
+       if (Object.hasOwnProperty.call(COP_Source, key)) {
+          COP_Array.push(COP_Source[key]);
+       }
+    }
+    console.log("Converted CustomOperationsProcessing from object to array for hotOps");
+  } else {
+      return true; // Nothing to process
+  }
+
+
+  for (const customOp of COP_Array) {
+      if (!customOp || typeof customOp.func !== 'string') continue; // Skip if invalid
+
+      const funcBody = extractFunctionBody(customOp.func);
+      const func = typeof customOp.func === 'function' ?
+        customOp.func :
+        new Function('json', 'pc', 'context', funcBody); // Use extracted body
+
+      processor.onOperation(customOp.op, (json, pc, runtimeContext) => {
+          try {
+              return func(json, pc, runtimeContext);
+          } catch (e) {
+               console.error(`Error executing custom onOperation ${customOp.op}:`, e);
+          }
+      });
   }
   return true;
 }
+
 function hotChron(chronOps) {
-  for (var i in config.CustomChron.length) {
-    var func = typeof config.CustomChron[i].func === 'function' ?
-      config.CustomChron[i].func :
-      new Function('b', 'passed', 'res', 'rej', 'num', 'prand', 'ints', 'bh', 'context', config.CustomChron[i].func);
-    chronOps[config.CustomChron[i].op] = (b, passed, res, rej, num, prand, ints, bh) => {
-      return func(b, passed, res, rej, num, prand, ints, bh, runtimeContext);
-    };
-  }
-  return true;
+    let Chron_Source = config.CustomChron;
+    let Chron_Array = [];
+
+    if (Array.isArray(Chron_Source)) {
+        Chron_Array = Chron_Source;
+    } else if (Chron_Source && typeof Chron_Source === 'object' && Object.keys(Chron_Source).length) {
+        // Convert object to array - Corrected loop
+        for (const key in Chron_Source) {
+            if (Object.hasOwnProperty.call(Chron_Source, key)) {
+                Chron_Array.push(Chron_Source[key]);
+            }
+        }
+        console.log("Converted CustomChron from object to array for hotChron");
+    } else {
+         return true; // Nothing to process
+    }
+
+
+    for (const customChronJob of Chron_Array) { // Iterate over the processed array
+        if (!customChronJob || typeof customChronJob.func !== 'string') continue; // Skip if invalid
+
+        const funcBody = extractFunctionBody(customChronJob.func);
+        const func = typeof customChronJob.func === 'function' ?
+          customChronJob.func :
+          new Function('b', 'passed', 'res', 'rej', 'num', 'prand', 'ints', 'bh', 'runtimeContext', funcBody); // Use extracted body
+
+        chronOps[customChronJob.op] = (b, passed, res, rej, num, prand, ints, bh) => {
+            try {
+                return func(b, passed, res, rej, num, prand, ints, bh, runtimeContext);
+            } catch (e) {
+                console.error(`Error executing custom chron job ${customChronJob.op}:`, e);
+                // Chron jobs often need to resolve/reject, handle error appropriately
+                rej(e); // Example: reject the promise on error
+            }
+        };
+    }
+    return true;
 }
 export function customInit(api, chron, processor) {
   return new Promise((resolve, reject) => {
@@ -515,7 +618,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
     }
 
     hotChron(chronOps)
-    hotConfig(config, state, api, chronOps, processor);
+    configSet(config, state, api, chronOps, processor);
     //do things in cycles based on block time
     processor.onBlock(
       function (num, pc, prand, bh) {

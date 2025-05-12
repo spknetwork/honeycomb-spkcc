@@ -897,6 +897,7 @@ const CustomJsonProcessing = [
     type: "on",
     op: "channel_open",
     func: function (json, from, active, pc, context) {
+      console.log("channel_open", json)
       const { store, config, getPathObj, getPathNum, postToDiscord, chronAssign, Base64 } = context
       const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
         if (typeof last != "string") last = '0,0'

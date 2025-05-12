@@ -80,6 +80,7 @@ const jsonTokenName = 'larynx' //what customJSON in Escrows and sends is looking
 const leader = 'spk-test' //Default account to pull state from, will post token 
 const ben = '' //Account where comment benifits trigger token action
 const delegation = '' //account people can delegate to for rewards
+const govToken = "spow"
 const delegationWeight = 1000 //when to trigger community rewards with bens
 const msaccount = ENV.msaccount || 'spk-cc-test' //account controlled by community leaders
 const msPubMemo = 'STM8hszG2prkmSBsPpgQ4ZipdGq5MMK7zoJDXD7cV2FL83HXascWk' //memo key for msaccount
@@ -896,6 +897,7 @@ const CustomJsonProcessing = [
     type: "on",
     op: "channel_open",
     func: function (json, from, active, pc, context) {
+      console.log("channel_open", json)
       const { store, config, getPathObj, getPathNum, postToDiscord, chronAssign, Base64 } = context
       const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
         if (typeof last != "string") last = '0,0'
@@ -4979,7 +4981,7 @@ const CustomAPI = [
   {
     path: "/user_services/:un",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       let user = req.params.un;
       let services = getPathObj(["services", user]);
       Promise.all([services]).then((mem) => {
@@ -5000,7 +5002,7 @@ const CustomAPI = [
     }
   },
   {
-    path: "/service/:type",
+    path: "/services/:type",
     func: function (req, res, next, context) {
       const { getPathObj, config, RAM, VERSION } = context;
       let type = req.params.type;
@@ -5167,7 +5169,7 @@ const CustomAPI = [
   {
     path: "/spk/@:un",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathNum, getPathObj, config, RAM, VERSION } = context;
       let un = req.params.un,
         bal = getPathNum(['balances', un]),
         cbal = getPathNum(['cspk', un]),
@@ -5285,7 +5287,7 @@ const CustomAPI = [
   {
     path: "/broca/@:un",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathNum, getPathObj, config, RAM, VERSION } = context;
       let un = req.params.un,
         bal = getPathNum(['balances', un]),
         cbal = getPathNum(['cbalances', un]),
@@ -5415,7 +5417,7 @@ const CustomAPI = [
   {
     path: "/api/contract/:to/:from/:id",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context
+      const { getPathObj, config, RAM, VERSION } = context
       let to = req.params.to || ''
       let from = req.params.from || ''
       let id = req.params.id || ''
@@ -5455,7 +5457,7 @@ const CustomAPI = [
   {
     path: "/api/fileContract/:id",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       let id = req.params.id,
         cpp = getPathObj(["cPointers", id]),
         statsp = getPathObj(["stats"]);
@@ -5503,7 +5505,7 @@ const CustomAPI = [
   {
     path: "/api/file/:id",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       let id = req.params.id
       id = id.split("").reverse().join("")
       let cpp = getPathObj(["IPFS", id]),
@@ -5565,16 +5567,19 @@ const CustomAPI = [
         var runners = obj,
           result = [];
         for (var a in runners) {
-          var node = runners[a];
+          var node = {}
           node.account = a;
+          node.g = runners[a].g || 1
+            node.api = runners[a].api || ""
+            node.l = runners[a].l || 100
           result.push(node);
         }
         res.send(
           JSON.stringify(
             {
               result,
-              runners,
-              latest: [{ api: "https://spkinstant.hivehoneycomb.com" }],
+              runners: result,
+              latest: [{ api: `${config.domain}/spk` }],
               node: config.username,
               head_block: RAM.head,
               behind: RAM.behind,
@@ -5590,7 +5595,7 @@ const CustomAPI = [
   {
     path: "/spk/markets",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       let markets = getPathObj(["markets"]),
         stats = getPathObj(["stats"]),
         pVal = getPathObj(["val"]),
@@ -5649,7 +5654,6 @@ const CustomAPI = [
       const { store, config, RAM, VERSION } = context;
       res.setHeader("Content-Type", "application/json");
       store.get(["queue"], function (err, obj) {
-        var feed = obj;
         res.send(
           JSON.stringify(
             {
@@ -5678,7 +5682,7 @@ const CustomAPI = [
   {
     path: "/spk/api/status/:txid",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { status, config, RAM, VERSION } = context;
       let txid = req.params.txid;
       res.setHeader("Content-Type", "application/json");
       res.send(
@@ -5709,16 +5713,19 @@ const CustomAPI = [
         var runners = obj,
           result = [];
         for (var a in runners) {
-          var node = runners[a];
+          var node = {}
           node.account = a;
+          node.g = runners[a].g || 1
+            node.api = runners[a].api || ""
+            node.l = runners[a].l || 100
           result.push(node);
         }
         res.send(
           JSON.stringify(
             {
               result,
-              runners,
-              latest: [{ api: "https://spkinstant.hivehoneycomb.com" }],
+              runners: result,
+              latest: [{ api: `${config.domain}/broca` }],
               node: config.username,
               head_block: RAM.head,
               behind: RAM.behind,
@@ -5734,7 +5741,7 @@ const CustomAPI = [
   {
     path: "/broca/markets",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       let markets = getPathObj(["markets"]),
         stats = getPathObj(["stats"]),
         pVal = getPathObj(["val"]),
@@ -5805,7 +5812,7 @@ const CustomAPI = [
               token: "BROCA",
               jsontoken: 'broca',
               memoKey: config.msPubMemo,
-              features: config.featuresModelSpk,
+              features: config.featuresModelBroca,
               votable: config.votable,
               head_block: RAM.head,
               behind: RAM.behind,
@@ -5822,7 +5829,7 @@ const CustomAPI = [
   {
     path: "/broca/api/status/:txid",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { status, config, RAM, VERSION } = context;
       let txid = req.params.txid;
       res.setHeader("Content-Type", "application/json");
       res.send(
@@ -5844,17 +5851,32 @@ const CustomAPI = [
       );
     }
   },
-//   {
-//     path: "/services",
-//     func: function (req, res, next, context) {
-//       const { store, config, RAM, VERSION } = context;
-//       //list services
-//     }
-//   },
+  {
+    path: "/services",
+    func: function (req, res, next, context) {
+      const { store, config, RAM, VERSION } = context;
+      store.get(["services"], function (err, obj) {
+        const services = Object.keys(obj)
+        res.send(
+          JSON.stringify(
+            {
+              services: services,
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        )
+      })
+    }
+  },
   {
     path: "/spk/dex",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var Pdex = getPathObj(["dexs"]);
       var Pstats = getPathObj(["stats"]);
       var PQueue = getPathObj(["queue"]);
@@ -5862,6 +5884,8 @@ const CustomAPI = [
       Promise.all([Pdex, Pstats, PQueue])
         .then(function (v) {
           var markets = v[0];
+          if (!markets.hive) markets.hive = {};
+          if (!markets.hbd) markets.hbd = {};
           markets.hive.sells = [];
           markets.hive.buys = [];
           markets.hbd.sells = [];
@@ -6006,7 +6030,7 @@ const CustomAPI = [
   {
     path: "/broca/dex",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var Pdex = getPathObj(["dexb"]);
       var Pstats = getPathObj(["stats"]);
       var PQueue = getPathObj(["queue"]);
@@ -6014,6 +6038,8 @@ const CustomAPI = [
       Promise.all([Pdex, Pstats, PQueue])
         .then(function (v) {
           var markets = v[0];
+          if (!markets.hive) markets.hive = {};
+          if (!markets.hbd) markets.hbd = {};
           markets.hive.sells = [];
           markets.hive.buys = [];
           markets.hbd.sells = [];
@@ -6158,7 +6184,7 @@ const CustomAPI = [
   {
     path: "/spk/api/tickers",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexs"]);
       var stats = getPathObj(["stats"]);
       res.setHeader("Content-Type", "application/json");
@@ -6272,7 +6298,7 @@ const CustomAPI = [
   {
     path: "/broca/api/tickers",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexb"]);
       var stats = getPathObj(["stats"]);
       res.setHeader("Content-Type", "application/json");
@@ -6386,7 +6412,7 @@ const CustomAPI = [
   {
     path: "/spk/api/orderbook",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexs"]);
       var stats = getPathObj(["stats"]);
       var orderbook = {
@@ -6470,7 +6496,7 @@ const CustomAPI = [
   {
     path: "/broca/api/orderbook",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexb"]);
       var stats = getPathObj(["stats"]);
       var orderbook = {
@@ -6554,7 +6580,7 @@ const CustomAPI = [
   {
     path: "/spk/api/orderbook/:ticker_id",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexs"]);
       var stats = getPathObj(["stats"]);
       var orderbook = {
@@ -6638,7 +6664,7 @@ const CustomAPI = [
   {
     path: "/broca/api/orderbook/:ticker_id",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexb"]);
       var stats = getPathObj(["stats"]);
       var orderbook = {
@@ -6762,7 +6788,7 @@ const CustomAPI = [
   {
     path: "/spk/api/historical",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexs"]);
       var stats = getPathObj(["stats"]);
       var orderbook = {
@@ -6883,7 +6909,7 @@ const CustomAPI = [
   {
     path: "/broca/api/historical",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexb"]);
       var stats = getPathObj(["stats"]);
       var orderbook = {
@@ -7004,7 +7030,7 @@ const CustomAPI = [
   {
     path: "/spk/api/historical/:ticker_id",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexs"]);
       var stats = getPathObj(["stats"]);
       var orderbook = {
@@ -7125,7 +7151,7 @@ const CustomAPI = [
   {
     path: "/broca/api/historical/:ticker_id",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexb"]);
       var stats = getPathObj(["stats"]);
       var orderbook = {
@@ -7246,7 +7272,7 @@ const CustomAPI = [
   {
     path: "/spk/api/recent/:ticker_id",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexs"]);
       var stats = getPathObj(["stats"]);
       var orderbook = {
@@ -7291,9 +7317,9 @@ const CustomAPI = [
       function getHistory(promises, pair, lim) {
         Promise.all(promises)
           .then(function (v) {
-            var his = [];
-            count = 0;
-            if (v[0][pair].his)
+            var his = [],
+              count = 0;
+            if (v[0][pair]?.his)
               for (var item in v[0][pair].his) {
                 const record = {
                   trade_id: v[0][pair].his[item].id,
@@ -7334,7 +7360,7 @@ const CustomAPI = [
   {
     path: "/broca/api/recent/:ticker_id",
     func: function (req, res, next, context) {
-      const { store, config, getPathObj, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexb"]);
       var stats = getPathObj(["stats"]);
       var orderbook = {
@@ -7379,9 +7405,9 @@ const CustomAPI = [
       function getHistory(promises, pair, lim) {
         Promise.all(promises)
           .then(function (v) {
-            var his = [];
-            count = 0;
-            if (v[0][pair].his)
+            var his = [],
+              count = 0;
+            if (v[0][pair]?.his)
               for (var item in v[0][pair].his) {
                 const record = {
                   trade_id: v[0][pair].his[item].id,
@@ -7557,7 +7583,7 @@ const CustomChron = [
         if (total > (pow * 1000)) total = (pow * 1000)
         return `${total},${Base64.fromNumber(bn)}`
       }
-      function  extend (json, from, active, pc, contextD) {
+      function extend(json, from, active, pc, contextD) {
         const { store, getPathObj, postToDiscord, config, getPathNum, chronAssign } = contextD
         if (json.broca && json.id && json.file_owner) {
           var Pbroca = getPathObj(["broca", from]);
@@ -7674,27 +7700,27 @@ const CustomChron = [
           pc[0](pc[2]);
         }
       }
-      function contractClose (promies, delkey, num, id, b) {
+      function contractClose(promies, delkey, num, id, b) {
         return new Promise((resolve, reject) => {
           Promise.all(promies)
             .then((mem) => {
               //console.log(delkey)
               let contract = mem[0],
-              stats = mem[1],
-              ops = [],
-              bytes = 0,
-              broca = broca_calc(mem[2], mem[3], stats, num),
-              renew = contract.m ? (contract.m.indexOf('"') >= 0 ? Base64.toNumber(JSON.parse(contract.m)[0]) & 1 : Base64.toNumber(contract.m[0]) & 1) : 0
+                stats = mem[1],
+                ops = [],
+                bytes = 0,
+                broca = broca_calc(mem[2], mem[3], stats, num),
+                renew = contract.m ? (contract.m.indexOf('"') >= 0 ? Base64.toNumber(JSON.parse(contract.m)[0]) & 1 : Base64.toNumber(contract.m[0]) & 1) : 0
               if (contract.c == 3 && renew && parseInt(broca.split(',')[0]) > 100) {
                 extend({
-                  broca: parseInt(broca.split(',')[0]) > parseInt( 3 * contract.r / contract.p ) ? parseInt( 3 * contract.r / contract.p ) + 1 : parseInt(parseInt(broca.split(',')[0]) / 2 ) + 1,
+                  broca: parseInt(broca.split(',')[0]) > parseInt(3 * contract.r / contract.p) ? parseInt(3 * contract.r / contract.p) + 1 : parseInt(parseInt(broca.split(',')[0]) / 2) + 1,
                   id: contract.i,
                   file_owner: contract.t,
                   block_num: num,
                   transaction_id: `v_op_${contract.t}_autoExtend_${contract.i}`
                 }, contract.t, true, [resolve, reject, 0], context)
               } else {
-                if(contract.df){
+                if (contract.df) {
                   var items = Object.keys(contract.df)//goods
                   for (var i = 0; i < items.length; i++) {
                     bytes += contract.df[items[i]]
@@ -7750,7 +7776,7 @@ const CustomChron = [
         if (total > (pow * 1000)) total = (pow * 1000)
         return `${total},${Base64.fromNumber(bn)}`
       }
-      function contractClose (promies, delkey, num, id, b) {
+      function contractClose(promies, delkey, num, id, b) {
         return new Promise((resolve, reject) => {
           Promise.all(promies)
             .then((mem) => {
@@ -7762,7 +7788,7 @@ const CustomChron = [
                 ops = [];
               if (contract.c == b.e) {
                 var bytes = 0, items = []
-                if(contract.df)items = Object.keys(contract.df)//goods
+                if (contract.df) items = Object.keys(contract.df)//goods
                 for (var i = 0; i < items.length; i++) {
                   bytes += contract.df[items[i]]
                   ops.push({ type: "del", path: ['IPFS', items[i].split("").reverse().join("")] });
@@ -7946,6 +7972,152 @@ const featuresModel = {
     ],
   }
 }
+const featuresModelSpk = {
+  rewards: {
+    id: 'claim',
+    msg: 'Claiming SPK rewards',
+    auth: 'posting',
+    type: "move",
+    string: 'Reward ',
+    B: true,
+    json: {
+      gov: {
+        type: "B",
+        string: "Lock to Governance",
+        req: false
+      }
+    },
+  },
+  send: {
+    id: 'send',
+    string: 'Send',
+    B: true,
+    msg: 'Sending SPK',
+    auth: 'active',
+    type: "move",
+    json: {
+      amount: {
+        type: "I",
+        string: "Amount",
+        req: true
+      },
+      to: {
+        type: "S",
+        string: "To",
+        req: true,
+        check: "AC"
+      },
+      memo: {
+        type: "S",
+        string: "Memo",
+        req: false
+      }
+    },
+  },
+  powup: {
+    id: 'power_up',
+    string: 'Power Up',
+    B: true,
+    msg: 'Powering SPK',
+    auth: 'active',
+    type: "move",
+    json: {
+      amount: {
+        type: "I",
+        string: "Amount",
+        req: true
+      },
+    }
+  },
+  powdn: {
+    id: 'power_down',
+    msg: 'Powering Down SPK',
+    auth: 'active',
+    type: "move",
+    string: 'Power Down',
+    B: true,
+    json: {
+      amount: {
+        type: "I",
+        string: "Amount",
+        req: true
+      },
+    },
+  },
+}
+const featuresModelBroca = {
+  rewards: {
+    id: 'claim',
+    msg: 'Claiming BROCA rewards',
+    auth: 'posting',
+    type: "move",
+    string: 'Reward ',
+    B: true,
+    json: {
+      gov: {
+        type: "B",
+        string: "Lock to Governance",
+        req: false
+      }
+    },
+  },
+  send: {
+    id: 'send',
+    string: 'Send',
+    B: true,
+    msg: 'Sending BROCA',
+    auth: 'active',
+    type: "move",
+    json: {
+      amount: {
+        type: "I",
+        string: "Amount",
+        req: true
+      },
+      to: {
+        type: "S",
+        string: "To",
+        req: true,
+        check: "AC"
+      },
+      memo: {
+        type: "S",
+        string: "Memo",
+        req: false
+      }
+    },
+  },
+  powup: {
+    id: 'power_up',
+    string: 'Power Up',
+    B: true,
+    msg: 'Powering BROCA',
+    auth: 'active',
+    type: "move",
+    json: {
+      amount: {
+        type: "I",
+        string: "Amount",
+        req: true
+      },
+    }
+  },
+  powdn: {
+    id: 'power_down',
+    msg: 'Powering Down BROCA',
+    auth: 'active',
+    type: "move",
+    string: 'Power Down',
+    B: true,
+    json: {
+      amount: {
+        type: "I",
+        string: "Amount",
+        req: true
+      },
+    },
+  },
+}
 
 
 //Aditionally on your branch, look closely at dao, this is where tokenomics happen and custom status posts are made
@@ -8014,6 +8186,9 @@ export var config = {
   CustomOperationsProcessing,
   CustomAPI,
   CustomChron,
+  featuresModelSpk,
+  featuresModelBroca,
   poav_address,
+  govToken,
   state
 };
