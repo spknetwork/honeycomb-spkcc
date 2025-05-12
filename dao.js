@@ -64,7 +64,7 @@ export function dao(num) {
                 cpost = v[11],
                 feedCleaner = v[12],
                 paidCleaner = v[13],
-                rnftsCleaner = v[14];
+                rnftsCleaner = v[14],
                 dist = v[15]
             for(var i = 0; i < dist.length;i++){
                 if(dist[i][0].split('div:')[1]){
