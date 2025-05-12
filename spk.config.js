@@ -7348,7 +7348,7 @@ const CustomAPI = [
   {
     path: "/broca/api/recent/:ticker_id",
     func: function (req, res, next, context) {
-      const { getPathObj, config, getPathObj, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexb"]);
       var stats = getPathObj(["stats"]);
       var orderbook = {
