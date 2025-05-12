@@ -72,7 +72,12 @@ Pathwise.prototype.batch = function(ops, pc) { // promise chain[resolve(), rejec
     ops.forEach(function(op) {
         block.ops.push(stringify({type: op.type, path: op.path, data: op.data}))
         if (op.type == 'put') self.put(op.path, op.data, { batch: batch }, next)
-        else if (op.type == 'del') self.del(op.path, { batch: batch }, next);
+        else if (op.type == 'del') {
+            const delPromise = new Promise(resolve => {
+                self.del(op.path, { batch: batch }, () => resolve());
+            });
+            delPromise.then(() => next());
+        }
     });
 };
 
