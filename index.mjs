@@ -732,7 +732,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                         }
                       } else {
                         console.log('Success! txid: ' + result.id)
-                        for (q = ops.length - 1; q > -1; q--) {
+                        for (var q = ops.length - 1; q > -1; q--) {
                           if (NodeOps[q][0][0] = 1) {
                             NodeOps.splice(q, 1)
                           }
