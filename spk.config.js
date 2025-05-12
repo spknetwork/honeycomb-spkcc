@@ -7575,6 +7575,7 @@ const CustomChron = [
   {
     op: 'contract_close',
     func: function (b, passed, res, rej, num, prand, ints, bh, context) {
+      console.log('contract_close')
       const { store, getPathObj, getPathNum, Base64 } = context;
       const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
         if (typeof last != "string") last = '0,0'
@@ -7768,6 +7769,7 @@ const CustomChron = [
   {
     op: 'channel_check',
     func: function (b, passed, res, rej, num, prand, ints, bh, context) {
+      console.log('channel_check')
       const { store, getPathObj, Base64 } = context;
       const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
         if (typeof last != "string") last = '0,0'
