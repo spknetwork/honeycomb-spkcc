@@ -314,18 +314,16 @@ function hotChron(chronOps) {
 
 
     for (const customChronJob of Chron_Array) { // Iterate over the processed array
-        var func = customChronJob.func
+        customChronJob.function = customChronJob.func
         console.log('Registering customChronJob:', customChronJob.op)
         if (!customChronJob || typeof customChronJob.func !== 'function') {
           const funcBody = extractFunctionBody(customChronJob.func);
-          func = typeof customChronJob.func === 'function' ?
-          customChronJob.func :
-          new Function('b', 'passed', 'res', 'rej', 'num', 'prand', 'ints', 'bh', 'context', funcBody); 
+          customChronJob.function = new Function('b', 'passed', 'res', 'rej', 'num', 'prand', 'ints', 'bh', 'context', funcBody); 
         }
 
         chronOps[customChronJob.op] = (b, passed, res, rej, num, prand, ints, bh, context) => {
             try {
-                return func(b, passed, res, rej, num, prand, ints, bh, context);
+                return customChronJob.function(b, passed, res, rej, num, prand, ints, bh, context);
             } catch (e) {
                 console.error(`Error executing custom chron job ${customChronJob.op}:`, e);
                 // Chron jobs often need to resolve/reject, handle error appropriately
