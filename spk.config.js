@@ -5572,8 +5572,7 @@ const CustomAPI = [
         res.send(
           JSON.stringify(
             {
-              result,
-              runners,
+              runners: result,
               latest: [{ api: `${config.domain}/spk` }],
               node: config.username,
               head_block: RAM.head,
@@ -5715,8 +5714,7 @@ const CustomAPI = [
         res.send(
           JSON.stringify(
             {
-              result,
-              runners,
+              runners: result,
               latest: [{ api: `${config.domain}/broca` }],
               node: config.username,
               head_block: RAM.head,
