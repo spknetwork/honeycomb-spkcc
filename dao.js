@@ -422,7 +422,7 @@ export function dao(num) {
                 bals.rc += bucket;
                 contentRewards = contentRewards + `\n*****\n`;
             }
-            tw = 0,
+            let tw = 0,
                 ww = 0,
                 ii = 100, //max number of votes
                 hiveVotes = '';
