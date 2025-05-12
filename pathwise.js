@@ -92,8 +92,8 @@ Pathwise.prototype.get = function(path, fn) {
         if (err) return fn(err);
         let er = null
         try {
-            console.log(data)
             data.forEach(function(kv) {
+                if(kv.value == "author")console.log(kv)
                 var segs = kv.key.slice(path.length);
                 if (segs.length) {
                     segs.forEach(function(seg, idx) {
