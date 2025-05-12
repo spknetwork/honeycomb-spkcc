@@ -719,7 +719,7 @@ const feed = (req, res, next) => {
           JSON.stringify(
             {
               feed,
-              node: config.username,
+              node: Config("username"),
               head_block: RAM.head,
               behind: RAM.behind,
               VERSION,
@@ -735,7 +735,7 @@ const feed = (req, res, next) => {
           JSON.stringify(
             {
               feed,
-              node: config.username,
+              node: Config("username"),
               head_block: RAM.head,
               behind: RAM.behind,
               VERSION,
