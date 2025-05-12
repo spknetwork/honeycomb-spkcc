@@ -409,7 +409,6 @@ export function hiveState (
           //console.log(op[0])
         } else if (op.length == 2) {
           onOperation[op[0]](op[1], [resolve, reject, pc], runtimeContext);
-          //console.log(op[0])
         }
       });
     }
