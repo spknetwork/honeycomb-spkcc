@@ -55,11 +55,12 @@ var ipfsLinks = ENV.ipfsLinks
 const bidRate = ENV.BIDRATE || 2500 //
 
 //HIVE CONFIGS
-var startURL = ENV.STARTURL || "https://hive-api.dlux.io/ipfs/";
+var startURL = ENV.STARTURL || "https://hive-api.dlux.io/";
 var clientURL = ENV.APIURL || "https://hive-api.dlux.io/";
 const clients = ENV.clients
   ? ENV.clients.split(" ")
   : [
+    "https://hive-api.dlux.io/",
     "https://api.hive.blog/",
     "https://api.deathwing.me/",
     "https://hive-api.dlux.io/",
@@ -5570,8 +5571,8 @@ const CustomAPI = [
           var node = {}
           node.account = a;
           node.g = runners[a].g || 1
-            node.api = runners[a].api || ""
-            node.l = runners[a].l || 100
+          node.api = runners[a].api || ""
+          node.l = runners[a].l || 100
           result.push(node);
         }
         res.send(
@@ -5716,8 +5717,8 @@ const CustomAPI = [
           var node = {}
           node.account = a;
           node.g = runners[a].g || 1
-            node.api = runners[a].api || ""
-            node.l = runners[a].l || 100
+          node.api = runners[a].api || ""
+          node.l = runners[a].l || 100
           result.push(node);
         }
         res.send(
@@ -7449,7 +7450,7 @@ const CustomAPI = [
 const CustomChron = [
   {
     op: 'spower_down',
-    func: function (b, passed, res, rej, num, prand, ints, context) {
+    func: function (b, passed, res, rej, num, prand, ints, bh, context) {
       const { store, getPathNum } = context
       function sPowerDownOp(promies, from, delkey, num, id, b) {
         return new Promise((resolve, reject) => {
@@ -7500,7 +7501,7 @@ const CustomChron = [
   },
   {
     op: 'bpower_down',
-    func: function (b, passed, res, rej, num, prand, ints, context) {
+    func: function (b, passed, res, rej, num, prand, ints, bh, context) {
       const { store, getPathNum } = context
       function bPowerDownOp(promies, from, delkey, num, id, b) {
         return new Promise((resolve, reject) => {
@@ -7551,7 +7552,7 @@ const CustomChron = [
   },
   {
     op: 'expires',
-    func: function (b, passed, res, rej, num, prand, ints, context) {
+    func: function (b, passed, res, rej, num, prand, ints, bh, context) {
       const { store, release } = context;
       release(b.from, b.txid, num, 'dexs', 'spk');
       store.batch(
@@ -7562,7 +7563,7 @@ const CustomChron = [
   },
   {
     op: 'expireb',
-    func: function (b, passed, res, rej, num, prand, ints, context) {
+    func: function (b, passed, res, rej, num, prand, ints, bh, context) {
       const { store, release } = context;
       release(b.from, b.txid, num, 'dexb', 'lbroca');
       store.batch(
@@ -7573,8 +7574,8 @@ const CustomChron = [
   },
   {
     op: 'contract_close',
-    func: function (b, passed, res, rej, num, prand, ints, context) {
-      const { store, getPathObj, Base64 } = context;
+    func: function (b, passed, res, rej, num, prand, ints, bh, context) {
+      const { store, getPathObj, getPathNum, Base64 } = context;
       const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
         if (typeof last != "string") last = '0,0'
         const last_calc = Base64.toNumber(last.split(',')[1])
@@ -7766,7 +7767,7 @@ const CustomChron = [
   },
   {
     op: 'channel_check',
-    func: function (b, passed, res, rej, num, prand, ints, context) {
+    func: function (b, passed, res, rej, num, prand, ints, bh, context) {
       const { store, getPathObj, Base64 } = context;
       const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
         if (typeof last != "string") last = '0,0'
@@ -7776,7 +7777,7 @@ const CustomChron = [
         if (total > (pow * 1000)) total = (pow * 1000)
         return `${total},${Base64.fromNumber(bn)}`
       }
-      function contractClose(promies, delkey, num, id, b) {
+      function channelCheck(promies, delkey, num, id, b) {
         return new Promise((resolve, reject) => {
           Promise.all(promies)
             .then((mem) => {
@@ -7802,7 +7803,8 @@ const CustomChron = [
                 });
                 if (contract?.s) ops.push({ type: "del", path: ['ben', b.to, contract?.s.split(',')[0]] });
                 ops.push({ type: "del", path: ['proffer', b.to, b.from, b.c] });
-                ops.push({ type: "del", path: ['partial_update', b.c.split(":")[2]] });
+                if (b.c.indexOf(':') > -1) ops.push({ type: "del", path: ['partial_update', b.c.split(":")[2]] });
+                else console.log('no partial update')
                 ops.push({ type: "del", path: ['contract', b.to, contract.i] });
                 if (contract.s) ops.push({ type: "del", path: ['ben', b.to, contract.s.split(',')[0]] });
                 ops.push({
@@ -7825,11 +7827,12 @@ const CustomChron = [
             });
         });
       }
-      let Pcontract = getPathObj(['contract', b.fo, b.id]),
-        Pstatss = getPathObj(["stats"]),
-        Pbrocaa = getPathObj(["broca", b.fo]),
-        Ppowa = getPathObj(["spow", b.fo]);
-      contractClose(
+      let Pproffer = getPathObj(['proffer', b.to, b.from, b.c]),
+        Ptemplate = getPathObj(["template", b.c]),
+        Pstats = getPathObj(["stats"]),
+        Pbroca = getPathObj(["broca", b.from]),
+        Ppow = getPathObj(["bpow", b.from]);
+        channelCheck(
         [Pproffer, Ptemplate, Pstats, Pbroca, Ppow],
         passed.delKey,
         num,

@@ -314,16 +314,18 @@ function hotChron(chronOps) {
 
 
     for (const customChronJob of Chron_Array) { // Iterate over the processed array
-        if (!customChronJob || typeof customChronJob.func !== 'string') continue; // Skip if invalid
-
-        const funcBody = extractFunctionBody(customChronJob.func);
-        const func = typeof customChronJob.func === 'function' ?
+        var func = customChronJob.func
+        console.log('Registering customChronJob:', customChronJob.op)
+        if (!customChronJob || typeof customChronJob.func !== 'function') {
+          const funcBody = extractFunctionBody(customChronJob.func);
+          func = typeof customChronJob.func === 'function' ?
           customChronJob.func :
-          new Function('b', 'passed', 'res', 'rej', 'num', 'prand', 'ints', 'bh', 'runtimeContext', funcBody); // Use extracted body
+          new Function('b', 'passed', 'res', 'rej', 'num', 'prand', 'ints', 'bh', 'context', funcBody); 
+        }
 
-        chronOps[customChronJob.op] = (b, passed, res, rej, num, prand, ints, bh) => {
+        chronOps[customChronJob.op] = (b, passed, res, rej, num, prand, ints, bh, context) => {
             try {
-                return func(b, passed, res, rej, num, prand, ints, bh, runtimeContext);
+                return func(b, passed, res, rej, num, prand, ints, bh, context);
             } catch (e) {
                 console.error(`Error executing custom chron job ${customChronJob.op}:`, e);
                 // Chron jobs often need to resolve/reject, handle error appropriately
@@ -369,8 +371,8 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
   //HIVE API CODE
 
   //Start Program Options   
-  dynStart()
-  //startWith("QmUeNBXi2idRFFLKVayYvFTaGypYhC8jzbWHNRLwG6oNAL", true);
+  //dynStart()
+  startWith("QmXyRuoSUhqdw7foay6nQijtmmJBxqccQM98Jv6csEeNNE", true);
 
   // API defs
   api.use((req, res, next) => {
@@ -666,6 +668,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
               function ChonOp(delKey, ints, prand, num, bh) {
                 return new Promise((res, rej) => {
                   store.getWith(['chrono', chrops[j[i]]], { delKey, ints }, function (e, b, passed) {
+                    if(!chronOps[b.op])console.log(b.op)
                     chronOps[b.op](b, passed, res, rej, num, prand, ints, bh, runtimeContext)
                   })
                 })
