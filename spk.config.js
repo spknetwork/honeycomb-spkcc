@@ -7618,6 +7618,7 @@ const CustomChron = [
               }
               let deletePromise = new Promise((res, rej) => {
                 if (cidsFlaggedForDeletion.length) {
+                  console.log('delete_files')
                   exports.delete_files({ cids: cidsFlaggedForDeletion, block_num: json.block_num, transaction_id: json.transaction_id }, contract.t, true, [res, rej, 0])
                 } else {
                   res([])
