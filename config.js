@@ -5002,7 +5002,7 @@ const CustomAPI = [
   {
     path: "/service/:type",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       let type = req.params.type;
       let services = getPathObj(["service", type]);
       Promise.all([services]).then((mem) => {
@@ -5033,7 +5033,7 @@ const CustomAPI = [
   {
     path: "/@:un",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathNum, getPathObj, config, RAM, VERSION } = context;
       let un = req.params.un,
         bal = getPathNum(['balances', un]),
         cbal = getPathNum(['cbalances', un]),

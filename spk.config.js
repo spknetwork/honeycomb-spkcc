@@ -4979,7 +4979,7 @@ const CustomAPI = [
   {
     path: "/user_services/:un",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       let user = req.params.un;
       let services = getPathObj(["services", user]);
       Promise.all([services]).then((mem) => {
@@ -5002,7 +5002,7 @@ const CustomAPI = [
   {
     path: "/service/:type",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       let type = req.params.type;
       let services = getPathObj(["service", type]);
       Promise.all([services]).then((mem) => {
@@ -5033,7 +5033,7 @@ const CustomAPI = [
   {
     path: "/@:un",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathNum, getPathObj, config, RAM, VERSION } = context;
       let un = req.params.un,
         bal = getPathNum(['balances', un]),
         cbal = getPathNum(['cbalances', un]),
@@ -5167,7 +5167,7 @@ const CustomAPI = [
   {
     path: "/spk/@:un",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathNum, getPathObj, config, RAM, VERSION } = context;
       let un = req.params.un,
         bal = getPathNum(['balances', un]),
         cbal = getPathNum(['cspk', un]),
@@ -5285,7 +5285,7 @@ const CustomAPI = [
   {
     path: "/broca/@:un",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathNum, getPathObj, config, RAM, VERSION } = context;
       let un = req.params.un,
         bal = getPathNum(['balances', un]),
         cbal = getPathNum(['cbalances', un]),
@@ -5415,7 +5415,7 @@ const CustomAPI = [
   {
     path: "/api/contract/:to/:from/:id",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context
+      const { getPathObj, config, RAM, VERSION } = context
       let to = req.params.to || ''
       let from = req.params.from || ''
       let id = req.params.id || ''
@@ -5455,7 +5455,7 @@ const CustomAPI = [
   {
     path: "/api/fileContract/:id",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       let id = req.params.id,
         cpp = getPathObj(["cPointers", id]),
         statsp = getPathObj(["stats"]);
@@ -5503,7 +5503,7 @@ const CustomAPI = [
   {
     path: "/api/file/:id",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       let id = req.params.id
       id = id.split("").reverse().join("")
       let cpp = getPathObj(["IPFS", id]),
@@ -5590,7 +5590,7 @@ const CustomAPI = [
   {
     path: "/spk/markets",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       let markets = getPathObj(["markets"]),
         stats = getPathObj(["stats"]),
         pVal = getPathObj(["val"]),
@@ -5649,7 +5649,6 @@ const CustomAPI = [
       const { store, config, RAM, VERSION } = context;
       res.setHeader("Content-Type", "application/json");
       store.get(["queue"], function (err, obj) {
-        var feed = obj;
         res.send(
           JSON.stringify(
             {
@@ -5678,7 +5677,7 @@ const CustomAPI = [
   {
     path: "/spk/api/status/:txid",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { status, config, RAM, VERSION } = context;
       let txid = req.params.txid;
       res.setHeader("Content-Type", "application/json");
       res.send(
@@ -5734,7 +5733,7 @@ const CustomAPI = [
   {
     path: "/broca/markets",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       let markets = getPathObj(["markets"]),
         stats = getPathObj(["stats"]),
         pVal = getPathObj(["val"]),
@@ -5822,7 +5821,7 @@ const CustomAPI = [
   {
     path: "/broca/api/status/:txid",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { status, config, RAM, VERSION } = context;
       let txid = req.params.txid;
       res.setHeader("Content-Type", "application/json");
       res.send(
@@ -5869,7 +5868,7 @@ const CustomAPI = [
   {
     path: "/spk/dex",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var Pdex = getPathObj(["dexs"]);
       var Pstats = getPathObj(["stats"]);
       var PQueue = getPathObj(["queue"]);
@@ -6021,7 +6020,7 @@ const CustomAPI = [
   {
     path: "/broca/dex",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var Pdex = getPathObj(["dexb"]);
       var Pstats = getPathObj(["stats"]);
       var PQueue = getPathObj(["queue"]);
@@ -6173,7 +6172,7 @@ const CustomAPI = [
   {
     path: "/spk/api/tickers",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexs"]);
       var stats = getPathObj(["stats"]);
       res.setHeader("Content-Type", "application/json");
@@ -6287,7 +6286,7 @@ const CustomAPI = [
   {
     path: "/broca/api/tickers",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexb"]);
       var stats = getPathObj(["stats"]);
       res.setHeader("Content-Type", "application/json");
@@ -6401,7 +6400,7 @@ const CustomAPI = [
   {
     path: "/spk/api/orderbook",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexs"]);
       var stats = getPathObj(["stats"]);
       var orderbook = {
@@ -6485,7 +6484,7 @@ const CustomAPI = [
   {
     path: "/broca/api/orderbook",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexb"]);
       var stats = getPathObj(["stats"]);
       var orderbook = {
@@ -6569,7 +6568,7 @@ const CustomAPI = [
   {
     path: "/spk/api/orderbook/:ticker_id",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexs"]);
       var stats = getPathObj(["stats"]);
       var orderbook = {
@@ -6653,7 +6652,7 @@ const CustomAPI = [
   {
     path: "/broca/api/orderbook/:ticker_id",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexb"]);
       var stats = getPathObj(["stats"]);
       var orderbook = {
@@ -6777,7 +6776,7 @@ const CustomAPI = [
   {
     path: "/spk/api/historical",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexs"]);
       var stats = getPathObj(["stats"]);
       var orderbook = {
@@ -6898,7 +6897,7 @@ const CustomAPI = [
   {
     path: "/broca/api/historical",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexb"]);
       var stats = getPathObj(["stats"]);
       var orderbook = {
@@ -7019,7 +7018,7 @@ const CustomAPI = [
   {
     path: "/spk/api/historical/:ticker_id",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexs"]);
       var stats = getPathObj(["stats"]);
       var orderbook = {
@@ -7140,7 +7139,7 @@ const CustomAPI = [
   {
     path: "/broca/api/historical/:ticker_id",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexb"]);
       var stats = getPathObj(["stats"]);
       var orderbook = {
@@ -7261,7 +7260,7 @@ const CustomAPI = [
   {
     path: "/spk/api/recent/:ticker_id",
     func: function (req, res, next, context) {
-      const { store, config, RAM, VERSION } = context;
+      const { getPathObj, config, RAM, VERSION } = context;
       var dex = getPathObj(["dexs"]);
       var stats = getPathObj(["stats"]);
       var orderbook = {
@@ -7349,7 +7348,7 @@ const CustomAPI = [
   {
     path: "/broca/api/recent/:ticker_id",
     func: function (req, res, next, context) {
-      const { store, config, getPathObj, RAM, VERSION } = context;
+      const { getPathObj, config, getPathObj, RAM, VERSION } = context;
       var dex = getPathObj(["dexb"]);
       var stats = getPathObj(["stats"]);
       var orderbook = {

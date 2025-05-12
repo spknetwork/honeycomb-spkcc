@@ -1,5 +1,5 @@
 export const VERSION = 'v1.5.0-t1'
-import { config } from './spk.config.js';
+import { config } from './config.js';
 export function Config(param) {
   return config[param]
 }
@@ -149,32 +149,56 @@ import { consolidate, sign, osign, updateAccount } from './msa.js'
 import { postToDiscord } from './discord.js'
 export var runtimeContext;
 function initializeContext() {
-  runtimeContext = { store, config, API, VERSION, getPathObj, getPathNum, getPathSome, RAM, burn, forceCancel, add, addc, addMT, addCol, addGov, deletePointer, credit, nodeUpdate, penalty, chronAssign, hashThis, isEmpty, postToDiscord, Base64, Base58, stringify, NFT, Chron, stringify, DEX, naizer }
+  runtimeContext = { store, config, API, VERSION, getPathObj, getPathNum, getPathSome, RAM, burn, forceCancel, add, addc, addMT, addCol, addGov, deletePointer, credit, nodeUpdate, penalty, chronAssign, hashThis, isEmpty, postToDiscord, Base64, Base58, stringify, NFT, Chron, stringify, DEX, naizer, status }
 }
 initializeContext()
 function hotAPI(api) {
   if (config.CustomAPI == "NA") return
-  for (var i in config.CustomAPI) {
-    const routeExists = api._router.stack.some((layer, index) => {
-      if (layer.route) {
-        if (layer.route.path === config.CustomAPI[i].path) {
-          api._router.stack.splice(index, 1); // Delete the route
-          return true;
-        }
-      }
-      return false;
-    });
-    console.log(`Custom API ${config.CustomAPI[i].path} ${routeExists ? 'replaced' : 'added'}`)
-    var func = typeof config.CustomAPI[i].func === 'function' ? config.CustomAPI[i].func : ""
-    if (!func) {
-      func = new Function('req', 'res', 'next', 'runtimeContext', config.CustomAPI[i].func)
 
-    }
-    api.get(config.CustomAPI[i].path, (req, res, next) => {
-      func(req, res, next, runtimeContext)
-    })
+  // First, remove any existing routes that match our custom routes
+  api._router.stack = api._router.stack.filter(layer => {
+    if (!layer.route) return true; // Keep non-route middleware
+    
+    // Check if this route should be overridden by a custom route
+    const shouldOverride = config.CustomAPI.some(customRoute => {
+      // Convert route paths to regex patterns for matching
+      const staticPattern = layer.route.path
+        .replace(/:[^/]+/g, '([^/]+)') // Convert :param to regex
+        .replace(/\//g, '\\/'); // Escape forward slashes
+      const staticRegex = new RegExp(`^${staticPattern}$`);
+      
+      const customPattern = customRoute.path
+        .replace(/:[^/]+/g, '([^/]+)')
+        .replace(/\//g, '\\/');
+      const customRegex = new RegExp(`^${customPattern}$`);
+      
+      // Check if the routes would match the same paths
+      return staticRegex.toString() === customRegex.toString();
+    });
+    
+    return !shouldOverride;
+  });
+
+  // Now register the custom routes
+  for (const customRoute of config.CustomAPI) {
+    console.log(`Registering custom API route: ${customRoute.path}`);
+    
+    const func = typeof customRoute.func === 'function' 
+      ? customRoute.func 
+      : new Function('req', 'res', 'next', 'runtimeContext', customRoute.func);
+
+    // Register the route with proper error handling
+    api.get(customRoute.path, (req, res, next) => {
+      try {
+        func(req, res, next, runtimeContext);
+      } catch (error) {
+        console.error(`Error in custom route ${customRoute.path}:`, error);
+        next(error);
+      }
+    });
   }
-  return true
+
+  return true;
 }
 function hotCustom(processor) {
   for (var i = 0; i < config.CustomOperationsProcessing.length; i++) {
