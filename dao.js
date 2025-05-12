@@ -473,6 +473,7 @@ export function dao(num) {
                         })
                     }
                 ];
+                console.log(op[1])
                 if (up_op) {
                     daops.push({ type: "del", path: ["mso"] });
                     daops.push({
