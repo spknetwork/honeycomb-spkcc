@@ -25,7 +25,7 @@ export function dao(num) {
                 });
             }),
             Pbals = getPathObj(['balances']),
-            Pcbals = getPathObj(['cbalances'])
+            Pcbals = getPathObj(['cbalances']),
             Prunners = getPathObj(['runners']),
             Pnodes = getPathObj(['markets', 'node']),
             Pstats = getPathObj(['stats']),
@@ -38,8 +38,8 @@ export function dao(num) {
             Pposts = getPathObj(['posts']),
             Pfeed = getPathObj(['feed']),
             Ppaid = getPathObj(['paid']),
-            Prnfts = getPathObj(['rnfts']);
-            Pgov = getPathObj(['gov']);
+            Prnfts = getPathObj(['rnfts']),
+            Pgov = getPathObj(['gov']),
             Pdistro = Distro()
         Promise.all([Pnews, Pbals, Prunners, Pnodes, Pstats, Pdelegations, Pico, Pdex, Pbr, Ppbal, Pnomen, Pposts, Pfeed, Ppaid, Prnfts, Pdistro, Pcbals, Pgov]).then(function(v) {
             daops.push({ type: 'del', path: ['postQueue'] });
