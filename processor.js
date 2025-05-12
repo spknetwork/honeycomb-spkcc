@@ -401,6 +401,7 @@ export function hiveState (
     function doOp(op, pc) {
       return new Promise((resolve, reject) => {
         if (op.length == 4) {
+          console.log("doOp:", op[0])
           onCustomJsonOperation[op[0]](op[1], op[2], op[3], [
             resolve,
             reject,
@@ -472,10 +473,12 @@ export function hiveState (
         */
     on: function (operationId, callback) {
       onCustomJsonOperation[prefix + operationId] = callback;
+      console.log("Registered:", prefix + operationId )
     },
 
     onOperation: function (type, callback) {
       onOperation[type] = callback;
+      console.log('Registered:', type)
     },
 
     onNoPrefix: function (operationId, callback) {

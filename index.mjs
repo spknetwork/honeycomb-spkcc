@@ -216,7 +216,7 @@ function extractFunctionBody(funcString) {
 function hotCustom(processor) {
   // Assuming CustomOperationsProcessing was intended here, like in hotOps.
   // Please confirm if CustomJsonProcessing is correct.
-  let CJP_Source = config.CustomOperationsProcessing;
+  let CJP_Source = config.CustomJsonProcessing;
   let CJP_Array = [];
 
   if (Array.isArray(CJP_Source)) {
