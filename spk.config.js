@@ -5000,7 +5000,7 @@ const CustomAPI = [
     }
   },
   {
-    path: "/services/:type",
+    path: "/service/:type",
     func: function (req, res, next, context) {
       const { store, config, RAM, VERSION } = context;
       let type = req.params.type;
@@ -5848,7 +5848,22 @@ const CustomAPI = [
     path: "/services",
     func: function (req, res, next, context) {
       const { store, config, RAM, VERSION } = context;
-      //list services
+      store.get(["services"], function (err, obj) {
+        const services = Object.keys(obj)
+        res.send(
+          JSON.stringify(
+            {
+              services: services,
+              node: config.username,
+              head_block: RAM.head,
+              behind: RAM.behind,
+              VERSION,
+            },
+            null,
+            3
+          )
+        )
+      })
     }
   },
   {
@@ -7557,7 +7572,7 @@ const CustomChron = [
         if (total > (pow * 1000)) total = (pow * 1000)
         return `${total},${Base64.fromNumber(bn)}`
       }
-      function  extend (json, from, active, pc, contextD) {
+      function extend(json, from, active, pc, contextD) {
         const { store, getPathObj, postToDiscord, config, getPathNum, chronAssign } = contextD
         if (json.broca && json.id && json.file_owner) {
           var Pbroca = getPathObj(["broca", from]);
@@ -7674,27 +7689,27 @@ const CustomChron = [
           pc[0](pc[2]);
         }
       }
-      function contractClose (promies, delkey, num, id, b) {
+      function contractClose(promies, delkey, num, id, b) {
         return new Promise((resolve, reject) => {
           Promise.all(promies)
             .then((mem) => {
               //console.log(delkey)
               let contract = mem[0],
-              stats = mem[1],
-              ops = [],
-              bytes = 0,
-              broca = broca_calc(mem[2], mem[3], stats, num),
-              renew = contract.m ? (contract.m.indexOf('"') >= 0 ? Base64.toNumber(JSON.parse(contract.m)[0]) & 1 : Base64.toNumber(contract.m[0]) & 1) : 0
+                stats = mem[1],
+                ops = [],
+                bytes = 0,
+                broca = broca_calc(mem[2], mem[3], stats, num),
+                renew = contract.m ? (contract.m.indexOf('"') >= 0 ? Base64.toNumber(JSON.parse(contract.m)[0]) & 1 : Base64.toNumber(contract.m[0]) & 1) : 0
               if (contract.c == 3 && renew && parseInt(broca.split(',')[0]) > 100) {
                 extend({
-                  broca: parseInt(broca.split(',')[0]) > parseInt( 3 * contract.r / contract.p ) ? parseInt( 3 * contract.r / contract.p ) + 1 : parseInt(parseInt(broca.split(',')[0]) / 2 ) + 1,
+                  broca: parseInt(broca.split(',')[0]) > parseInt(3 * contract.r / contract.p) ? parseInt(3 * contract.r / contract.p) + 1 : parseInt(parseInt(broca.split(',')[0]) / 2) + 1,
                   id: contract.i,
                   file_owner: contract.t,
                   block_num: num,
                   transaction_id: `v_op_${contract.t}_autoExtend_${contract.i}`
                 }, contract.t, true, [resolve, reject, 0], context)
               } else {
-                if(contract.df){
+                if (contract.df) {
                   var items = Object.keys(contract.df)//goods
                   for (var i = 0; i < items.length; i++) {
                     bytes += contract.df[items[i]]
@@ -7750,7 +7765,7 @@ const CustomChron = [
         if (total > (pow * 1000)) total = (pow * 1000)
         return `${total},${Base64.fromNumber(bn)}`
       }
-      function contractClose (promies, delkey, num, id, b) {
+      function contractClose(promies, delkey, num, id, b) {
         return new Promise((resolve, reject) => {
           Promise.all(promies)
             .then((mem) => {
@@ -7762,7 +7777,7 @@ const CustomChron = [
                 ops = [];
               if (contract.c == b.e) {
                 var bytes = 0, items = []
-                if(contract.df)items = Object.keys(contract.df)//goods
+                if (contract.df) items = Object.keys(contract.df)//goods
                 for (var i = 0; i < items.length; i++) {
                   bytes += contract.df[items[i]]
                   ops.push({ type: "del", path: ['IPFS', items[i].split("").reverse().join("")] });
