@@ -7305,8 +7305,8 @@ const CustomAPI = [
       function getHistory(promises, pair, lim) {
         Promise.all(promises)
           .then(function (v) {
-            var his = [];
-            count = 0;
+            var his = [],
+              count = 0;
             if (v[0][pair].his)
               for (var item in v[0][pair].his) {
                 const record = {
@@ -7393,8 +7393,8 @@ const CustomAPI = [
       function getHistory(promises, pair, lim) {
         Promise.all(promises)
           .then(function (v) {
-            var his = [];
-            count = 0;
+            var his = [],
+              count = 0;
             if (v[0][pair].his)
               for (var item in v[0][pair].his) {
                 const record = {
