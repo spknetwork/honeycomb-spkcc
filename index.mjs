@@ -243,7 +243,7 @@ function hotCustom(processor) {
       new Function('json', 'from', 'active', 'pc', 'context', funcBody); // Use extracted body
 
     // Ensure processor[customOp.type] exists before assigning
-    if (typeof processor[customOp.type] === 'function') {
+    
        processor[customOp.type](customOp.op, (json, from, active, pc, runtimeContext) => {
          try {
              return func(json, from, active, pc, runtimeContext);
@@ -252,9 +252,6 @@ function hotCustom(processor) {
              // Decide how to handle errors, maybe return a default or throw
          }
        });
-    } else {
-        console.error(`Processor type '${customOp.type}' not found for custom operation '${customOp.op}'.`);
-    }
   }
   return true;
 }
@@ -266,7 +263,6 @@ function hotOps(processor) {
   if (Array.isArray(COP_Source)) {
     COP_Array = COP_Source;
   } else if (COP_Source && typeof COP_Source === 'object' && Object.keys(COP_Source).length) {
-    // Convert object to array
     for (const key in COP_Source) {
        if (Object.hasOwnProperty.call(COP_Source, key)) {
           COP_Array.push(COP_Source[key]);
@@ -274,25 +270,26 @@ function hotOps(processor) {
     }
     console.log("Converted CustomOperationsProcessing from object to array for hotOps");
   } else {
-      return true; // Nothing to process
+      return true; 
   }
-
+  if (!COP_Array.length) return true;
 
   for (const customOp of COP_Array) {
-      if (!customOp || typeof customOp.func !== 'string') continue; // Skip if invalid
+    if (!customOp || typeof customOp.func !== 'string') continue;
+    const funcBody = extractFunctionBody(customOp.func);
 
-      const funcBody = extractFunctionBody(customOp.func);
-      const func = typeof customOp.func === 'function' ?
-        customOp.func :
-        new Function('json', 'pc', 'context', funcBody); // Use extracted body
+    // func expects: json, from, active, pc, runtimeContext
+    const func = new Function('json', 'from', 'active', 'pc', 'runtimeContext', funcBody);
 
-      processor.onOperation(customOp.op, (json, pc, runtimeContext) => {
-          try {
-              return func(json, pc, runtimeContext);
-          } catch (e) {
-               console.error(`Error executing custom onOperation ${customOp.op}:`, e);
-          }
-      });
+    // Processor.onOperation provides: json, from, active, pc
+    // We call func with these + our runtimeContext
+    processor.onOperation(customOp.op, (json, from, active, pc) => {
+      try {
+        return func(json, from, active, pc, runtimeContext); // Pass runtimeContext from outer scope
+      } catch (e) {
+        console.error(`Error executing custom onOperation ${customOp.op}:`, e);
+      }
+    });
   }
   return true;
 }
