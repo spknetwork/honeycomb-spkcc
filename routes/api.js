@@ -677,6 +677,7 @@ const runners = (req, res, next) => {
     res.setHeader('Content-Type', 'application/json')
     store.get(['runners'], function(err, obj) {
         var runners = obj, result = []
+        console.log(runners)
         for (var a in runners) {
             var node = runners[a]
             node.account = a
