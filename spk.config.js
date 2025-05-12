@@ -7755,13 +7755,12 @@ const CustomChron = [
             });
         });
       }
-      let Pproffer = getPathObj(['proffer', b.to, b.from, b.c]),
-        Ptemplate = getPathObj(["template", b.c]),
+      let Pcontract = getPathObj(['contract', b.fo, b.id]),
         Pstats = getPathObj(["stats"]),
-        Pbroca = getPathObj(["broca", b.from]),
-        Ppow = getPathObj(["bpow", b.from]);
+        Pbroca = getPathObj(["broca", b.fo]),
+        Ppow = getPathObj(["spow", b.fo]);
       contractClose(
-        [Pproffer, Ptemplate, Pstats, Pbroca, Ppow],
+        [Pcontract, Pstats, Pbroca, Ppow],
         passed.delKey,
         num,
         passed.delKey.split(":")[1],
@@ -7835,7 +7834,7 @@ const CustomChron = [
         Pstats = getPathObj(["stats"]),
         Pbroca = getPathObj(["broca", b.from]),
         Ppow = getPathObj(["bpow", b.from]);
-        channelCheck(
+      channelCheck(
         [Pproffer, Ptemplate, Pstats, Pbroca, Ppow],
         passed.delKey,
         num,
