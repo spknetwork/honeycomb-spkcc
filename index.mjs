@@ -244,9 +244,9 @@ function hotCustom(processor) {
 
     // Ensure processor[customOp.type] exists before assigning
     
-       processor[customOp.type](customOp.op, (json, from, active, pc, runtimeContext) => {
+       processor[customOp.type](customOp.op, (json, from, active, pc, context) => {
          try {
-             return func(json, from, active, pc, runtimeContext);
+             return func(json, from, active, pc, context);
          } catch (e) {
              console.error(`Error executing custom operation ${customOp.op} (type ${customOp.type}):`, e);
              // Decide how to handle errors, maybe return a default or throw
@@ -283,9 +283,9 @@ function hotOps(processor) {
 
     // Processor.onOperation provides: json, from, active, pc
     // We call func with these + our runtimeContext
-    processor.onOperation(customOp.op, (json, from, active, pc) => {
+    processor.onOperation(customOp.op, (json, pc, context) => {
       try {
-        return func(json, from, active, pc, runtimeContext); // Pass runtimeContext from outer scope
+        return func(json, pc, context); // Pass runtimeContext from outer scope
       } catch (e) {
         console.error(`Error executing custom onOperation ${customOp.op}:`, e);
       }
