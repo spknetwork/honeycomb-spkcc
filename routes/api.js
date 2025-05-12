@@ -683,6 +683,7 @@ const runners = (req, res, next) => {
             result.push(node)
         }
         res.send(JSON.stringify({
+            result,
             runners: result,
             latest: [
                 {api: Config("domain")}

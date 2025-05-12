@@ -5572,6 +5572,7 @@ const CustomAPI = [
         res.send(
           JSON.stringify(
             {
+              result,
               runners: result,
               latest: [{ api: `${config.domain}/spk` }],
               node: config.username,
@@ -5714,6 +5715,7 @@ const CustomAPI = [
         res.send(
           JSON.stringify(
             {
+              result,
               runners: result,
               latest: [{ api: `${config.domain}/broca` }],
               node: config.username,
