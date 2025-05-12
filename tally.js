@@ -17,7 +17,7 @@ export const tally = (num, plasma, isStreaming) => {
             Pstats = getPathObj(["stats"]),
             Prb = getPathObj(["balances"]),
             Prcol = getPathObj(["col"]),
-            Prpow = getPathObj(["gov"]),
+            Prpow = getPathObj([Config("govToken")]),
             Prqueue = getPathObj(["queue"]),
             Ppending = getPathObj(["pendingpayment"]),
             Pmss = getPathObj(["mss"]);

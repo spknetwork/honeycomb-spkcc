@@ -80,6 +80,7 @@ const jsonTokenName = 'larynx' //what customJSON in Escrows and sends is looking
 const leader = 'spk-test' //Default account to pull state from, will post token 
 const ben = '' //Account where comment benifits trigger token action
 const delegation = '' //account people can delegate to for rewards
+const govToken = "spow"
 const delegationWeight = 1000 //when to trigger community rewards with bens
 const msaccount = ENV.msaccount || 'spk-cc-test' //account controlled by community leaders
 const msPubMemo = 'STM8hszG2prkmSBsPpgQ4ZipdGq5MMK7zoJDXD7cV2FL83HXascWk' //memo key for msaccount
@@ -8181,5 +8182,6 @@ export var config = {
   featuresModelSpk,
   featuresModelBroca,
   poav_address,
+  govToken,
   state
 };
