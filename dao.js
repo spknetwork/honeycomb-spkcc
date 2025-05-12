@@ -73,22 +73,22 @@ export function dao(num) {
                     cbals[dist[i][0]] ? cbals[dist[i][0]] += dist[i][1] : cbals[dist[i][0]] = dist[i][1]
                 }
             }
-            feedKeys = Object.keys(feedCleaner);
-            paidKeys = Object.keys(paidCleaner);
+            let feedKeys = Object.keys(feedCleaner);
+            let paidKeys = Object.keys(paidCleaner);
             for(var set in rnftsCleaner){
-                rnftKeys = Object.keys(rnftsCleaner[set]);
+                let rnftKeys = Object.keys(rnftsCleaner[set]);
                 for (var rnfti = 0; rnfti < rnftKeys.length; rnfti++) {
                     if (rnftsCleaner[set][rnftKeys[rnfti]] == 0) {
                         daops.push({ type: 'del', path: ['rnfts', set, rnftKeys[rnfti]] });
                     }
                 }
             }
-            for (feedi = 0; feedi < feedKeys.length; feedi++) {
+            for (let feedi = 0; feedi < feedKeys.length; feedi++) {
                 if (feedKeys[feedi].split(':')[0] < num - 30240) {
                     daops.push({ type: 'del', path: ['feed', feedKeys[feedi]] });
                 }
             }
-            for (paidi = 0; paidi < paidKeys.length; paidi++) {
+            for (let paidi = 0; paidi < paidKeys.length; paidi++) {
                 console.log(paidKeys[paidi])
                 if (parseInt(paidKeys[paidi]) < num - 30240) {
                     console.log(paidKeys[paidi])
