@@ -672,7 +672,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
             if (config.active && processor.isStreaming()) {
               store.get(['escrow', config.username], function (e, a) {
                 if (!e) {
-                  for (b in a) {
+                  for (var b in a) {
                     if (!plasma.pending[b]) {
                       NodeOps.push([
                         [0, 0],
