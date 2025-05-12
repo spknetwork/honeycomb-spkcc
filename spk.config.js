@@ -5804,7 +5804,7 @@ const CustomAPI = [
               token: "BROCA",
               jsontoken: 'broca',
               memoKey: config.msPubMemo,
-              features: config.featuresModelSpk,
+              features: config.featuresModelBroca,
               votable: config.votable,
               head_block: RAM.head,
               behind: RAM.behind,
@@ -7959,6 +7959,152 @@ const featuresModel = {
     }
     ],
   }
+}
+const featuresModelSpk = {
+  rewards: {
+    id: 'claim',
+    msg: 'Claiming SPK rewards',
+    auth: 'posting',
+    type: "move",
+    string: 'Reward ',
+    B: true,
+    json: {
+      gov: {
+        type: "B",
+        string: "Lock to Governance",
+        req: false
+      }
+    },
+  },
+  send: {
+    id: 'send',
+    string: 'Send',
+    B: true,
+    msg: 'Sending SPK',
+    auth: 'active',
+    type: "move",
+    json: {
+      amount: {
+        type: "I",
+        string: "Amount",
+        req: true
+      },
+      to: {
+        type: "S",
+        string: "To",
+        req: true,
+        check: "AC"
+      },
+      memo: {
+        type: "S",
+        string: "Memo",
+        req: false
+      }
+    },
+  },
+  powup: {
+    id: 'power_up',
+    string: 'Power Up',
+    B: true,
+    msg: 'Powering SPK',
+    auth: 'active',
+    type: "move",
+    json: {
+      amount: {
+        type: "I",
+        string: "Amount",
+        req: true
+      },
+    }
+  },
+  powdn: {
+    id: 'power_down',
+    msg: 'Powering Down SPK',
+    auth: 'active',
+    type: "move",
+    string: 'Power Down',
+    B: true,
+    json: {
+      amount: {
+        type: "I",
+        string: "Amount",
+        req: true
+      },
+    },
+  },
+}
+const featuresModelBroca = {
+  rewards: {
+    id: 'claim',
+    msg: 'Claiming BROCA rewards',
+    auth: 'posting',
+    type: "move",
+    string: 'Reward ',
+    B: true,
+    json: {
+      gov: {
+        type: "B",
+        string: "Lock to Governance",
+        req: false
+      }
+    },
+  },
+  send: {
+    id: 'send',
+    string: 'Send',
+    B: true,
+    msg: 'Sending BROCA',
+    auth: 'active',
+    type: "move",
+    json: {
+      amount: {
+        type: "I",
+        string: "Amount",
+        req: true
+      },
+      to: {
+        type: "S",
+        string: "To",
+        req: true,
+        check: "AC"
+      },
+      memo: {
+        type: "S",
+        string: "Memo",
+        req: false
+      }
+    },
+  },
+  powup: {
+    id: 'power_up',
+    string: 'Power Up',
+    B: true,
+    msg: 'Powering BROCA',
+    auth: 'active',
+    type: "move",
+    json: {
+      amount: {
+        type: "I",
+        string: "Amount",
+        req: true
+      },
+    }
+  },
+  powdn: {
+    id: 'power_down',
+    msg: 'Powering Down BROCA',
+    auth: 'active',
+    type: "move",
+    string: 'Power Down',
+    B: true,
+    json: {
+      amount: {
+        type: "I",
+        string: "Amount",
+        req: true
+      },
+    },
+  },
 }
 
 
