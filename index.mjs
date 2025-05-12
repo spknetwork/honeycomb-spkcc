@@ -1,5 +1,5 @@
 export const VERSION = 'v1.5.0-t1'
-import { config } from './config.js';
+import { config } from './spk.config.js';
 export function Config(param) {
   return config[param]
 }
@@ -541,7 +541,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
               function ChonOp(delKey, ints, prand, num, bh) {
                 return new Promise((res, rej) => {
                   store.getWith(['chrono', chrops[j[i]]], { delKey, ints }, function (e, b, passed) {
-                    chronOps[b.op](b, passed, res, rej, num, prand, ints, bh)
+                    chronOps[b.op](b, passed, res, rej, num, prand, ints, bh, runtimeContext)
                   })
                 })
               }
