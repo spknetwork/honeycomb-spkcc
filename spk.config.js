@@ -7575,7 +7575,6 @@ const CustomChron = [
   {
     op: 'contract_close',
     func: function (b, passed, res, rej, num, prand, ints, bh, context) {
-      console.log('contract_close')
       const { store, getPathObj, getPathNum, Base64 } = context;
       const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
         if (typeof last != "string") last = '0,0'
@@ -7689,7 +7688,7 @@ const CustomChron = [
                   if (config.hookurl || config.status)
                     postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
                   if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-                  //console.log(ops)
+                  console.log(ops)
                   store.batch(ops, pc);
                 })
               })
@@ -7769,7 +7768,6 @@ const CustomChron = [
   {
     op: 'channel_check',
     func: function (b, passed, res, rej, num, prand, ints, bh, context) {
-      console.log('channel_check')
       const { store, getPathObj, Base64 } = context;
       const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
         if (typeof last != "string") last = '0,0'
@@ -7804,9 +7802,8 @@ const CustomChron = [
                   data: stats
                 });
                 if (contract?.s) ops.push({ type: "del", path: ['ben', b.to, contract?.s.split(',')[0]] });
-                if (b.c)ops.push({ type: "del", path: ['proffer', b.to, b.from, b.c] });
-                if (b.c) ops.push({ type: "del", path: ['partial_update', b.c.split(":")[2]] });
-                else console.log('no partial update')
+                ops.push({ type: "del", path: ['proffer', b.to, b.from, b.c] });
+                ops.push({ type: "del", path: ['partial_update', b.c.split(":")[2]] })
                 ops.push({ type: "del", path: ['contract', b.to, contract.i] });
                 if (contract.s) ops.push({ type: "del", path: ['ben', b.to, contract.s.split(',')[0]] });
                 ops.push({
