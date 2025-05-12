@@ -8174,6 +8174,8 @@ export var config = {
   CustomOperationsProcessing,
   CustomAPI,
   CustomChron,
+  featuresModelSpk,
+  featuresModelBroca,
   poav_address,
   state
 };
