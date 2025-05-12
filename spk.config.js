@@ -7802,8 +7802,8 @@ const CustomChron = [
                   data: stats
                 });
                 if (contract?.s) ops.push({ type: "del", path: ['ben', b.to, contract?.s.split(',')[0]] });
-                ops.push({ type: "del", path: ['proffer', b.to, b.from, b.c] });
-                if (!b.c) ops.push({ type: "del", path: ['partial_update', b.c.split(":")[2]] });
+                if (b.c)ops.push({ type: "del", path: ['proffer', b.to, b.from, b.c] });
+                if (b.c) ops.push({ type: "del", path: ['partial_update', b.c.split(":")[2]] });
                 else console.log('no partial update')
                 ops.push({ type: "del", path: ['contract', b.to, contract.i] });
                 if (contract.s) ops.push({ type: "del", path: ['ben', b.to, contract.s.split(',')[0]] });
