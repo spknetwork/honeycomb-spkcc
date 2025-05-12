@@ -2,10 +2,27 @@ import { store, TXID, Config, processor } from "./index.mjs"
 import { renderNFTtoDiscord, postToDiscord } from "./discord.js"
 import { add, addMT, burn, chronAssign, hashThis } from "./lil_ops.js"
 import stringify from "json-stable-stringify"
+import { sha256 } from "hive-tx/helpers/crypto"
+import hiveTx from "hive-tx"
+
 export const sortBuyArray = (array, key) =>
   array.sort(function (a, b) {
     return b[key] - a[key];
   });
+
+export function verifySig(msg, sig, key) {
+  var verify = false
+  try {
+    const signature = hiveTx.Signature.from(sig)
+    const message = sha256(msg);
+    const publicKey = hiveTx.PublicKey.from(key);
+    verify = publicKey.verify(message, signature)
+    if (verify) return true
+    else return false
+  } catch (e) {
+    return false
+  }
+}
 
 export const primes = [
   2, 3, 5, 7, 11, 13, 17, 19, 23, 29, 31, 37, 41, 43, 47, 53, 59, 61, 67, 71,
@@ -277,11 +294,9 @@ export const NFT = {
               path: ["nfts", listing.f, b.item],
               data: nft,
             }); //update nft
-            const msg = `Auction of ${listing.o}'s ${
-              b.item
-            } has ended for ${parseFloat(listing.b / 1000).toFixed(3)} ${
-              Config("TOKEN")
-            } to ${listing.f}`;
+            const msg = `Auction of ${listing.o}'s ${b.item
+              } has ended for ${parseFloat(listing.b / 1000).toFixed(3)} ${Config("TOKEN")
+              } to ${listing.f}`;
             ops.push({
               type: "put",
               path: ["feed", `${num}:vop_${delkey.split(":")[1]}`],
@@ -411,11 +426,9 @@ export const NFT = {
                 path: ["nfts", listing.f, b.item],
                 data: nft,
               }); //update nft
-              const msg = `Auction of ${listing.o}'s ${
-                b.item
-              } has ended for ${parseFloat(listing.b / 1000).toFixed(3)} ${
-                listing.h
-              } to ${listing.f}`;
+              const msg = `Auction of ${listing.o}'s ${b.item
+                } has ended for ${parseFloat(listing.b / 1000).toFixed(3)} ${listing.h
+                } to ${listing.f}`;
               ops.push({
                 type: "put",
                 path: ["feed", `${num}:vop_${delkey.split(":")[1]}`],
@@ -509,11 +522,10 @@ export const NFT = {
               set.n
             );
             addMT(["rnfts", b.item.split(":")[0], listing.f], 1);
-            const msg = `Auction of ${listing.o}'s ${
-              b.item
-            } mint token has ended for ${parseFloat(listing.b / 1000).toFixed(
-              3
-            )} ${Config("TOKEN")} to ${listing.f}`;
+            const msg = `Auction of ${listing.o}'s ${b.item
+              } mint token has ended for ${parseFloat(listing.b / 1000).toFixed(
+                3
+              )} ${Config("TOKEN")} to ${listing.f}`;
             ops.push({
               type: "put",
               path: ["feed", `${num}:vop_${delkey.split(":")[1]}`],
@@ -574,15 +586,13 @@ export const NFT = {
             contract.s,
             contract.l
           ); //balance, owners, movers, setname(for refund)
-          const msg = `Dividends of ${contract.s}'s ${
-            contract.b
+          const msg = `Dividends of ${contract.s}'s ${contract.b
               ? parseFloat(contract.b / Math.pow(10, Config("precision"))).toFixed(
-                  Config("precision")
-                )
+                Config("precision")
+              )
               : 0
-          } ${Config("TOKEN")} have been distributed to ${
-            promises.length
-          } accounts`;
+            } ${Config("TOKEN")} have been distributed to ${promises.length
+            } accounts`;
           promises.push(
             chronAssign(num + contract.p, { op: "div", set: contract.s })
           );
@@ -664,9 +674,8 @@ export const Chron = {
           ops.push({
             type: "put",
             path: ["feed", `${num}:vop_${id}`],
-            data: `@${b.by}| ${parseFloat(b.amount / 1000).toFixed(3)} ${
-              Config("TOKEN")
-            } withdrawn from governance.`,
+            data: `@${b.by}| ${parseFloat(b.amount / 1000).toFixed(3)} ${Config("TOKEN")
+              } withdrawn from governance.`,
           });
           ops.push({ type: "del", path: ["chrono", delkey] });
           ops.push({ type: "del", path: ["govd", b.by, delkey] });
@@ -1028,7 +1037,7 @@ export var Watchdog = {
   startup: function (blocks = 500) {
     this.blocks_to_apply = blocks
     setTimeout(() => {
-      if(this.blocks_to_apply == blocks && this.blocks_to_apply > 0) {
+      if (this.blocks_to_apply == blocks && this.blocks_to_apply > 0) {
         console.log('Watchdog: TIMEOUT')
         process.exit(3)
       }

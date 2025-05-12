@@ -134,7 +134,7 @@ import { ChainTypes, makeBitMaskFilter } from './hive-js-auth.js';
 
 import { API, RAM } from './routes/api.js'
 import { HR } from './processing_routes/index.js'
-import { NFT, Chron, Watchdog, Log, Base64, Base58, DEX } from './helpers.js'
+import { NFT, Chron, Watchdog, Log, Base64, Base58, DEX, verifySig } from './helpers.js'
 import { enforce } from "./enforce.js"
 import { tally } from "./tally.js"
 import { voter } from "./voter.js"
@@ -149,7 +149,7 @@ import { consolidate, sign, osign, updateAccount } from './msa.js'
 import { postToDiscord } from './discord.js'
 export var runtimeContext;
 function initializeContext() {
-  runtimeContext = { store, config, API, VERSION, getPathObj, getPathNum, getPathSome, RAM, burn, forceCancel, add, addc, addMT, addCol, addGov, deletePointer, credit, nodeUpdate, penalty, chronAssign, hashThis, isEmpty, postToDiscord, Base64, Base58, stringify, NFT, Chron, stringify, DEX, naizer, status }
+  runtimeContext = { store, config, API, VERSION, getPathObj, getPathNum, getPathSome, RAM, burn, forceCancel, add, addc, addMT, addCol, addGov, deletePointer, credit, nodeUpdate, penalty, chronAssign, hashThis, isEmpty, postToDiscord, Base64, Base58, stringify, NFT, Chron, stringify, DEX, naizer, status, verifySig }
 }
 initializeContext()
 function hotAPI(api) {
