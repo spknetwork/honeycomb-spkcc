@@ -3,11 +3,11 @@ import { config } from './spk.config.js';
 export function Config(param) {
   return config[param]
 }
-export function configSet(obj, api) {
+export function configSet(obj, state, api, chron, processor) {
   for (var param in obj) {
     config[param] = obj[param]
   }
-  customInit(api)
+  customInit(api, chron, processor)
 }
 export var block = {
   ops: [],

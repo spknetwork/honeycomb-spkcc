@@ -5000,7 +5000,7 @@ const CustomAPI = [
     }
   },
   {
-    path: "/services/:type",
+    path: "/service/:type",
     func: function (req, res, next, context) {
       const { store, config, RAM, VERSION } = context;
       let type = req.params.type;
