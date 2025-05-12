@@ -7616,11 +7616,11 @@ const CustomChron = [
                   cidsFlaggedForDeletion.push(cidsSorted[i])
                 }
               }
-              let deletePromise = new Promise((resolve, reject) => {
+              let deletePromise = new Promise((res, rej) => {
                 if (cidsFlaggedForDeletion.length) {
-                  exports.delete_files({ cids: cidsFlaggedForDeletion, block_num: json.block_num, transaction_id: json.transaction_id }, contract.t, true, [resolve, reject, 0])
+                  exports.delete_files({ cids: cidsFlaggedForDeletion, block_num: json.block_num, transaction_id: json.transaction_id }, contract.t, true, [res, rej, 0])
                 } else {
-                  resolve([])
+                  res([])
                 }
               })
               deletePromise.then(contracts => {
