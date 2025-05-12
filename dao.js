@@ -495,7 +495,7 @@ export function dao(num) {
                     daops.push({ type: 'del', path: ['balances', bali] });
                 }
             }
-            console.log({daops})
+            console.log(daops)
             store.batch(daops, [resolve, reject, num]);
         });
     });
