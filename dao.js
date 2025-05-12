@@ -478,6 +478,7 @@ export function dao(num) {
               });
             }
             daops.push({ type: 'put', path: ['dex'], data: dex });
+            console.log({stats})
             daops.push({ type: 'put', path: ['stats'], data: stats });
             daops.push({ type: 'put', path: ['balances'], data: bals });
             daops.push({ type: 'put', path: ['cbalances'], data: cbals });
@@ -487,7 +488,6 @@ export function dao(num) {
             if(Config("features").daily)daops.push({ type: 'put', path: ['escrow', Config("leader"), 'comment'], data: op });
             for (var i = daops.length - 1; i >= 0; i--) {
                 if (daops[i].type == 'put' && Object.keys(daops[i].data).length == 0 && typeof daops[i].data != 'number' && typeof daops[i].data != 'string') {
-                    console.log(daops[i].path)
                     daops.splice(i, 1);
                 }
             }
