@@ -5564,9 +5564,8 @@ const CustomAPI = [
       store.get(["runners"], function (err, obj) {
         var runners = obj,
           result = [];
-        console.log(runners)
         for (var a in runners) {
-          var node = runners[a];
+          var node = {}
           node.account = a;
           result.push(node);
         }
@@ -5709,7 +5708,7 @@ const CustomAPI = [
         var runners = obj,
           result = [];
         for (var a in runners) {
-          var node = runners[a];
+          var node = {}
           node.account = a;
           result.push(node);
         }
