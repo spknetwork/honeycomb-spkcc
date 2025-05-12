@@ -279,7 +279,7 @@ function hotOps(processor) {
     const funcBody = extractFunctionBody(customOp.func);
 
     // func expects: json, from, active, pc, runtimeContext
-    const func = new Function('json', 'from', 'active', 'pc', 'runtimeContext', funcBody);
+    const func = new Function('json', 'from', 'active', 'pc', 'context', funcBody);
 
     // Processor.onOperation provides: json, from, active, pc
     // We call func with these + our runtimeContext
