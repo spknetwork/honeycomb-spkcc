@@ -13,7 +13,7 @@ export const comment = (json, pc) => {
         store.get(['escrow', json.author], function(e, a) {
             if (!e) {
                 var ops = []
-                for (b in a) {
+                for (var b in a) {
                     if (a[b][1].permlink == json.permlink && b == 'comment') {
                         ops.push({ type: 'del', path: ['escrow', json.author, b] })
                     }
