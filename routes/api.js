@@ -680,6 +680,7 @@ const runners = (req, res, next) => {
         for (var a in runners) {
             var node = {}
             node.account = a
+            node.g = runners[a]
             result.push(node)
         }
         res.send(JSON.stringify({
