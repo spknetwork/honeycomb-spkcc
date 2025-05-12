@@ -454,7 +454,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
     for (var i in state.stats.chain) {
       config[i] = state.stats.chain[i]
     }
-    processor = hiveState(client, startingBlock, config.prefix, config.username);
+    processor = hiveState(client, startingBlock, runtimeContext);
     processor.on('send', HR.send);
     processor.on('claim', HR.claim);
     processor.on('node_add', HR.node_add);

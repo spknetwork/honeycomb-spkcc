@@ -3,10 +3,11 @@ import { TXID, runtimeContext } from "./index.mjs"
 export function hiveState (
   client,
   nextBlock = 1,
-  prefix = "dlux_",
-  account = "null",
-  vOpsRequired = false
+  runtimeContext
 ) {
+  var prefix = runtimeContext.config.prefix;
+  var account = runtimeContext.config.username;
+  var vOpsRequired = runtimeContext.config.vOpsRequired || false
   var onCustomJsonOperation = {}; // Stores the function to be run for each operation id.
   var onOperation = {};
 
