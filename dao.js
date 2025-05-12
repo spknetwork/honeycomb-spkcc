@@ -66,7 +66,6 @@ export function dao(num) {
                 paidCleaner = v[13],
                 rnftsCleaner = v[14],
                 dist = v[15]
-            console.log({stats})
             for(var i = 0; i < dist.length;i++){
                 if(dist[i][0].split('div:')[1]){
                     addMT(['div', dist[i][0].split('div:')[1], 'b'], dist[i][1] )
@@ -478,9 +477,6 @@ export function dao(num) {
                 data: stringify(["account_update", up_op]),
               });
             }
-            console.log({stats})
-            //{ daoRate: 2500, movingWeight: { dailyPool: 66259896 } }
-
             daops.push({ type: 'put', path: ['dex'], data: dex });
             daops.push({ type: 'put', path: ['stats'], data: stats });
             daops.push({ type: 'put', path: ['balances'], data: bals });
@@ -499,6 +495,7 @@ export function dao(num) {
                     daops.push({ type: 'del', path: ['balances', bali] });
                 }
             }
+            console.log({daops})
             store.batch(daops, [resolve, reject, num]);
         });
     });
