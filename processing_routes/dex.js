@@ -1671,7 +1671,6 @@ export const transfer = (json, pc) => {
       store.batch(ops, pc);
     });
   } else {
-    console.log('Else continue')
     pc[0](pc[2]);
   }
 };
