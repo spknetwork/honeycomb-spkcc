@@ -92,6 +92,7 @@ Pathwise.prototype.get = function(path, fn) {
         if (err) return fn(err);
         let er = null
         try {
+            console.log(data)
             data.forEach(function(kv) {
                 var segs = kv.key.slice(path.length);
                 if (segs.length) {
@@ -110,7 +111,7 @@ Pathwise.prototype.get = function(path, fn) {
                     ret = kv.value;
                 }
             });
-        } catch (err) { er = err; data }
+        } catch (err) { er = err }
         fn(er, ret);
     });
 };
