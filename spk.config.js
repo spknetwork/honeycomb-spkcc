@@ -7586,6 +7586,7 @@ const CustomChron = [
       }
       function extend(json, from, active, pc, contextD) {
         const { store, getPathObj, postToDiscord, config, getPathNum, chronAssign } = contextD
+        console.log('extend')
         if (json.broca && json.id && json.file_owner) {
           var Pbroca = getPathObj(["broca", from]);
           var Ppow = getPathNum(["bpow", from])
@@ -7706,7 +7707,7 @@ const CustomChron = [
         return new Promise((resolve, reject) => {
           Promise.all(promies)
             .then((mem) => {
-              //console.log(delkey)
+              console.log(delkey)
               let contract = mem[0],
                 stats = mem[1],
                 ops = [],
@@ -7722,6 +7723,7 @@ const CustomChron = [
                   transaction_id: `v_op_${contract.t}_autoExtend_${contract.i}`
                 }, contract.t, true, [resolve, reject, 0], context)
               } else {
+                console.log('contract_close else')
                 if (contract.df) {
                   var items = Object.keys(contract.df)//goods
                   for (var i = 0; i < items.length; i++) {
