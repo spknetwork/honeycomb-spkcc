@@ -686,7 +686,7 @@ const runners = (req, res, next) => {
             result,
             runners,
             latest: [
-                {api: "https://token.dlux.io"}
+                {api: Config("domain")}
             ],
             node: Config("username"),
             behind: RAM.behind,

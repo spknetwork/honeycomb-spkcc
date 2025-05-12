@@ -5574,7 +5574,7 @@ const CustomAPI = [
             {
               result,
               runners,
-              latest: [{ api: "https://spkinstant.hivehoneycomb.com" }],
+              latest: [{ api: `${config.domain}/spk` }],
               node: config.username,
               head_block: RAM.head,
               behind: RAM.behind,
@@ -5717,7 +5717,7 @@ const CustomAPI = [
             {
               result,
               runners,
-              latest: [{ api: "https://spkinstant.hivehoneycomb.com" }],
+              latest: [{ api: `${config.domain}/broca` }],
               node: config.username,
               head_block: RAM.head,
               behind: RAM.behind,
