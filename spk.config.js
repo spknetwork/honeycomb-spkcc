@@ -5568,6 +5568,9 @@ const CustomAPI = [
         for (var a in runners) {
           var node = {}
           node.account = a;
+          node.g = runners[a].g || 1
+            node.api = runners[a].api || ""
+            node.l = runners[a].l || 100
           result.push(node);
         }
         res.send(
@@ -5711,6 +5714,9 @@ const CustomAPI = [
         for (var a in runners) {
           var node = {}
           node.account = a;
+          node.g = runners[a].g || 1
+            node.api = runners[a].api || ""
+            node.l = runners[a].l || 100
           result.push(node);
         }
         res.send(
