@@ -798,7 +798,7 @@ const protocol = (req, res, next) => {
             token: Config("TOKEN"),
             precision: Config("precision"),
             memoKey: Config("msPubMemo"),
-            features: Config("features").Model,
+            features: Config("featuresModel"),
             behind: RAM.behind,
             head_block: RAM.head,
             info: '/markets will return node information and published APIs for the consensus nodes, you may check these other APIs to ensure that the information in the API is in consensus.\nThe prefix is used to address this tokens architecture built on Hive.',
