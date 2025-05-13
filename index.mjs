@@ -369,8 +369,8 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
   //HIVE API CODE
 
   //Start Program Options   
-  //dynStart()
-  startWith("Qmd3gnX9eisXh2CsGiGTJFy59n4dqPq9tAfcUcb2M2Tkrz", true);
+  dynStart()
+  //startWith("Qmd3gnX9eisXh2CsGiGTJFy59n4dqPq9tAfcUcb2M2Tkrz", true);
 
   // API defs
   api.use((req, res, next) => {
