@@ -1899,6 +1899,20 @@ const CustomJsonProcessing = [
             const sortedCids = Object.keys(contract.df).sort()
             const metadataFields = contract.m.split(',')
             const expectedFieldCount = 4 * sortedCids.length + 1
+            // pull thumbnails and delete them as well
+            const thumbUsage = new Map();
+            for (const cid of cids) {
+              const index = sortedCids.indexOf(cid);
+              if (index !== -1) {
+                const thumbCID = metadataFields[1 + 4 * index + 3];
+                thumbUsage.set(thumbCID, (thumbUsage.get(thumbCID) || 0) + 1);
+              }
+            }
+            for (const [thumbCID, usage] of thumbUsage.entries()) {
+              if (usage === metadataFields.filter(field => field.includes(thumbCID)).length) {
+                cids.push(thumbCID);
+              }
+            }
             for (const cid of cids) {
               if (contract.df[cid]) {
                 const bytes = contract.df[cid]
