@@ -7849,6 +7849,8 @@ const featuresModel = {
   rewards: {
     id: 'claim',
     msg: 'Claiming LARYNX rewards',
+    addr: 'claim',
+    fa_class: 'fas fa-money-bill-wave', //font awesome tags
     auth: 'posting',
     type: "move",
     string: 'Reward ',
@@ -7866,6 +7868,8 @@ const featuresModel = {
     string: 'Send',
     B: true,
     msg: 'Sending LARYNX',
+    addr: 'balance',
+    fa_class: 'fas fa-paper-plane', //font awesome tags
     auth: 'active',
     type: "move",
     json: {
@@ -7892,6 +7896,8 @@ const featuresModel = {
     string: 'Power Up',
     B: true,
     msg: 'Powering LARYNX',
+    addr: 'balance',
+    fa_class: 'fas fa-angle-double-up', //font awesome tags
     auth: 'active',
     type: "move",
     json: {
@@ -7905,6 +7911,8 @@ const featuresModel = {
   powdn: {
     id: 'power_down',
     msg: 'Powering Down LARYNX',
+    addr: 'poweredUp',
+    fa_class: 'fas fa-angle-double-down', //font awesome tags
     auth: 'active',
     type: "move",
     string: 'Power Down',
@@ -7920,6 +7928,8 @@ const featuresModel = {
   powdel: {
     id: "power_grant",
     msg: 'Granting LARYNX',
+    addr: 'poweredUp',
+    fa_class: 'fas fa-user-friends', //font awesome tags
     auth: 'active',
     type: "move",
     string: "Grant",
@@ -7940,6 +7950,10 @@ const featuresModel = {
   },
   node: {
     id: 'node_add',
+    msg: 'Updating Node',
+    addr: 'spk_power',
+    fa_class: 'fas fa-server', //font awesome tags
+    auth: 'active',
     opts: [{
       S: 'Domain',
       type: 'text',
@@ -7981,6 +7995,8 @@ const featuresModelSpk = {
   rewards: {
     id: 'claim',
     msg: 'Claiming SPK rewards',
+    addr: 'claim',
+    fa_class: 'fas fa-money-bill-wave', //font awesome tags
     auth: 'posting',
     type: "move",
     string: 'Reward ',
@@ -7998,6 +8014,8 @@ const featuresModelSpk = {
     string: 'Send',
     B: true,
     msg: 'Sending SPK',
+    addr: 'balance',
+    fa_class: 'fas fa-paper-plane', //font awesome tags
     auth: 'active',
     type: "move",
     json: {
@@ -8024,6 +8042,8 @@ const featuresModelSpk = {
     string: 'Power Up',
     B: true,
     msg: 'Powering SPK',
+    addr: 'balance',
+    fa_class: 'fas fa-angle-double-up', //font awesome tags
     auth: 'active',
     type: "move",
     json: {
@@ -8037,6 +8057,8 @@ const featuresModelSpk = {
   powdn: {
     id: 'power_down',
     msg: 'Powering Down SPK',
+    addr: 'poweredUp',
+    fa_class: 'fas fa-angle-double-down', //font awesome tags
     auth: 'active',
     type: "move",
     string: 'Power Down',
@@ -8054,6 +8076,8 @@ const featuresModelBroca = {
   rewards: {
     id: 'claim',
     msg: 'Claiming BROCA rewards',
+    addr: 'claim',
+    fa_class: 'fas fa-money-bill-wave', //font awesome tags
     auth: 'posting',
     type: "move",
     string: 'Reward ',
@@ -8071,6 +8095,8 @@ const featuresModelBroca = {
     string: 'Send',
     B: true,
     msg: 'Sending BROCA',
+    addr: 'balance',
+    fa_class: 'fas fa-paper-plane', //font awesome tags
     auth: 'active',
     type: "move",
     json: {
@@ -8097,6 +8123,8 @@ const featuresModelBroca = {
     string: 'Power Up',
     B: true,
     msg: 'Powering BROCA',
+    addr: 'balance',
+    fa_class: 'fas fa-angle-double-up', //font awesome tags
     auth: 'active',
     type: "move",
     json: {
@@ -8110,6 +8138,8 @@ const featuresModelBroca = {
   powdn: {
     id: 'power_down',
     msg: 'Powering Down BROCA',
+    addr: 'poweredUp',
+    fa_class: 'fas fa-angle-double-down', //font awesome tags
     auth: 'active',
     type: "move",
     string: 'Power Down',

@@ -451,8 +451,8 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
       if (err) { }
       if (res) plasma.id = res.id
     })
-    for (var i in state.stats.chain) {
-      config[i] = state.stats.chain[i]
+    for (var i in state.chain) {
+      config[i] = state.chain[i]
     }
     processor = hiveState(client, startingBlock, runtimeContext);
     processor.on('send', HR.send);
@@ -534,7 +534,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
 
         Chron.scEndOp(b, passed.delKey)
           .then((x) => {
-            if (x.newConfig) hotConfig(x.newConfig, null, api, chronOps, processor)
+            if (x.newConfig) configSet(x.newConfig, null, api, chronOps, processor)
             res(x)
           });
       },
@@ -975,8 +975,10 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                   if (!e && (second || data[0] > API.RAM.head - 325)) {
                     if (hash) {
                       var cleanState = data[1];
-
-                      if (!cleanState.stats.chain) cleanState.stats.chain = {
+                      if (cleanState.stats.chain){
+                        cleanState.chain = cleanState.stats.chain
+                        delete cleanState.stats.chain
+                      } else if (!cleanState.chain) cleanState.chain = {
                         starting_block: config.starting_block,
                         prefix: config.prefix,
                         TOKEN: config.TOKEN,
@@ -1179,7 +1181,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
 
   function hotConfig(newConfig, cleanState, api, chronOps, processor) {
     if (!cleanState || !cleanState.stats) return
-    if (!newConfig) newConfig = cleanState.stats.chain
+    if (!newConfig) newConfig = cleanState.chain
     for (var n in newConfig) {
       config[n] = newConfig[n]
     }

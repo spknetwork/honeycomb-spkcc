@@ -7,9 +7,8 @@ import { insertNewPost, updateRating, moderate } from './../edb.js'
 export const comment = (json, pc) => {
     let meta = {}
     try { meta = JSON.parse(json.json_metadata) } catch (e) {}
-    let community_post = false
     if (json.author == Config("leader") && parseInt(json.permlink.split(Config("tag"))[1]) > json.block_num - 31000) {
-        //console.log('leader post')
+        console.log('leader post')
         store.get(['escrow', json.author], function(e, a) {
             if (!e) {
                 var ops = []
