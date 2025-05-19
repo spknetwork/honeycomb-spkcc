@@ -368,9 +368,10 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
 
   //HIVE API CODE
 
-  //Start Program Options   
+  //Start Program Options
+  var dyn = false   
   dynStart()
-  //startWith("Qmd3gnX9eisXh2CsGiGTJFy59n4dqPq9tAfcUcb2M2Tkrz", true);
+  //startWith("QmbE7LNURB3BCf6Ma5NdpURn5pLavJVoxAPfosqqbZwADX", true, true);
 
   // API defs
   api.use((req, res, next) => {
@@ -388,6 +389,9 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
   api.get("/feed/:from", API.feed);
   api.get('/runners', API.runners); //list of accounts that determine consensus... will also be the multi-sig accounts
   api.get('/queue', API.queue);
+  api.get('/scp/:id', API.scp_handler); // smart contract pending
+  api.get('/scp', API.scp_handler); // Handles requests without an ID
+  api.get('/sca', API.sca_handler); // smart contract active / chain data
   api.get('/api/protocol', API.protocol);
   api.get('/api/status/:txid', API.tx_status);
   if (config.features.dex) {
@@ -458,10 +462,14 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
     processor.on('send', HR.send);
     processor.on('claim', HR.claim);
     processor.on('node_add', HR.node_add);
+
     //processor.on('node_delete', HR.node_delete);
     processor.on('report', HR.report);
     processor.on('gov_down', HR.gov_down);
     processor.on('gov_up', HR.gov_up);
+    processor.on('scp_add', HR.scp_add);
+    processor.on('scp_del', HR.scp_del);
+    processor.on('scp_vote', HR.scp_vote);
     processor.onOperation('account_update', HR.account_update);
     processor.onOperation('comment', HR.comment);
     processor.on('queueForDaily', HR.q4d)
@@ -531,11 +539,13 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
           .then((x) => res(x));
       },
       sc_end: function (b, passed, res, rej, num, prand, ints, bh) {
-
-        Chron.scEndOp(b, passed.delKey)
+        const PpendSC = getPathObj(['scp', b.txid])
+        const Pchain = getPathObj(['chain'])
+        const Pstats = getPathObj(['stats'])
+        Chron.scEndOp([PpendSC, Pchain, Pstats], b, passed, res, rej, num, prand, ints)
           .then((x) => {
-            if (x.newConfig) configSet(x.newConfig, null, api, chronOps, processor)
-            res(x)
+            if (x.newChain) configSet(x.newChain, null, api, chronOps, processor)
+            store.batch([{ type: 'del', path: ['chain']}, { type: 'del', path: ['chrono', passed.delKey] },{ type: 'del', path: ['scp', b.txid] }, { type: 'put', path: ['chain'], data: x.newChain }], [res, rej, 'info'])
           });
       },
       power_down: function (b, passed, res, rej, num, prand, ints) {
@@ -903,6 +913,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
   //pulls the latest activity of an account to find the last state put in by an account to dynamically start the node. 
   //this will include other accounts that are in the node network and the consensus state will be found if this is the wrong chain
   function dynStart() {
+    dyn = true
     API.start();
     Hive.getOwners(config.msaccount).then((oa) => {
       console.log("Starting URL: ", config.startURL);
@@ -1008,7 +1019,8 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                         CustomJsonProcessing: config.CustomJsonProcessing,
                         CustomOperationsProcessing: config.CustomOperationsProcessing,
                         CustomChron: config.CustomChron
-                      };
+                      }
+                      if(!dyn)delete cleanState.chain //testing things
 
                       store.put([], cleanState, function (err) {
                         if (err) {

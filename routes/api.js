@@ -49,6 +49,58 @@ const pairs = (req, res, next) => {
     res.send(JSON.stringify(pairs, null, 3))
 }
 
+const scp_handler = async (req, res, next) => {
+    res.setHeader('Content-Type', 'application/json');
+    const id = req.params.id ? decodeURIcomponent(req.params.id) : undefined;
+    const path = id ? ['scp', id] : ['scp'];
+    try {
+        const [data, stats] = await Promise.all([
+            getPathObj(path),
+            getPathObj(['stats'])
+        ]);
+        res.send(JSON.stringify({
+            result: data,
+            stats: stats,
+            node: Config("username"),
+            VERSION,
+            behind: RAM.behind,
+            realtime: stats?.realtime 
+        }, null, 3));
+    } catch (error) {
+        console.error(`Error in /scp${id ? '/:id' : ''} handler:`, error);
+        res.status(500).send(JSON.stringify({
+            error: "Failed to fetch SCP data",
+            node: Config("username"),
+            VERSION
+        }, null, 3));
+    }
+};
+
+const sca_handler = async (req, res, next) => {
+    res.setHeader('Content-Type', 'application/json');
+    try {
+        const [chainData, stats] = await Promise.all([
+            getPathObj(['chain']),
+            getPathObj(['stats'])
+        ]);
+        res.send(JSON.stringify({
+            result: chainData,
+            stats: stats,
+            node: Config("username"),
+            VERSION,
+            behind: RAM.behind,
+            realtime: stats?.realtime
+        }, null, 3));
+    } catch (error) {
+        console.error("Error in /sca handler:", error);
+        res.status(500).send(JSON.stringify({
+            error: "Failed to fetch chain data",
+            node: Config("username"),
+            VERSION
+        }, null, 3));
+    }
+};
+
 const tickers = (req, res, next) => {
     var dex = getPathObj(['dex'])
     var stats = getPathObj(['stats'])
@@ -2123,5 +2175,7 @@ export const API = {
     getwrap,
     getpic,
     getblog,
-    RAM
+    RAM,
+    scp_handler,
+    sca_handler
 }

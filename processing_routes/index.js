@@ -1,6 +1,7 @@
 import { onStreamingStart } from './onStreamingStart.js'
 import { send, claim } from './send.js'
 import { gov_up, gov_down } from './gov.js'
+import { scp_add, scp_del, scp_vote } from './scp.js'
 import { power_up, power_down, power_grant } from './power.js'
 import { delegate_vesting_shares } from './delegate_vesting_shares.js'
 import { vote } from './vote.js'
@@ -97,5 +98,8 @@ export const HR = {
     sig_submit,
     osig_submit,
     transfer,
-    vote
+    vote,
+    scp_add,
+    scp_del,
+    scp_vote,
 }
