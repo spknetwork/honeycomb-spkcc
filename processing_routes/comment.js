@@ -14,7 +14,7 @@ export const comment = (json, pc) => {
                 var ops = []
                 for (var b in a) {
                     if (a[b][1].permlink == json.permlink && b == 'comment') {
-                        ops.push({ type: 'del', path: ['escrow', json.author, b] })
+                        ops.push({ type: 'del', path: ['escrow', json.author] })
                     }
                 }
                 if (process.env.npm_lifecycle_event == 'test') pc[2] = ops

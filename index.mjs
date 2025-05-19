@@ -1,4 +1,4 @@
-export const VERSION = 'v1.5.0-t1'
+export const VERSION = 'v1.5.0-t2'
 import { config } from './config.js';
 export function Config(param) {
   return config[param]
@@ -370,8 +370,8 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
 
   //Start Program Options
   var dyn = false   
-  //dynStart()
-  startWith("QmbE7LNURB3BCf6Ma5NdpURn5pLavJVoxAPfosqqbZwADX", true, true);
+  dynStart()
+  //startWith("QmbE7LNURB3BCf6Ma5NdpURn5pLavJVoxAPfosqqbZwADX", true, true);
 
   // API defs
   api.use((req, res, next) => {
