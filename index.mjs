@@ -370,8 +370,8 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
 
   //Start Program Options
   var dyn = false   
-  dynStart()
-  //startWith("QmbE7LNURB3BCf6Ma5NdpURn5pLavJVoxAPfosqqbZwADX", true, true);
+  //dynStart()
+  startWith("QmbE7LNURB3BCf6Ma5NdpURn5pLavJVoxAPfosqqbZwADX", true, true);
 
   // API defs
   api.use((req, res, next) => {
@@ -1347,7 +1347,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
         if (r < 2) {
           console.log("Retrying IPFS Save");
           setTimeout(() => {
-            issc(n, b, i, r++, a);
+            issc(n, b, i, r + 1, a);
           }, 1000);
         } else {
           process.exit(66 + plasma.hashLastIBlock);
