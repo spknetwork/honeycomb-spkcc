@@ -1323,7 +1323,8 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
     ipfsSaveState(n, b, i, r, a)
       .then((pla) => {
         TXID.saveNumber = pla.hashBlock;
-        block.chain.push({ hash: pla.hashLastIBlock, hive_block: n - a });
+        if(Array.isArray(block.chain))block.chain.push({ hash: pla.hashLastIBlock, hive_block: n - a })
+        else block.chain = [{ hash: pla.hashLastIBlock, hive_block: n - a }]
         plasma.hashSecIBlock = plasma.hashLastIBlock;
         plasma.hashLastIBlock = pla.hashLastIBlock;
         plasma.hashBlock = pla.hashBlock;
