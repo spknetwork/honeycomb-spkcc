@@ -13,16 +13,8 @@ export const comment = (json, pc) => {
             if (!e) {
                 var ops = []
                 for (var b in a) {
-                    if (b == 'comment') {
-                        try {
-                            const commentDataString = a[b][1];
-                            const parsedCommentData = JSON.parse(commentDataString);
-                            if (parsedCommentData && parsedCommentData[1] && parsedCommentData[1].permlink == json.permlink) {
-                                ops.push({ type: 'del', path: ['escrow', json.author] });
-                            }
-                        } catch (parseError) {
-                            console.error('Error parsing comment data from escrow:', parseError, a[b][1]);
-                        }
+                    if (b == 'comment' && a[b].indexOf(json.permlink) > -1) {
+                      ops.push({ type: 'del', path: ['escrow', json.author] });
                     }
                 }
                 if (process.env.npm_lifecycle_event == 'test') pc[2] = ops
