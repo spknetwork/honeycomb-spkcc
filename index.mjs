@@ -1344,8 +1344,8 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
         }
       })
       .catch((e) => {
-        if (r < 2) {
-          console.log("Retrying IPFS Save");
+        if (r < 10) {
+          console.log("Retrying IPFS Save", e);
           setTimeout(() => {
             issc(n, b, i, r + 1, a);
           }, 1000);
