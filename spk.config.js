@@ -4706,7 +4706,7 @@ const CustomOperationsProcessing = [
                     const txid =
                       config.TOKEN + hashThis(json.from + json.transaction_id),
                       crate = parseFloat(order.rate) > 0 ? order.rate : dex.tick,
-                      govRateTick = (govTick / tick) * tick,
+                      govRateTick = (govTick / dex.tick) * dex.tick,
                       toRefund = order.type == "MARKET" ? 0 : maxAllowed(stats, govRateTick, remaining, crate)
                     remaining = remaining - toRefund;
                     //console.log({ toRefund, remaining });
