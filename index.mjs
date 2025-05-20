@@ -1020,7 +1020,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                         CustomOperationsProcessing: config.CustomOperationsProcessing,
                         CustomChron: config.CustomChron
                       }
-                      if(!dyn)delete cleanState.chain //testing things
+                      //if(!dyn)delete cleanState.chain //testing things
 
                       store.put([], cleanState, function (err) {
                         if (err) {
