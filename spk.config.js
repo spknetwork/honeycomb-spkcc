@@ -4693,7 +4693,14 @@ const CustomOperationsProcessing = [
                       store.batch(ops, pc);
                     }
                   } else {
-                    //console.log("Building contract");
+                    function maxAllowed(stats, tick, remaining, crate) {
+                      const max =
+                        stats.safetyLimit *
+                        tick *
+                        (1 - (crate < tick ? crate / tick : 0) * (stats.dex_slope / 100)) *
+                        (stats.dex_max / 100);
+                      return max > remaining ? 0 : parseInt(remaining - max);
+                    }
                     const txid =
                       config.TOKEN + hashThis(json.from + json.transaction_id),
                       crate = parseFloat(order.rate) > 0 ? order.rate : dex.tick,
