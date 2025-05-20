@@ -1537,7 +1537,7 @@ const CustomJsonProcessing = [
     type: "on",
     op: "update_metadata",
     func: function (json, from, active, pc, context) {
-      const { store, config, getPathObj, postToDiscord, Base58 } = context
+      const { store, config, getPathObj, postToDiscord, Base58, Base64 } = context
       function isValidMetadata(metadataString) {
         let metaData = metadataString.split(',')
         const contractData = metaData[0]

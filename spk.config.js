@@ -4344,12 +4344,14 @@ const CustomOperationsProcessing = [
             let pDEX = getPathObj([`dex${order.token == 'SPK' ? 's' : (order.token == 'BROCA' ? 'b' : '')}}`, order.pair]),
               pBal = getPathNum([order.token == 'SPK' ? 'spk' : 'balances', json.from]),
               pInv = getPathNum(["balances", "ri"]),
-              pStats = getPathObj(["stats"]);
-            Promise.all([pDEX, pBal, pInv, pStats]).then((mem) => {
+              pStats = getPathObj(["stats"]),
+              PgovTick = getPathObj(["dexs", "hive", "tick"]);
+            Promise.all([pDEX, pBal, pInv, pStats, PgovTick]).then((mem) => {
               let dex = mem[0],
                 bal = mem[1],
                 inv = mem[2],
                 stats = mem[3],
+                govTick = mem[4],
                 filled = 0,
                 remaining = order.amount,
                 ops = [],
@@ -4704,7 +4706,8 @@ const CustomOperationsProcessing = [
                     const txid =
                       config.TOKEN + hashThis(json.from + json.transaction_id),
                       crate = parseFloat(order.rate) > 0 ? order.rate : dex.tick,
-                      toRefund = maxAllowed(stats, dex.tick, remaining, crate);
+                      govRateTick = (govTick / tick) * tick,
+                      toRefund = order.type == "MARKET" ? 0 : maxAllowed(stats, govRateTick, remaining, crate)
                     remaining = remaining - toRefund;
                     //console.log({ toRefund, remaining });
                     const hours = 720,
@@ -7874,14 +7877,9 @@ const featuresModel = {
     fa_class: 'fas fa-money-bill-wave', //font awesome tags
     auth: 'posting',
     type: "move",
-    string: 'Reward ',
+    string: 'Claim',
     B: true,
     json: {
-      gov: {
-        type: "B",
-        string: "Lock to Governance",
-        req: false
-      }
     },
   },
   send: {
@@ -7975,41 +7973,35 @@ const featuresModel = {
     addr: 'spk_power',
     fa_class: 'fas fa-server', //font awesome tags
     auth: 'active',
-    opts: [{
-      S: 'Domain',
-      type: 'text',
-      info: 'https://no-trailing-slash.com',
-      json: 'domain',
-      val: ''
+    string: "Update",
+    json: {
+      domain: {
+        type: "S",
+        string: "Domain",
+        req: true
+      },
+      bidRate: {
+        type: "I",
+        string: "DEX Fee Vote",
+        req: false
+      },
+      dm: {
+        type: "I",
+        string: "DEX Max Vote",
+        req: false,
+        max: 10000,
+        min: 0,
+        step: 1
+      },
+      ds: {
+        type: "I",
+        string: "DEX Slope Vote",
+        req: false,
+        max: 10000,
+        min: 0,
+        step: 1
+      }
     },
-    {
-      S: 'DEX Fee Vote',
-      type: 'number',
-      info: '500 = .5%',
-      max: 1000,
-      min: 0,
-      json: 'bidRate',
-      val: ''
-    },
-    {
-      S: 'DEX Max Vote',
-      type: 'number',
-      info: '10000 = 100%',
-      max: 10000,
-      min: 0,
-      json: 'dm',
-      val: ''
-    },
-    {
-      S: 'DEX Slope Vote',
-      type: 'number',
-      info: '10000 = 100%',
-      max: 10000,
-      min: 0,
-      json: 'ds',
-      val: ''
-    }
-    ],
   }
 }
 const featuresModelSpk = {
@@ -8020,14 +8012,9 @@ const featuresModelSpk = {
     fa_class: 'fas fa-money-bill-wave', //font awesome tags
     auth: 'posting',
     type: "move",
-    string: 'Reward ',
+    string: 'Claim',
     B: true,
     json: {
-      gov: {
-        type: "B",
-        string: "Lock to Governance",
-        req: false
-      }
     },
   },
   send: {
@@ -8101,14 +8088,9 @@ const featuresModelBroca = {
     fa_class: 'fas fa-money-bill-wave', //font awesome tags
     auth: 'posting',
     type: "move",
-    string: 'Reward ',
+    string: 'Claim ',
     B: true,
     json: {
-      gov: {
-        type: "B",
-        string: "Lock to Governance",
-        req: false
-      }
     },
   },
   send: {

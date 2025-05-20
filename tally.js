@@ -240,7 +240,7 @@ export const tally = (num, plasma, isStreaming) => {
                             if (i > collateral.length / 2) highest_low_sum += collateral[i];
                         }
                         stats.multiSigCollateral = MultiSigCollateral;
-                        stats.safetyLimit = highest_low_sum;
+                        stats.safetyLimit = highest_low_sum < 1000 ? 1000 : highest_low_sum;
                         stats.hashLastIBlock = stats.lastBlock;
                         stats.lastBlock = consensus;
                         for (var node in nodes) {
