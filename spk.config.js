@@ -4358,6 +4358,8 @@ const CustomOperationsProcessing = [
                 his = {},
                 fee = 0,
                 i = 0;
+              if(!dex.tick)dex.tick = 1
+              if(!govTick)govTick = 1
               if (typeof order.rate != "string") order.rate = dex.tick;
               if (order.token == 'SPK') stats.multiSigCollateralValue = parseInt(stats.multiSigCollateral * dex.tick)
               stats.MSHeld[json.amount.nai == "@@000000021" ? "HIVE" : "HBD"] +=
