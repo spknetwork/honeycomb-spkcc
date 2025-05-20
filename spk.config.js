@@ -397,7 +397,7 @@ const CustomJsonProcessing = [
             }
             Promise.all(assigns).then((a) => {
               var newdowns = {};
-              for (d in a) {
+              for (var d in a) {
                 newdowns[a[d]] = a[d];
               }
               ops.push({
@@ -405,7 +405,7 @@ const CustomJsonProcessing = [
                 path: ["spowd", from],
               });
               ops.push({ type: "put", path: ["spowd", from], data: newdowns });
-              for (i in downs) {
+              for (var i in downs) {
                 ops.push({ type: "del", path: ["chrono", i] });
               }
               const msg = `@${from}| Powering down ${parseFloat(
@@ -421,7 +421,7 @@ const CustomJsonProcessing = [
               store.batch(ops, pc);
             });
           } else if (typeof amount == "number" && amount == 0 && active) {
-            for (i in downs) {
+            for (var i in downs) {
               ops.push({ type: "del", path: ["chrono", downs[i]] });
             }
             const msg = `@${from}| Canceled SPK Power Down`;
@@ -560,7 +560,7 @@ const CustomJsonProcessing = [
             }
             Promise.all(assigns).then((a) => {
               var newdowns = {};
-              for (d in a) {
+              for (var d in a) {
                 newdowns[a[d]] = a[d];
               }
               ops.push({
@@ -568,7 +568,7 @@ const CustomJsonProcessing = [
                 path: ["bpowd", from],
               });
               ops.push({ type: "put", path: ["bpowd", from], data: newdowns });
-              for (i in downs) {
+              for (var i in downs) {
                 ops.push({ type: "del", path: ["chrono", i] });
               }
               const msg = `@${from}| Powering down ${parseFloat(
@@ -584,7 +584,7 @@ const CustomJsonProcessing = [
               store.batch(ops, pc);
             });
           } else if (typeof amount == "number" && amount == 0 && active) {
-            for (i in downs) {
+            for (var i in downs) {
               ops.push({ type: "del", path: ["chrono", downs[i]] });
             }
             const msg = `@${from}| Canceled BROCA Power Down`;
@@ -642,7 +642,7 @@ const CustomJsonProcessing = [
           if (stats.validators?.[from]) {
             aValidator = true
             var powerVoted = 0
-            for (block of stats.power_voted) {
+            for (var block of stats.power_voted) {
               powerVoted += stats.power_voted[block]
             }
             power = (total - powerVoted) / parseInt(stats.validators) //or number of validators
@@ -2194,7 +2194,7 @@ const CustomJsonProcessing = [
               var msg = `@${from} Removed|`
               var dec = false
               var j
-              for (j = 1; j < keys.length + 1; j++) {
+              for (var j = 1; j < keys.length + 1; j++) {
                 if (dec) {
                   contract.n[`${Base64.fromNumber(j - 1)}`] = contract.n[`${Base64.fromNumber(j)}`]
                   delete contract.n[`${Base64.fromNumber(j)}`]
@@ -2976,7 +2976,7 @@ const CustomJsonProcessing = [
         // else {
         //     q = json.txid
         // } //book string collision
-        for (i = 0; i < q.length; i++) {
+        for (var i = 0; i < q.length; i++) {
           store.get(["contracts", from, q[i]], function (e, a) {
             if (!e) {
               var b = a;
@@ -3493,7 +3493,7 @@ const CustomJsonProcessing = [
         // else {
         //     q = json.txid
         // } //book string collision
-        for (i = 0; i < q.length; i++) {
+        for (var i = 0; i < q.length; i++) {
           store.get(["contracts", from, q[i]], function (e, a) {
             if (!e) {
               var b = a;
@@ -4889,7 +4889,7 @@ const CustomOperationsProcessing = [
             if (!e && !isEmpty(a)) {
               let auth = true,
                 terms = Object.keys(a[1]);
-              for (i = 0; i < terms.length; i++) {
+              for (var i = 0; i < terms.length; i++) {
                 if (json[terms[i]] !== a[1][terms[i]]) {
                   auth = false;
                 }
@@ -5912,7 +5912,7 @@ const CustomAPI = [
           markets.hive.buys = [];
           markets.hbd.sells = [];
           markets.hbd.buys = [];
-          for (item in v[0].hive.sellOrders) {
+          for (var item in v[0].hive.sellOrders) {
             markets.hive.sellOrders[item].key = item;
             var order = {};
             for (let key in markets.hive.sellOrders[item]) {
@@ -5940,7 +5940,7 @@ const CustomAPI = [
             };
             markets.hive.sells.push(order);
           }
-          for (item in v[0].hive.buyOrders) {
+          for (var item in v[0].hive.buyOrders) {
             markets.hive.buyOrders[item].key = item;
             var order = {};
             for (let key in markets.hive.buyOrders[item]) {
@@ -5968,7 +5968,7 @@ const CustomAPI = [
             };
             markets.hive.buys.push(order);
           }
-          for (item in v[0].hbd.sellOrders) {
+          for (var item in v[0].hbd.sellOrders) {
             markets.hbd.sellOrders[item].key = item;
             var order = {};
             for (let key in markets.hbd.sellOrders[item]) {
@@ -5996,7 +5996,7 @@ const CustomAPI = [
             };
             markets.hbd.sells.push(order);
           }
-          for (item in v[0].hbd.buyOrders) {
+          for (var item in v[0].hbd.buyOrders) {
             markets.hbd.buyOrders[item].key = item;
             var order = {};
             for (let key in markets.hbd.buyOrders[item]) {
@@ -6066,7 +6066,7 @@ const CustomAPI = [
           markets.hive.buys = [];
           markets.hbd.sells = [];
           markets.hbd.buys = [];
-          for (item in v[0].hive.sellOrders) {
+          for (var item in v[0].hive.sellOrders) {
             markets.hive.sellOrders[item].key = item;
             var order = {};
             for (let key in markets.hive.sellOrders[item]) {
@@ -6094,7 +6094,7 @@ const CustomAPI = [
             };
             markets.hive.sells.push(order);
           }
-          for (item in v[0].hive.buyOrders) {
+          for (var item in v[0].hive.buyOrders) {
             markets.hive.buyOrders[item].key = item;
             var order = {};
             for (let key in markets.hive.buyOrders[item]) {
@@ -6122,7 +6122,7 @@ const CustomAPI = [
             };
             markets.hive.buys.push(order);
           }
-          for (item in v[0].hbd.sellOrders) {
+          for (var item in v[0].hbd.sellOrders) {
             markets.hbd.sellOrders[item].key = item;
             var order = {};
             for (let key in markets.hbd.sellOrders[item]) {
@@ -6150,7 +6150,7 @@ const CustomAPI = [
             };
             markets.hbd.sells.push(order);
           }
-          for (item in v[0].hbd.buyOrders) {
+          for (var item in v[0].hbd.buyOrders) {
             markets.hbd.buyOrders[item].key = item;
             var order = {};
             for (let key in markets.hbd.buyOrders[item]) {
@@ -6230,7 +6230,7 @@ const CustomAPI = [
               ask: 999999999,
             },
           };
-          for (item in v[0].hive.his) {
+          for (var item in v[0].hive.his) {
             if (v[0].hive.his[item].block > v[1].lastIBlock - 28800) {
               // if (v[0].hive.his[item].block < hive.open){
               //     hive.open = v[0].hive.his[item].block
@@ -6251,7 +6251,7 @@ const CustomAPI = [
               ).toFixed(3);
             }
           }
-          for (item in v[0].hbd.his) {
+          for (var item in v[0].hbd.his) {
             if (v[0].hbd.his[item].block > v[1].lastIBlock - 28800) {
               if (v[0].hbd.his[item].rate < info.hbd.low) {
                 info.hbd.low = v[0].hbd.his[item].rate;
@@ -6266,22 +6266,22 @@ const CustomAPI = [
               ).toFixed(3);
             }
           }
-          for (item in v[0].hbd.sellOrders) {
+          for (var item in v[0].hbd.sellOrders) {
             if (parseFloat(v[0].hbd.sellOrders[item].rate) < info.hbd.ask) {
               info.hbd.ask = v[0].hbd.sellOrders[item].rate;
             }
           }
-          for (item in v[0].hbd.buyOrders) {
+          for (var item in v[0].hbd.buyOrders) {
             if (parseFloat(v[0].hbd.buyOrders[item].rate) > info.hbd.bid) {
               info.hbd.bid = v[0].hbd.buyOrders[item].rate;
             }
           }
-          for (item in v[0].hive.sellOrders) {
+          for (var item in v[0].hive.sellOrders) {
             if (parseFloat(v[0].hive.sellOrders[item].rate) < info.hive.ask) {
               info.hive.ask = v[0].hive.sellOrders[item].rate;
             }
           }
-          for (item in v[0].hive.buyOrders) {
+          for (var item in v[0].hive.buyOrders) {
             if (parseFloat(v[0].hive.buyOrders[item].rate) > info.hive.bid) {
               info.hive.bid = v[0].hive.buyOrders[item].rate;
             }
@@ -6344,7 +6344,7 @@ const CustomAPI = [
               ask: 999999999,
             },
           };
-          for (item in v[0].hive.his) {
+          for (var item in v[0].hive.his) {
             if (v[0].hive.his[item].block > v[1].lastIBlock - 28800) {
               // if (v[0].hive.his[item].block < hive.open){
               //     hive.open = v[0].hive.his[item].block
@@ -6365,7 +6365,7 @@ const CustomAPI = [
               ).toFixed(3);
             }
           }
-          for (item in v[0].hbd.his) {
+          for (var item in v[0].hbd.his) {
             if (v[0].hbd.his[item].block > v[1].lastIBlock - 28800) {
               if (v[0].hbd.his[item].rate < info.hbd.low) {
                 info.hbd.low = v[0].hbd.his[item].rate;
@@ -6380,22 +6380,22 @@ const CustomAPI = [
               ).toFixed(3);
             }
           }
-          for (item in v[0].hbd.sellOrders) {
+          for (var item in v[0].hbd.sellOrders) {
             if (parseFloat(v[0].hbd.sellOrders[item].rate) < info.hbd.ask) {
               info.hbd.ask = v[0].hbd.sellOrders[item].rate;
             }
           }
-          for (item in v[0].hbd.buyOrders) {
+          for (var item in v[0].hbd.buyOrders) {
             if (parseFloat(v[0].hbd.buyOrders[item].rate) > info.hbd.bid) {
               info.hbd.bid = v[0].hbd.buyOrders[item].rate;
             }
           }
-          for (item in v[0].hive.sellOrders) {
+          for (var item in v[0].hive.sellOrders) {
             if (parseFloat(v[0].hive.sellOrders[item].rate) < info.hive.ask) {
               info.hive.ask = v[0].hive.sellOrders[item].rate;
             }
           }
-          for (item in v[0].hive.buyOrders) {
+          for (var item in v[0].hive.buyOrders) {
             if (parseFloat(v[0].hive.buyOrders[item].rate) > info.hive.bid) {
               info.hive.bid = v[0].hive.buyOrders[item].rate;
             }
@@ -6476,7 +6476,7 @@ const CustomAPI = [
           .then(function (v) {
             var count1 = 0,
               count2 = 0;
-            for (item in v[0][type].sellOrders) {
+            for (var item in v[0][type].sellOrders) {
               orderbook.asks.push([
                 v[0][type].sellOrders[item].rate,
                 parseFloat(v[0][type].sellOrders[item].amount / 1000).toFixed(3),
@@ -6484,7 +6484,7 @@ const CustomAPI = [
               count1++;
               if (count1 == get) break;
             }
-            for (item in v[0][type].buyOrders) {
+            for (var item in v[0][type].buyOrders) {
               orderbook.bids.push([
                 v[0][type].buyOrders[item].rate,
                 parseFloat(v[0][type].buyOrders[item].amount / 1000).toFixed(3),
@@ -6560,7 +6560,7 @@ const CustomAPI = [
           .then(function (v) {
             var count1 = 0,
               count2 = 0;
-            for (item in v[0][type].sellOrders) {
+            for (var item in v[0][type].sellOrders) {
               orderbook.asks.push([
                 v[0][type].sellOrders[item].rate,
                 parseFloat(v[0][type].sellOrders[item].amount / 1000).toFixed(3),
@@ -6568,7 +6568,7 @@ const CustomAPI = [
               count1++;
               if (count1 == get) break;
             }
-            for (item in v[0][type].buyOrders) {
+            for (var item in v[0][type].buyOrders) {
               orderbook.bids.push([
                 v[0][type].buyOrders[item].rate,
                 parseFloat(v[0][type].buyOrders[item].amount / 1000).toFixed(3),
@@ -6644,7 +6644,7 @@ const CustomAPI = [
           .then(function (v) {
             var count1 = 0,
               count2 = 0;
-            for (item in v[0][type].sellOrders) {
+            for (var item in v[0][type].sellOrders) {
               orderbook.asks.push([
                 v[0][type].sellOrders[item].rate,
                 parseFloat(v[0][type].sellOrders[item].amount / 1000).toFixed(3),
@@ -6652,7 +6652,7 @@ const CustomAPI = [
               count1++;
               if (count1 == get) break;
             }
-            for (item in v[0][type].buyOrders) {
+            for (var item in v[0][type].buyOrders) {
               orderbook.bids.push([
                 v[0][type].buyOrders[item].rate,
                 parseFloat(v[0][type].buyOrders[item].amount / 1000).toFixed(3),
@@ -6728,7 +6728,7 @@ const CustomAPI = [
           .then(function (v) {
             var count1 = 0,
               count2 = 0;
-            for (item in v[0][type].sellOrders) {
+            for (var item in v[0][type].sellOrders) {
               orderbook.asks.push([
                 v[0][type].sellOrders[item].rate,
                 parseFloat(v[0][type].sellOrders[item].amount / 1000).toFixed(3),
@@ -6736,7 +6736,7 @@ const CustomAPI = [
               count1++;
               if (count1 == get) break;
             }
-            for (item in v[0][type].buyOrders) {
+            for (var item in v[0][type].buyOrders) {
               orderbook.bids.push([
                 v[0][type].buyOrders[item].rate,
                 parseFloat(v[0][type].buyOrders[item].amount / 1000).toFixed(3),
