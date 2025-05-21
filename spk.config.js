@@ -4340,7 +4340,7 @@ const CustomOperationsProcessing = [
           order.amount = parseInt(json.amount.amount);
           //console.log({order})
           if (order.type == "MARKET" || order.type == "LIMIT") {
-            if (order.token != 'SPK' || order.token != 'BROCA') order.token = 'LARYNX'
+            if (!(order.token == 'SPK' || order.token == 'BROCA')) order.token = 'LARYNX'
             let pDEX = getPathObj([`dex${order.token == 'SPK' ? 's' : (order.token == 'BROCA' ? 'b' : '')}`, order.pair]),
               pBal = getPathNum([order.token == 'SPK' ? 'spk' : (order.token == 'BROCA' ? 'lbroca' : 'balances'), json.from]),
               pInv = getPathNum(["balances", "ri"]),
@@ -4358,7 +4358,7 @@ const CustomOperationsProcessing = [
                 his = {},
                 fee = 0,
                 i = 0;
-              console.log({ dex, govTick }, `dex${order.token == 'SPK' ? 's' : (order.token == 'BROCA' ? 'b' : '')}}`, order.pair);
+              console.log({ dex, govTick }, `dex${order.token == 'SPK' ? 's' : (order.token == 'BROCA' ? 'b' : '')}`, order.pair);
               if(!dex.tick)dex.tick = 1
               if(!govTick)govTick = 1
               if (typeof order.rate != "string") order.rate = dex.tick;
