@@ -370,8 +370,8 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
 
   //Start Program Options
   var dyn = false   
-  //dynStart()
-  startWith("QmfMP4YZ32S1dH2xK9fPbNSo6VTjShJTBr3B5D3dxKHnzo", true, true);
+  dynStart()
+  //startWith("QmfMP4YZ32S1dH2xK9fPbNSo6VTjShJTBr3B5D3dxKHnzo", true, true);
 
   // API defs
   api.use((req, res, next) => {
