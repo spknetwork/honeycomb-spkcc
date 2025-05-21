@@ -3591,7 +3591,7 @@ const CustomOperationsProcessing = [
     type: "onOperation",
     op: "transfer",
     func: function (json, pc, context) {
-      const { store, config, getPathObj, getPathNum, add, addMT, addCol, addGov, deletePointer, credit, chronAssign, hashThis, isEmpty, naizer, DEX, postToDiscord } = context
+      const { store, config, getPathObj, getPathNum, add, addMT, addCol, addGov, deletePointer, credit, chronAssign, hashThis, isEmpty, naizer, DEX, postToDiscord, stringify } = context
       json = naizer(json);
       const burnBroca = (node, amount = 0) => {
         return new Promise((resolve, reject) => {
