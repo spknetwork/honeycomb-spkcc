@@ -4342,7 +4342,7 @@ const CustomOperationsProcessing = [
           if (order.type == "MARKET" || order.type == "LIMIT") {
             if (order.token != 'SPK' || order.token != 'BROCA') order.token = 'LARYNX'
             let pDEX = getPathObj([`dex${order.token == 'SPK' ? 's' : (order.token == 'BROCA' ? 'b' : '')}}`, order.pair]),
-              pBal = getPathNum([order.token == 'SPK' ? 'spk' : 'balances', json.from]),
+              pBal = getPathNum([order.token == 'SPK' ? 'spk' : (order.token == 'BROCA' ? 'lbroca' : 'balances'), json.from]),
               pInv = getPathNum(["balances", "ri"]),
               pStats = getPathObj(["stats"]),
               PgovTick = getPathObj(["dexs", "hive", "tick"]);
