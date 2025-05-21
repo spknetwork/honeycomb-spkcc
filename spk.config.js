@@ -4358,7 +4358,7 @@ const CustomOperationsProcessing = [
                 his = {},
                 fee = 0,
                 i = 0;
-              console.log({ dex, govTick });
+              console.log({ dex, govTick }, `dex${order.token == 'SPK' ? 's' : (order.token == 'BROCA' ? 'b' : '')}}`, order.pair);
               if(!dex.tick)dex.tick = 1
               if(!govTick)govTick = 1
               if (typeof order.rate != "string") order.rate = dex.tick;
