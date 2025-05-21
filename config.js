@@ -19,7 +19,8 @@ const port = ENV.PORT || 3001;
 const pintoken = ENV.pintoken || ''
 const pinurl = ENV.pinurl || '';
 const status = ENV.status || true
-const dbcs = ENV.DATABASE_URL || ''; //connection string to a postgres database
+const dbcs = ENV.DATABASE_URL || ''; //connection string to a docker-data postgres database likely postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable if running the full suite on the same machine
+
 const dbmods = ENV.DATABASE_MODS || []; //list of moderators to hide posts in above db
 const typeDefs = ENV.APPTYPES || {
   ["360"]: ['QmNby3SMAAa9hBVHvdkKvvTqs7ssK4nYa2jBdZkxqmRc16'],

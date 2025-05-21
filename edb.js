@@ -7,6 +7,31 @@ var pool = Config("dbcs") ? new Pool({
     }
 }) : null
 
+if (pool && Config("dbcs")) {
+    pool.on('connect', (client) => {
+        console.log('Successfully connected to the database.');
+        // You can also log client details if needed, e.g., client.host
+    });
+
+    pool.on('error', (err, client) => {
+        console.error('Unexpected error on idle client', err);
+        // You might want to add more specific handling here,
+        // for example, if it's a connection error vs. an error during a query on an idle client.
+    });
+
+    // To specifically test a connection on startup, you can try to acquire a client:
+    pool.connect((err, client, release) => {
+        if (err) {
+            console.error('Failed to connect to the database on startup:', err.stack || err);
+        } else {
+            console.log('Initial database connection test successful.');
+            release(); // Release the client back to the pool
+        }
+    });
+} else {
+    console.warn('Database connection pool is not configured (dbcs is missing).');
+}
+
 function getStats(table) {
     return new Promise((r, e) => {
         pool.query(`SELECT * FROM statssi;`, (err, res) => {
