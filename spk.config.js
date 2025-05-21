@@ -2795,7 +2795,7 @@ const CustomJsonProcessing = [
                   }
                 }
               } else {
-                let txid = config.TOKEN + hashThis(from + json.transaction_id),
+                let txid = 'SPK' + hashThis(from + json.transaction_id),
                   crate =
                     typeof parseFloat(order.rate) == "number"
                       ? parseFloat(order.rate).toFixed(6)
@@ -3322,7 +3322,7 @@ const CustomJsonProcessing = [
                   }
                 }
               } else {
-                let txid = config.TOKEN + hashThis(from + json.transaction_id),
+                let txid = 'BROCA' + hashThis(from + json.transaction_id),
                   crate =
                     typeof parseFloat(order.rate) == "number"
                       ? parseFloat(order.rate).toFixed(6)
@@ -4707,7 +4707,7 @@ const CustomOperationsProcessing = [
                       return max > remaining ? 0 : parseInt(remaining - max);
                     }
                     const txid =
-                      config.TOKEN + hashThis(json.from + json.transaction_id),
+                      order.TOKEN + hashThis(json.from + json.transaction_id),
                       crate = parseFloat(order.rate) > 0 ? order.rate : dex.tick,
                       govRateTick = (govTick / dex.tick) * dex.tick,
                       toRefund = order.type == "MARKET" ? 0 : maxAllowed(stats, govRateTick, remaining, crate)
