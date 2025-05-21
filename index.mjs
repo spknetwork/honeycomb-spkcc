@@ -1,4 +1,4 @@
-export const VERSION = 'v1.5.0-t2'
+export const VERSION = 'v1.5.0-t3'
 import { config } from './config.js';
 export function Config(param) {
   return config[param]
@@ -539,13 +539,13 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
           .then((x) => res(x));
       },
       sc_end: function (b, passed, res, rej, num, prand, ints, bh) {
-        const PpendSC = getPathObj(['scp', b.txid])
+        const PpendSC = getPathObj(['scp', b.id])
         const Pchain = getPathObj(['chain'])
         const Pstats = getPathObj(['stats'])
         Chron.scEndOp([PpendSC, Pchain, Pstats], b, passed, res, rej, num, prand, ints)
           .then((x) => {
             if (x.newChain) configSet(x.newChain, null, api, chronOps, processor)
-            store.batch([{ type: 'del', path: ['chain']}, { type: 'del', path: ['chrono', passed.delKey] },{ type: 'del', path: ['scp', b.txid] }, { type: 'put', path: ['chain'], data: x.newChain }], [res, rej, 'info'])
+            store.batch([{ type: 'del', path: ['chain']}, { type: 'del', path: ['chrono', passed.delKey] },{ type: 'del', path: ['scp', b.id] }, { type: 'put', path: ['chain'], data: x.newChain }], [res, rej, 'info'])
           });
       },
       power_down: function (b, passed, res, rej, num, prand, ints) {

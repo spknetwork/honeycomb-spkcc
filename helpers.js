@@ -587,10 +587,10 @@ export const NFT = {
             contract.l
           ); //balance, owners, movers, setname(for refund)
           const msg = `Dividends of ${contract.s}'s ${contract.b
-              ? parseFloat(contract.b / Math.pow(10, Config("precision"))).toFixed(
-                Config("precision")
-              )
-              : 0
+            ? parseFloat(contract.b / Math.pow(10, Config("precision"))).toFixed(
+              Config("precision")
+            )
+            : 0
             } ${Config("TOKEN")} have been distributed to ${promises.length
             } accounts`;
           promises.push(
@@ -777,6 +777,91 @@ export const Chron = {
       });
     });
   },
+  scEndOp: function (promies, b, passed, res, rej, num, prand, ints) {
+    return new Promise((resolve, reject) => {
+      Promise.all(promies)
+        .then((mem) => {
+          const proposal = mem[0]
+          const chain = mem[1]
+          const stats = mem[2]
+          let approved = 0
+          for (let app in proposal.approvals) {
+            if (proposal.approvals[app] === 1) {
+              approved++
+            }
+          }
+          if (approved >= proposal.threshold) {
+            let newChain = chain,
+              existing = {},
+              addr = '',
+              found = false,
+              type = ''
+            switch (proposal.type) {
+              case 'on':
+                existing = chain.CustomJsonProcessing
+                addr = 'CustomJsonProcessing'
+                type = 'on'
+                break
+              case 'onOperation':
+                existing = chain.CustomOperationsProcessing
+                addr = 'CustomOperationsProcessing'
+                type = 'onOperation'
+                break
+              case 'api':
+                existing = chain.customAPI
+                addr = 'customAPI'
+                break
+              case 'chron':
+                existing = chain.CustomChron
+                addr = 'CustomChron	'
+                break
+              default:
+                resolve({ newChain })
+                return
+            }
+            let path = 'op'
+            if (addr == 'customAPI') path = path
+            for (let op in existing) {
+              if (existing[op][path] == proposal.path) {
+                found = op
+                break
+              }
+            }
+            if (found >= 0) {
+              existing[found] = {
+                func: proposal.func,
+                [path]: proposal.path
+              }
+              if (type) {
+                existing[found].type = type
+              }
+              newChain[addr] = existing
+            } else {
+              const newOp = {
+                func: proposal.func,
+                [path]: proposal.path
+              }
+              if (type) {
+                newOp.type = type
+              }
+              existing.push(newOp)
+              newChain[addr] = existing
+            }
+            resolve({ newChain })
+          } else {
+            resolve({ newChain: chain })
+          }
+        })
+    })
+  }
+  // const PpendSC = getPathObj(['scp', b.op])
+  //       const Pchain = getPathObj(['chain'])
+  //       Chron.scEndOp([PpendSC, Pchain],b, passed, res, rej, num, prand, ints)
+  //         .then((x) => {
+  //           if (x.newConfig) configSet(x.newConfig, null, api, chronOps, processor)
+  //           res(x)
+  //         });
+
 };
 
 export const Base58 = {
