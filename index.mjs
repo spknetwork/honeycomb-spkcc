@@ -149,7 +149,11 @@ import { consolidate, sign, osign, updateAccount } from './msa.js'
 import { postToDiscord } from './discord.js'
 export var runtimeContext;
 function initializeContext() {
-  runtimeContext = { store, config, API, VERSION, getPathObj, getPathNum, getPathSome, RAM, burn, forceCancel, add, addc, addMT, addCol, addGov, deletePointer, credit, nodeUpdate, penalty, chronAssign, hashThis, isEmpty, postToDiscord, Base64, Base58, stringify, NFT, Chron, stringify, DEX, naizer, status, verifySig }
+  // make a copy of config and leave out any private keys
+  const configCopy = { ...config };
+  delete configCopy.active;
+  delete configCopy.msowner;
+  runtimeContext = { store, config: configCopy, API, VERSION, getPathObj, getPathNum, getPathSome, RAM, burn, forceCancel, add, addc, addMT, addCol, addGov, deletePointer, credit, nodeUpdate, penalty, chronAssign, hashThis, isEmpty, postToDiscord, Base64, Base58, stringify, NFT, Chron, stringify, DEX, naizer, status, verifySig }
 }
 initializeContext()
 function hotAPI(api) {

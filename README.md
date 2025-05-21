@@ -568,3 +568,224 @@ This action enters an auction bid for a token.
 
 Not implemented
 
+
+---
+
+# Smart Contract Proposal (SCP) System
+
+The Smart Contract Proposal (SCP) system, defined in `processing_routes/scp.js`, allows users to propose, vote on, and implement changes or actions within the HoneyComb network. This system is crucial for the decentralized governance and evolution of the platform.
+
+## Overview
+
+The SCP system revolves around three main operations:
+
+1.  **`scp_add` (Proposing a Contract):**
+    *   Allows any user with an active key to submit a new smart contract proposal.
+    *   Proposals include a function name (`func`), a contract path (`path`), and a type that specifies when the contract should execute (e.g., `onOperation`, `on`, `api`, `chron`).
+    *   Each proposal is assigned a unique ID (derived from the transaction ID).
+    *   An `approvals` map is created, initially setting all multisig authority accounts' votes to 0.
+    *   A `threshold` for the number of positive votes required for approval is set based on current multi-sig threshold.
+    *   A countdown (`chronAssign`) is initiated, typically for 201600 blocks (around 7 days), after which the proposal will automatically end if not approved or acted upon.
+    *   The proposal details and a feed message are stored on the network.
+
+2.  **`scp_del` (Deleting a Proposal):**
+    *   Allows the original proposer to withdraw their smart contract proposal.
+    *   This action removes the proposal from the system and cancels the associated countdown timer.
+    *   A feed message confirms the deletion.
+
+3.  **`scp_vote` (Voting on a Proposal):**
+    *   Enables holders of the multisig authority to cast their vote (approve or reject) on an existing proposal.
+    *   Votes are recorded as `1` for approval and `-1` for rejection. Users can change their vote.
+    *   After each vote, the system checks if the total number of approvals meets or exceeds the proposal's `threshold`.
+        *   **If Approved:** The proposal's countdown timer (`chron`) is rescheduled to execute in the next block. This effectively fast-tracks the proposal for implementation. A feed message announces the approval.
+        *   **If Not Yet Approved:** The proposal is updated with the new vote, and a feed message records the vote.
+
+## How to Interact with the SCP System
+
+Interactions with the SCP system are typically done by broadcasting custom\_json operations on the Hive blockchain with the appropriate IDs and parameters.
+
+### 1. Creating a Proposal (scp_add)
+
+To propose a new smart contract:
+
+*   **ID:** `scp_add` (or the prefix defined in your config, e.g., `yourprefix_scp_add`)
+*   **Required JSON fields:**
+    *   `type`: (Integer 1-4)
+        *   `1`: `onOperation` - Triggers on a Hive operation.
+        *   `2`: `on` - custom_json listener.
+        *   `3`: `api` - Exposes an API endpoint.
+        *   `4`: `chron` - Schedules a recurring task.
+    *   `path`: (String) The executable name.
+    *   `func`: (String) The function.toString(), it will be eval() with some context passed to it.
+
+**Example JSON:**
+
+```json
+{
+  "type": 1,
+  "path": "comment",
+  "func": "...",
+}
+```
+Overrides the existing smart contract for comment parsing and action. Maybe a new type of Proof of Brain.
+
+```json
+{
+  "type": 2,
+  "path": "scp_vote",
+  "func": "...",
+}
+```
+Overrides the scp_vote contract, maybe to increase the approval margin.
+```json
+{
+  "type": 4,
+  "path": "scp_vote",
+  "func": "...",
+}
+```
+Adds a new chron op, maybe to interact with your new scp_vote algorithm.
+
+
+### 2. Deleting a Proposal (`scp_del`)
+
+To delete a proposal you created:
+
+*   **ID:** `scp_del` (or `yourprefix_scp_del`)
+*   **Required JSON fields:**
+    *   `id`: (String) The `transaction_id` of the proposal you want to delete.
+    *   `transaction_id`: (String) The Hive transaction ID of this deletion custom_json.
+    *   `block_num`: (Integer) The current Hive block number.
+
+**Example JSON:**
+
+```json
+{
+  "id": "abcdef1234567890",
+}
+```
+
+### 3. Voting on a Proposal (`scp_vote`)
+
+To vote on an active proposal:
+
+*   **ID:** `scp_vote` (or `yourprefix_scp_vote`)
+*   **Required JSON fields:**
+    *   `id`: (String) The `transaction_id` of the proposal you are voting on.
+    *   `approve`: (Boolean) `true` to approve, `false` to reject.
+    *   `transaction_id`: (String) The Hive transaction ID of this voting custom_json.
+    *   `block_num`: (Integer) The current Hive block number.
+
+**Example JSON (Approve):**
+
+```json
+{
+  "id": "abcdef1234567890",
+  "approve": true,
+}
+```
+
+**Example JSON (Reject):**
+
+```json
+{
+  "id": "abcdef1234567890",
+  "approve": false,
+}
+```
+
+This system ensures that changes to the HoneyComb network are transparent, community-driven, and subject to a consensus mechanism before implementation.
+
+### 4. Creating a function
+
+Context passed to the functions allow it to interact with all parts of state and most helper functions used... { store, config, API, VERSION, getPathObj, getPathNum, getPathSome, RAM, burn, forceCancel, add, addc, addMT, addCol, addGov, deletePointer, credit, nodeUpdate, penalty, chronAssign, hashThis, isEmpty, postToDiscord, Base64, Base58, stringify, NFT, Chron, stringify, DEX, naizer, status, verifySig }
+
+Inspect spk.config.js for examples of all types of contracts and how they are written and interact.
+
+```{
+    type: "on",
+    op: "broca_power_up",
+    func: function (json, from, active, pc, context) {
+      const { store, config, getPathObj, getPathNum, postToDiscord, Base64 } = context
+      const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
+        if (typeof last != "string") last = '0,0'
+        const last_calc = Base64.toNumber(last.split(',')[1])
+        const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
+        var total = parseInt(last.split(',')[0]) + accured + add
+        if (total > (pow * 1000)) total = (pow * 1000)
+        return `${total},${Base64.fromNumber(bn)}`
+      }
+      var amount = parseInt(json.amount),
+        lpp = getPathNum(["lbroca", from]),
+        tpowp = getPathNum(["bpow", "t"]),
+        powp = getPathNum(["bpow", from]),
+        pbroca = getPathObj(["broca", from]),
+        pstats = getPathObj(["stats"])
+      Promise.all([lpp, tpowp, powp, pbroca, pstats])
+        .then((mem) => {
+          let lb = mem[0],
+            tpow = mem[1],
+            pow = mem[2],
+            broca_string = mem[3],
+            stats = mem[4],
+            lbal = typeof lb != "number" ? 0 : lb,
+            pbal = typeof pow != "number" ? 0 : pow,
+            ops = [];
+          const broca = broca_calc(typeof broca_string == 'string' ? broca_string : '0,0', pbal, stats, json.block_num)
+          const cur_broca = parseInt(broca.split(',')[0]) || 0
+          if (amount <= lbal && active) {
+            ops.push({
+              type: "put",
+              path: ["broca", from],
+              data: `${cur_broca + (amount * 1000)},${Base64.fromNumber(json.block_num)}`,
+            });
+            ops.push({
+              type: "put",
+              path: ["lbroca", from],
+              data: lbal - amount,
+            });
+            ops.push({
+              type: "put",
+              path: ["bpow", from],
+              data: pbal + amount,
+            });
+            ops.push({
+              type: "put",
+              path: ["bpow", "t"],
+              data: tpow + amount,
+            });
+            const msg = `@${from}| Powered ${parseFloat(
+              json.amount / 1000
+            ).toFixed(3)} BROCA`;
+            if (config.hookurl || config.status)
+              postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
+            ops.push({
+              type: "put",
+              path: ["feed", `${json.block_num}:${json.transaction_id}`],
+              data: msg,
+            });
+          } else {
+            ops.push({
+              type: "put",
+              path: ["feed", `${json.block_num}:${json.transaction_id}`],
+              data: `@${from}| Invalid BROCA power up`,
+            });
+          }
+          store.batch(ops, pc);
+        })
+        .catch((e) => {
+          console.log(e);
+        });
+    }
+  }```
+
+  For instance, the broca_calc is a custom function and isn't part of the base honeycomb context, it needs to be defined everywhere it's used. It uses Base64, so that will be pulled from the passed context to use it here. 
+
+  Generally speaking. Each function gets the json of the op as triggered on chain. You pull information from the state via getPathObj and getPathNum (these will default to {} and 0 if none exist) and then you perform any actions to the state as you need. 
+
+  Replacing state works just fine, but deleting anything requires special and upfront attention. 
+
+  store.batch will perform memory actions (deletes first) then puts, and pass the block information to the next operation via pc (the promise chain)
+
+  All together you can store new state, provide API to have users interact with that state, and define new virtual operations via the chron to perform time based actions like expiration on that state. 
+
