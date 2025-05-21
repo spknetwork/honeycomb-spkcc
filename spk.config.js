@@ -4358,6 +4358,7 @@ const CustomOperationsProcessing = [
                 his = {},
                 fee = 0,
                 i = 0;
+              console.log({ dex, govTick });
               if(!dex.tick)dex.tick = 1
               if(!govTick)govTick = 1
               if (typeof order.rate != "string") order.rate = dex.tick;
