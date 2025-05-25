@@ -271,8 +271,10 @@ const CodeShare = {
       })
       else store.batch([{ type: "put", path: ["markets", "node", b.self], data: b }], pc)
     },
-    BlackListed: function (reversedCID) {
+    BlackListed: function (reversedCID, context) {
+      const { config, fetch } = context
       return new Promise((resolve, reject) => {
+        if(!config.BlackListURL)return resolve(false)
         const CID = reversedCID.split("").reverse().join("")
         fetch(`${config.BlackListURL}/flag-qry/${CID}`).then(r => r.json()).then(json => {
           if (json.flag) resolve(true)
@@ -281,8 +283,7 @@ const CodeShare = {
       })
     },
     Validate: function (block, prand, stats, account = config.username, context) {
-      const { config, RAM, CodeShare } = context
-      const { getPathObj, getPathSome } = context
+      const { config, RAM, CodeShare, getPathObj, getPathSome } = context
       if (!RAM.Pending) RAM.Pending = {}
       RAM.Pending[`${block % 200}`] = {}
       let Pval = getPathObj(['val'])
@@ -295,7 +296,7 @@ const CodeShare = {
           getPathSome(["IPFS"], { gte, lte }).then(items => { //need to wrap this call to 0 thru remainder 
             var promises = [], toVerify = {}, BlackListed = []
             for (var i = 0; i < items.length; i++) {
-              BlackListed.push(CodeShare.PoA.BlackListed(items[i]))
+              BlackListed.push(CodeShare.PoA.BlackListed(items[i], context))
               promises.push(getPathObj(['IPFS', items[i]]))
             }
             Promise.all(BlackListed).then(flags => {
