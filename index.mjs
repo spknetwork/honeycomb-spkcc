@@ -3,11 +3,11 @@ import { config } from './config.js';
 export function Config(param) {
   return config[param]
 }
-export function configSet(obj, state, api, chron, processor) {
+export function configSet(obj, state, api, chron, processor, CodeShare, Every) {
   for (var param in obj) {
     config[param] = obj[param]
   }
-  customInit(api, chron, processor)
+  customInit(api, chron, processor, CodeShare, Every)
 }
 export var block = {
   ops: [],
@@ -153,6 +153,8 @@ function initializeContext() {
   const configCopy = { ...config };
   delete configCopy.active;
   delete configCopy.msowner;
+  CodeShare = config.CodeShare
+  Every = [HR.margins, ...config.CustomEvery]
   runtimeContext = { store, config: configCopy, API, VERSION, getPathObj, getPathNum, getPathSome, RAM, burn, forceCancel, add, addc, addMT, addCol, addGov, deletePointer, credit, nodeUpdate, penalty, chronAssign, hashThis, isEmpty, postToDiscord, Base64, Base58, Base38, stringify, NFT, Chron, stringify, DEX, naizer, status, verifySig, CodeShare }
 }
 initializeContext()
@@ -337,9 +339,11 @@ function hotChron(chronOps) {
     }
     return true;
 }
-export function customInit(api, chron, processor) {
+export function customInit(api, chron, processor, CS, E) {
   return new Promise((resolve, reject) => {
     console.log('customInit')
+    CodeShare = {...CodeShare, ...CS}
+    Every = [...E]
     hotAPI(api)
     hotChron(chron)
     hotCustom(processor)
@@ -759,7 +763,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                 }
                 if (num % 100 === 50) {
                   promises.push(new Promise((res, rej) => {
-                    report(plasma, consolidate(num, plasma, bh))
+                    report(plasma, consolidate(num, plasma, bh), RAM[config.RAMreport])
                       .then(nodeOp => {
                         res('SAT')
                         if (processor.isStreaming()) NodeOps.unshift(nodeOp)
@@ -1033,6 +1037,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                         features: config.features,
                         customAPI: config.CustomAPI,
                         govToken: config.govToken,
+                        RAMreport: config.RAMreport,
                         CustomJsonProcessing: config.CustomJsonProcessing,
                         CustomOperationsProcessing: config.CustomOperationsProcessing,
                         CustomChron: config.CustomChron

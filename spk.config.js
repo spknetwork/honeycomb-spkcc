@@ -82,6 +82,7 @@ const leader = 'spk-test' //Default account to pull state from, will post token
 const ben = '' //Account where comment benifits trigger token action
 const delegation = '' //account people can delegate to for rewards
 const govToken = "spow"
+const RAMreport = 'Pending'
 const delegationWeight = 1000 //when to trigger community rewards with bens
 const msaccount = ENV.msaccount || 'spk-cc-test' //account controlled by community leaders
 const msPubMemo = 'STM8hszG2prkmSBsPpgQ4ZipdGq5MMK7zoJDXD7cV2FL83HXascWk' //memo key for msaccount
@@ -131,13 +132,36 @@ const CustomEvery = [
         data: prand
       }]
       // build rando value from base38 account name and base 16 prand: convert random value to base 58: set range according to val votes
-      if(realTime)CodeShare.PoA.Validate(block, prand, stats)
+      if (realTime) CodeShare.PoA.Validate(block, prand, stats)
       store.batch(ops, [res, rej, 1])
     })
   },
 ]
 
 const CodeShare = {
+  reportFunction: function (val, plas, con, proofs = {}) {
+    return new Promise((resolve, reject) => {
+      const offset = plas.hashBlock % 200 > 100 ? 0 : 100
+      for (var i = 0; i < 100; i++) {
+        for (var CID in proofs[`${i + offset}`]) {
+          var formated = [CID, `${i + offset}`]
+          var nodes
+          try {
+            nodes = Object.keys(proofs[`${i + offset}`][CID].npid)
+          } catch (e) { continue }
+          if (nodes.length) {
+            for (var j = 0; j < nodes.length; j++) {
+              if (proofs[`${i + offset}`][CID].npid[nodes[j]] && proofs[`${i + offset}`][CID].npid[nodes[j]].Elapsed) formated.push([nodes[j], msIzer(proofs[`${i + offset}`][CID].npid[nodes[j]].Elapsed)])
+            }
+            if (formated.length > 2) val.push(formated)
+
+          }
+        }
+        if (JSON.stringify(val).length > 7800) break
+      }
+      resolve(val)
+    })
+  },
   PoA: {
     Check: function (b, rand, stats, val, cBroca, vBroca, pc, context) {
       const { getPathObj } = context
@@ -156,7 +180,7 @@ const CodeShare = {
       if (promises.length) Promise.all(promises).then(contractIDs => {
         promises = []
         for (var i = 0; i < contractIDs.length; i++) {
-          try{
+          try {
             promises.push(getPathObj(['contract', contractIDs[i].split(',')[0], contractIDs[i].split(',')[1]]))
           } catch (e) {
             continue
@@ -198,22 +222,22 @@ const CodeShare = {
             }
             var accepted = {}
             for (var j = 2; j < b.report.v[i].length; j++) {
-              if(b.report.v[i][j][1] > 0 && typeof b.report.v[i][j][1] == 'number' && b.report.v[i][j][1] < 240000){
+              if (b.report.v[i][j][1] > 0 && typeof b.report.v[i][j][1] == 'number' && b.report.v[i][j][1] < 240000) {
                 newCount++
                 newTotal += b.report.v[i][j][1]
                 delta = b.report.v[i][j][1] - oldMean
                 newStdDevNum = parseInt(newStdDevNum + (Math.pow(b.report.v[i][j][1] - oldMean, 2) * 1000))
                 if (Math.abs(delta) < 2 * oldStdDev) {
                   paid++
-                  accepted[b.report.v[i][j][0]] = { a: b.report.v[i][j][0], r: 2, p: 0}
+                  accepted[b.report.v[i][j][0]] = { a: b.report.v[i][j][0], r: 2, p: 0 }
                 } else if (Math.abs(delta) < 3 * oldStdDev) {
                   paid++
-                  accepted[b.report.v[i][j][0]] = { a: b.report.v[i][j][0], r: 1, p: 0}
+                  accepted[b.report.v[i][j][0]] = { a: b.report.v[i][j][0], r: 1, p: 0 }
                 }
               }
             }
             var order = []
-            if(typeof preferential == "string"){
+            if (typeof preferential == "string") {
               order.push(preferential)
             }
             const storers = Base64.toNumber(contracts[i].nt)
@@ -228,10 +252,10 @@ const CodeShare = {
             }
             acc.sort((a, b) => a.p - b.p)
             for (var j = 0; j < acc.length; j++) {
-              if(j < contracts[i].p) cBroca[acc[j].a] =  cBroca[acc[j].a] ? cBroca[acc[j].a] + reward : reward
-              else cBroca[acc[j].a] =  cBroca[acc[j].a] ? cBroca[acc[j].a] + parseInt(reward / Math.pow(j - 1 - contracts[i].p, 2)) : parseInt(reward / Math.pow(j - 1 - contracts[i].p, 2))
+              if (j < contracts[i].p) cBroca[acc[j].a] = cBroca[acc[j].a] ? cBroca[acc[j].a] + reward : reward
+              else cBroca[acc[j].a] = cBroca[acc[j].a] ? cBroca[acc[j].a] + parseInt(reward / Math.pow(j - 1 - contracts[i].p, 2)) : parseInt(reward / Math.pow(j - 1 - contracts[i].p, 2))
             }
-            if(paid)vBroca[b.self] = vBroca[b.self] ? vBroca[b.self] + (2 * reward) : ( 2 * reward )
+            if (paid) vBroca[b.self] = vBroca[b.self] ? vBroca[b.self] + (2 * reward) : (2 * reward)
           }
           delete b.report.v
           stats.val_tot_ms = newTotal
@@ -239,8 +263,8 @@ const CodeShare = {
           stats.val_std_dev_num = newStdDevNum
           var ops = [{ type: "put", path: ["markets", "node", b.self], data: b },
           { type: "put", path: ["stats"], data: stats }]
-          if(Object.keys(vBroca).length)ops.push({ type: "put", path: ["vbroca"], data: vBroca })
-          if(Object.keys(cBroca).length)ops.push({ type: "put", path: ["cbroca"], data: cBroca })
+          if (Object.keys(vBroca).length) ops.push({ type: "put", path: ["vbroca"], data: vBroca })
+          if (Object.keys(cBroca).length) ops.push({ type: "put", path: ["cbroca"], data: cBroca })
           store.batch(ops, pc)
         })
         else store.batch([{ type: "put", path: ["markets", "node", b.self], data: b }], pc)
@@ -259,7 +283,7 @@ const CodeShare = {
     Validate: function (block, prand, stats, account = config.username, context) {
       const { config, RAM } = context
       const { getPathObj, getPathSome } = context
-      if(!RAM.Pending)RAM.Pending = {}
+      if (!RAM.Pending) RAM.Pending = {}
       RAM.Pending[`${block % 200}`] = {}
       let Pval = getPathObj(['val'])
       let Pnode = getPathObj(['markets', 'node', account])
@@ -345,8 +369,8 @@ const CodeShare = {
       const gte = this.PoA.getPrand58(account, prand)
       const range = parseInt(((val[account] >= cutoff ? cutoff * 2 : val[account] || 1) / total) * (stats.total_files * parseInt(stats.vals_target * 10000) / 288) * 7427658739)
       var lte = Base58.fromNumber(Base58.toNumber(gte) + range)
-      if(lte.length > 9)lte = 'zzzzzzzzz'
-      if(gte.length != lte.length){
+      if (lte.length > 9) lte = 'zzzzzzzzz'
+      if (gte.length != lte.length) {
         console.log(
           this.PoA.getPrand58(account, prand),
           range,
@@ -8609,6 +8633,7 @@ export var config = {
   featuresModelBroca,
   poav_address,
   govToken,
+  RAMreport,
   state,
   CustomEvery,
   CodeShare
