@@ -167,7 +167,7 @@ const CodeShare = {
       const { getPathObj, CodeShare } = context
       var promises = []
       for (var i = 0; i < b.report.v.length; i++) {
-        const [gte, lte] = CodeShare.PoA.getRange(rand[b.report.v[i][1]], b.self, val, stats)
+        const [gte, lte] = CodeShare.PoA.getRange(rand[b.report.v[i][1]], b.self, val, stats, context)
         const rev = b.report.v[i][0].split("").reverse().join("")
         if (config.mode == 'verbose') console.log('lottery:', gte, rev.substr(0, 9), lte)
         if (Base58.toNumber(rev.substr(0, gte.length)) >= Base58.toNumber(gte) && Base58.toNumber(rev.substr(0, lte.length)) <= Base58.toNumber(lte)) {
@@ -291,7 +291,7 @@ const CodeShare = {
         const val = mem[0],
           node = mem[1]
         if (node.val_code && val[node.val_code]) {
-          const [gte, lte] = CodeShare.PoA.getRange(prand, account, val, stats)
+          const [gte, lte] = CodeShare.PoA.getRange(prand, account, val, stats, context)
           getPathSome(["IPFS"], { gte, lte }).then(items => { //need to wrap this call to 0 thru remainder 
             var promises = [], toVerify = {}, BlackListed = []
             for (var i = 0; i < items.length; i++) {
