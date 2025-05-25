@@ -124,7 +124,7 @@ const features = {
 
 const CustomEvery = [
   function (block, prand, stats, realTime, context) {
-    const { store, CodeShare } = context
+    const { config, store, CodeShare } = context
     return new Promise((res, rej) => {
       let ops = [{
         type: 'put',
@@ -132,7 +132,7 @@ const CustomEvery = [
         data: prand
       }]
       // build rando value from base38 account name and base 16 prand: convert random value to base 58: set range according to val votes
-      if (realTime) CodeShare.PoA.Validate(block, prand, stats)
+      if (realTime) CodeShare.PoA.Validate(block, prand, stats, config.username, context)
       store.batch(ops, [res, rej, 1])
     })
   },
