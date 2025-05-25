@@ -127,6 +127,37 @@ function isEmpty(obj) {
   return true;
 }
 
+export const Base38 = {
+  glyphs38: "0123456789abcdefghijklmnopqrstuvwxyz-.",
+  fromNumber: function (number) {
+    if (
+      isNaN(Number(number)) ||
+      number === null ||
+      number === Number.POSITIVE_INFINITY
+    )
+      throw `The input(${number}) is not valid`;
+    if (number < 0) throw "Can't represent negative numbers now";
+    var char;
+    var residual = Math.floor(number);
+    var result = "";
+    while (true) {
+      char = residual % 38;
+      result = this.glyphs38.charAt(char) + result;
+      residual = Math.floor(residual / 38);
+      if (residual == 0) break;
+    }
+    return result;
+  },
+  toNumber: function (chars) {
+    var result = 0;
+    chars = chars.split("");
+    for (var e = 0; e < chars.length; e++) {
+      result = result * 38 + this.glyphs38.indexOf(chars[e]);
+    }
+    return result;
+  }
+};
+
 export const NFT = {
   place: function (item, account, string) {
     if (string.indexOf(`_${account},`) >= 0) {

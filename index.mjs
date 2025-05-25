@@ -134,7 +134,7 @@ import { ChainTypes, makeBitMaskFilter } from './hive-js-auth.js';
 
 import { API, RAM } from './routes/api.js'
 import { HR } from './processing_routes/index.js'
-import { NFT, Chron, Watchdog, Log, Base64, Base58, DEX, verifySig } from './helpers.js'
+import { NFT, Chron, Watchdog, Log, Base64, Base58, Base38, DEX, verifySig } from './helpers.js'
 import { enforce } from "./enforce.js"
 import { tally } from "./tally.js"
 import { voter } from "./voter.js"
@@ -147,13 +147,13 @@ import { hiveState } from './processor.js'
 import { getPathObj, getPathNum, getPathSome } from './getPathObj.js'
 import { consolidate, sign, osign, updateAccount } from './msa.js'
 import { postToDiscord } from './discord.js'
-export var runtimeContext;
+export var runtimeContext, Every = [HR.margins], CodeShare = {}
 function initializeContext() {
   // make a copy of config and leave out any private keys
   const configCopy = { ...config };
   delete configCopy.active;
   delete configCopy.msowner;
-  runtimeContext = { store, config: configCopy, API, VERSION, getPathObj, getPathNum, getPathSome, RAM, burn, forceCancel, add, addc, addMT, addCol, addGov, deletePointer, credit, nodeUpdate, penalty, chronAssign, hashThis, isEmpty, postToDiscord, Base64, Base58, stringify, NFT, Chron, stringify, DEX, naizer, status, verifySig }
+  runtimeContext = { store, config: configCopy, API, VERSION, getPathObj, getPathNum, getPathSome, RAM, burn, forceCancel, add, addc, addMT, addCol, addGov, deletePointer, credit, nodeUpdate, penalty, chronAssign, hashThis, isEmpty, postToDiscord, Base64, Base58, Base38, stringify, NFT, Chron, stringify, DEX, naizer, status, verifySig, CodeShare }
 }
 initializeContext()
 function hotAPI(api) {
@@ -652,13 +652,15 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
           })
           let Pmsa = getPathObj(['msa'])
           let Pmso = getPathObj(['mso'])
-          Promise.all([Pchron, Pmss, Pmsa, Pmso, Pmsso]).then(mem => {
+          let Pstats = getPathObj(["stats"]);
+          Promise.all([Pchron, Pmss, Pmsa, Pmso, Pmsso, Pstats]).then(mem => {
             var a = mem[0],
               mss = mem[1], //resign mss
               msa = mem[2], //if length > 80... sign these
               mso = mem[3],
               msso = mem[4],
-              mso_keys = Object.keys(mso)
+              mso_keys = Object.keys(mso),
+              stats = mem[5]
             let chrops = {},
               msa_keys = Object.keys(msa)
             mso_keys = Object.keys(mso)
@@ -674,9 +676,9 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
               if (i < j.length) ChonOp(delKey, ints, prand, num, bh).then(x => {
                 i++
                 if (i < j.length) loop(i, ints, j)
-                else every()
+                else every(stats)
               })
-              else every()
+              else every(stats)
               function ChonOp(delKey, ints, prand, num, bh) {
                 return new Promise((res, rej) => {
                   store.getWith(['chrono', chrops[j[i]]], { delKey, ints }, function (e, b, passed) {
@@ -686,9 +688,19 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                 })
               }
             }
-            function every() {
-              return new Promise((res, rej) => {
-                let promises = [HR.margins()]
+            function every(stats) {
+              return new Promise(async (resolve, reject) => {
+                let promises = []
+                const realTime = API.RAM.behind < 50 ? true : false
+                try {
+                  for (const func of Every) {
+                    await func(stats, num, prand, realTime, runtimeContext);
+                  }
+                } catch (error) {
+                  reject(error);
+                  return;
+                }
+                
                 if (num % 100 !== 50) {
                   if (mso_keys.length) {
                     promises.push(new Promise((res, rej) => {

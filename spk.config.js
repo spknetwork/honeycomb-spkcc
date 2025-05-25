@@ -121,7 +121,377 @@ const features = {
   claimdrop: false //claim drops
 }
 
+const CustomEvery = [
+  function (block, prand, stats, realTime, context) {
+    const { store, CodeShare } = context
+    return new Promise((res, rej) => {
+      let ops = [{
+        type: 'put',
+        path: ['rand', `${block % 200}`],
+        data: prand
+      }]
+      // build rando value from base38 account name and base 16 prand: convert random value to base 58: set range according to val votes
+      if(realTime)CodeShare.PoA.Validate(block, prand, stats)
+      store.batch(ops, [res, rej, 1])
+    })
+  },
+]
+
+const CodeShare = {
+  PoA: {
+    Check: function (b, rand, stats, val, cBroca, vBroca, pc, context) {
+      const { getPathObj } = context
+      var promises = []
+      for (var i = 0; i < b.report.v.length; i++) {
+        const [gte, lte] = this.PoA.getRange(rand[b.report.v[i][1]], b.self, val, stats)
+        const rev = b.report.v[i][0].split("").reverse().join("")
+        if (config.mode == 'verbose') console.log('lottery:', gte, rev.substr(0, 9), lte)
+        if (Base58.toNumber(rev.substr(0, gte.length)) >= Base58.toNumber(gte) && Base58.toNumber(rev.substr(0, lte.length)) <= Base58.toNumber(lte)) {
+          promises.push(getPathObj(['IPFS', rev]))
+        } else {
+          b.report.v.splice(i, 1)
+          i--
+        }
+      }
+      if (promises.length) Promise.all(promises).then(contractIDs => {
+        promises = []
+        for (var i = 0; i < contractIDs.length; i++) {
+          try{
+            promises.push(getPathObj(['contract', contractIDs[i].split(',')[0], contractIDs[i].split(',')[1]]))
+          } catch (e) {
+            continue
+          }
+        }
+        if (promises.length) Promise.all(promises).then(contracts => {
+          const oldTotal = stats.val_tot_ms || 0
+          const oldCount = stats.val_count || 0
+          const oldMean = parseInt(oldTotal / oldCount)
+          const oldStdDevNum = stats.val_std_dev_num || parseInt((Math.pow(oldTotal - oldMean, 2)) * 1000)
+          const oldStdDev = parseInt(Math.sqrt(oldStdDevNum / (oldCount * 1000)))
+          var newStdDevNum = oldStdDevNum
+          var newCount = oldCount
+          var newTotal = oldTotal
+          for (var i = 0; i < contracts.length; i++) {
+            var reward = 0
+            try {
+              reward = parseInt((contracts[i].p * contracts[i].r * contracts[i].df[b.report.v[i][0]]) / (contracts[i].u * 3))
+              if (config.mode == 'verbose') console.log({ contract: contracts[i], reward })
+            } catch (e) {
+              if (config.mode == 'verbose') console.log(e)
+              continue
+            }
+            var preferential = contracts[i].b
+            var paid = 0
+            if (contracts[i].ex) {
+              var terms = contracts[i].ex.split(',')
+              for (var j = 0; j < terms.length; j++) {
+                const thisTermBuyer = terms[j].split(':')[0]
+                const thisTerm = terms[j].split(':')[1]
+                const startTerm = parseInt(thisTerm.split('-')[0])
+                const endTerm = parseInt(thisTerm.split('-')[1])
+                if (b.report.block >= startTerm && b.report.block <= endTerm) {
+                  preferential = thisTermBuyer
+                  if (config.mode == 'verbose') console.log({ preferential, thisTermBuyer, startTerm, endTerm, bn: b.report.block })
+                  break
+                }
+              }
+            }
+            var accepted = {}
+            for (var j = 2; j < b.report.v[i].length; j++) {
+              if(b.report.v[i][j][1] > 0 && typeof b.report.v[i][j][1] == 'number' && b.report.v[i][j][1] < 240000){
+                newCount++
+                newTotal += b.report.v[i][j][1]
+                delta = b.report.v[i][j][1] - oldMean
+                newStdDevNum = parseInt(newStdDevNum + (Math.pow(b.report.v[i][j][1] - oldMean, 2) * 1000))
+                if (Math.abs(delta) < 2 * oldStdDev) {
+                  paid++
+                  accepted[b.report.v[i][j][0]] = { a: b.report.v[i][j][0], r: 2, p: 0}
+                } else if (Math.abs(delta) < 3 * oldStdDev) {
+                  paid++
+                  accepted[b.report.v[i][j][0]] = { a: b.report.v[i][j][0], r: 1, p: 0}
+                }
+              }
+            }
+            var order = []
+            if(typeof preferential == "string"){
+              order.push(preferential)
+            }
+            const storers = Base64.toNumber(contracts[i].nt)
+            for (var j = 1; j < storers; j++) {
+              order.push(contracts[i].n[Base64.fromNumber(j)])
+            }
+            order = [...new Set(order)]
+            var acc = []
+            for (var acct in accepted) {
+              accepted[acct].p = order.indexOf(acct)
+              acc.push(accepted[acct])
+            }
+            acc.sort((a, b) => a.p - b.p)
+            for (var j = 0; j < acc.length; j++) {
+              if(j < contracts[i].p) cBroca[acc[j].a] =  cBroca[acc[j].a] ? cBroca[acc[j].a] + reward : reward
+              else cBroca[acc[j].a] =  cBroca[acc[j].a] ? cBroca[acc[j].a] + parseInt(reward / Math.pow(j - 1 - contracts[i].p, 2)) : parseInt(reward / Math.pow(j - 1 - contracts[i].p, 2))
+            }
+            if(paid)vBroca[b.self] = vBroca[b.self] ? vBroca[b.self] + (2 * reward) : ( 2 * reward )
+          }
+          delete b.report.v
+          stats.val_tot_ms = newTotal
+          stats.val_count = newCount
+          stats.val_std_dev_num = newStdDevNum
+          var ops = [{ type: "put", path: ["markets", "node", b.self], data: b },
+          { type: "put", path: ["stats"], data: stats }]
+          if(Object.keys(vBroca).length)ops.push({ type: "put", path: ["vbroca"], data: vBroca })
+          if(Object.keys(cBroca).length)ops.push({ type: "put", path: ["cbroca"], data: cBroca })
+          store.batch(ops, pc)
+        })
+        else store.batch([{ type: "put", path: ["markets", "node", b.self], data: b }], pc)
+      })
+      else store.batch([{ type: "put", path: ["markets", "node", b.self], data: b }], pc)
+    },
+    BlackListed: function (reversedCID) {
+      return new Promise((resolve, reject) => {
+        const CID = reversedCID.split("").reverse().join("")
+        fetch(`${config.BlackListURL}/flag-qry/${CID}`).then(r => r.json()).then(json => {
+          if (json.flag) resolve(true)
+          else resolve(false)
+        }).catch(e => resolve(false))
+      })
+    },
+    Validate: function (block, prand, stats, account = config.username, context) {
+      const { config, RAM } = context
+      const { getPathObj, getPathSome } = context
+      if(!RAM.Pending)RAM.Pending = {}
+      RAM.Pending[`${block % 200}`] = {}
+      let Pval = getPathObj(['val'])
+      let Pnode = getPathObj(['markets', 'node', account])
+      Promise.all([Pval, Pnode]).then(mem => {
+        const val = mem[0],
+          node = mem[1]
+        if (node.val_code && val[node.val_code]) {
+          const [gte, lte] = this.PoA.getRange(prand, account, val, stats)
+          getPathSome(["IPFS"], { gte, lte }).then(items => { //need to wrap this call to 0 thru remainder 
+            var promises = [], toVerify = {}, BlackListed = []
+            for (var i = 0; i < items.length; i++) {
+              BlackListed.push(this.PoA.BlackListed(items[i]))
+              promises.push(getPathObj(['IPFS', items[i]]))
+            }
+            Promise.all(BlackListed).then(flags => {
+              for (var i = flags.length - 1; i >= 0; i--) {
+                if (flags[i]) promises.splice(i, 1)
+              }
+              Promise.all(promises).then(contractIDs => {
+                promises = []
+                for (var i = 0; i < contractIDs.length; i++) {
+                  promises.push(getPathObj(['contract', contractIDs[i].split(',')[0], contractIDs[i].split(',')[1]]))
+                  const asset = items[i].split("").reverse().join("")
+                  toVerify[asset] = {
+                    r: items[i],
+                    a: asset,
+                    fo: contractIDs[i].split(',')[0],
+                    id: contractIDs[i].split(',')[1]
+                  }
+                }
+                if (promises.length) Promise.all(promises).then(contracts => {
+                  promises = [], k = []
+                  for (var i = 0; i < contracts.length; i++) {
+                    const dfKeys = contracts[i].df ? Object.keys(contracts[i].df) : []
+                    for (var j = 0; j < dfKeys.length; j++) {
+                      if (toVerify[dfKeys[j]]) {
+                        toVerify[dfKeys[j]].n = contracts[i].n
+                        toVerify[dfKeys[j]].b = contracts[i].df[dfKeys[j]]
+                        toVerify[dfKeys[j]].i = i
+                        toVerify[dfKeys[j]].v = 0
+                        toVerify[dfKeys[j]].npid = {}
+                        for (var node in toVerify[dfKeys[j]].n) {
+                          toVerify[dfKeys[j]].npid[toVerify[dfKeys[j]].n[node]] = {
+                            Message: 0,
+                            Elapsed: 0
+                          }
+                          k.push([dfKeys[j], toVerify[dfKeys[j]].n[node]])
+                          if (config.mode == 'verbose') console.log('toVerify', toVerify[dfKeys[j]].n[node])
+                          promises.push(getPathObj(['service', 'IPFS', toVerify[dfKeys[j]].n[node]]))
+                        }
+                        RAM.Pending[block % 200] = toVerify
+                      }
+                    }
+                  }
+                  Promise.all(promises).then(peerIDs => {
+                    for (var i = 0; i < peerIDs.length; i++) {
+                      if (k[i]) {
+                        //this.Pending[`${block % 200}`][k[i][0]] = {}
+                        //console.log(this.Pending[`${block % 200}`])
+                      } else {
+                        if (config.mode == 'verbose') console.log(k, i, peerIDs)
+                        break
+                      }
+                      k[i].push(peerIDs[i])
+                      this.PoA.validate(k[i][0], k[i][1], k[i][2], prand, block, context)
+                    }
+                  })
+                })
+              })
+            })
+          })
+        }
+      })
+    },
+    getRange(prand, account, val, stats) {
+      const cutoff = stats.val_threshold || 1
+      var total = 0
+      var n = Object.keys(val)
+      for (var i = 0; i < n.length; i++) {
+        if (val[n[i]] >= cutoff) total += cutoff * 2
+        else total += val[n] || 1
+      }
+      const gte = this.PoA.getPrand58(account, prand)
+      const range = parseInt(((val[account] >= cutoff ? cutoff * 2 : val[account] || 1) / total) * (stats.total_files * parseInt(stats.vals_target * 10000) / 288) * 7427658739)
+      var lte = Base58.fromNumber(Base58.toNumber(gte) + range)
+      if(lte.length > 9)lte = 'zzzzzzzzz'
+      if(gte.length != lte.length){
+        console.log(
+          this.PoA.getPrand58(account, prand),
+          range,
+          gte,
+          lte,
+          Base58.toNumber(gte)
+        )
+      }
+      return [gte, lte]
+    },
+    getPrand58(account, prand) {
+      p = prand.split('')
+      a = account.split('')
+      r = 1n
+      for (var i = 0; i < p.length; i++) {
+        r = r * BigInt(1 + parseInt(p[i], 16))
+      }
+      for (var i = 0; i < a.length; i++) {
+        r = r * BigInt(1 + Base38.toNumber(a[i]))
+      }
+      var gt = Base58.fromNumber(Number(r % 7427658739644928n))
+      while (gt.length < 9) {
+        gt = gt + '1'
+      }
+      return gt
+    },
+    validate: function (CID, Name, peerIDs, SALT, bn) {
+      peerids = peerIDs.split(',')
+      for (var i = 0; i < peerids.length; i++) {
+        this.PoA.PA(Name, CID, peerids[i], SALT, bn)
+      }
+    },
+    // read: function (key) {
+    //   return new Promise((res, rej) => {
+    //     fetch(`http://localhost:3000/read?key=${key}`)
+    //       .then(r => r.json())
+    //       .then(json => res(json))
+    //       .catch(e => {
+    //         if (config.mode == 'verbose') console.log('Failed to read:', key)
+    //         rej(e)
+    //       })
+    //   })
+    // },
+    // write: function (key, value) {
+    //   return new Promise((res, rej) => {
+    //     fetch(`http://localhost:3000/write?key=${key}&value=${value}`)
+    //       .then(r => r.json())
+    //       .then(json => res(json))
+    //       .catch(e => {
+    //         if (config.mode == 'verbose') console.log('Failed to read:', key)
+    //         rej(e)
+    //       })
+    //   })
+    // }
+    PA: function (Name, CID, peerid, SALT, bn, context) {
+      const { config, RAM } = context
+      if (peerid.split(',').length > 1) {
+        peerid = peerid.split(',')[0]
+        restOfPeerIDs = peerid.split(',').slice(1).join(',')
+        this.PoA.PA(Name, CID, restOfPeerIDs, SALT, bn, context)
+      }
+      if (config.mode == 'verbose') console.log("PA: ", Name, CID, peerid, SALT, bn)
+      var socket = new WebSocketClient();
+      socket.on('connect', (connection) => {
+        setTimeout(() => {
+          connection.close()
+          if (config.mode == 'verbose') console.log("Timeout:", CID)
+        }, 240000)
+        connection.send(JSON.stringify({ Name, CID, peerid, SALT }));
+        connection.on('message', (event) => {
+          const data = event.utf8Data ? JSON.parse(event.utf8Data) : {}
+          //const stepText = document.querySelectorAll('.step-text');
+          if (data.Status === 'Connecting to Peer') {
+            if (config.mode == 'verbose') console.log('Connecting to Peer')
+          } else if (data.Status === 'IpfsPeerIDError') {
+            connection.close()
+            if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
+          } else if (data.Status === 'RequestingProof') {
+            if (config.mode == 'verbose') console.log('RequestingProof')
+          } else if (data.Status === 'Connection Error') {
+            connection.close()
+            if (config.mode == 'verbose') console.log('Error: Connection Error')
+          } else if (data.Status === 'ProofReceived') {
+            if (config.mode == 'verbose') console.log('ProofReceived', { data })
+          } else if (data.Status === 'Waiting Proof') {
+            if (config.mode == 'verbose') console.log('Waiting Proof', { data })
+          } else if (data.Status === "Validating") {
+            if (config.mode == 'verbose') console.log('Validating', { data })
+          } else if (data.Status === "Validated") {
+            if (config.mode == 'verbose') console.log('Validated', { data })
+          } else if (data.Status === "Validating Proof") {
+            if (config.mode == 'verbose') console.log('Validating Proof', { data })
+          } else if (data.Status === "Valid") {
+            if (RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name] && !RAM.Pending[`${bn % 200}`][CID].npid[Name].Message) RAM.Pending[`${bn % 200}`][CID].npid[Name] = data
+            if (config.mode == 'verbose') console.log('Proof Valid', { data })
+            connection.close()
+          } else if (data.Status === "Invalid") {
+            if (config.mode == 'verbose') console.log('Proof Invalid', { data })
+            connection.close()
+          } else {
+            if (config.mode == 'verbose') console.log('Unknown Status:', data)
+          }
+        })
+      })
+      socket.on('connectFailed', function (error) {
+        if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
+      });
+      socket.connect(`${config.poav_address}/validate`)
+    }
+  }
+}
+
 const CustomJsonProcessing = [
+  {
+    type: "on",
+    op: "report",
+    func: function (json, from, active, pc, context) {
+      const { store, config, getPathObj, CodeShare } = context
+      var pReport = getPathObj(['markets', 'node', from])
+      var pRand = getPathObj(['rand'])
+      var pStats = getPathObj(['stats'])
+      let pVal = getPathObj(['val'])
+      let PcBroca = getPathObj(['cbroca'])
+      let PvBroca = getPathObj(['vbroca'])
+      Promise.all([pReport, pRand, pStats, pVal, PcBroca, PvBroca]).then(mem => {
+        var b = mem[0], rand = mem[1], stats = mem[2], val = mem[3], cBroca = mem[4]
+        if (from == b.self && active) {
+          b.report = json
+          delete b.report.timestamp
+          if (b.report.v) {
+            CodeShare.PoA.Check(b, rand, stats, val, cBroca, mem[5], pc)
+          } else {
+            var ops = [
+              { type: 'put', path: ['markets', 'node', from], data: b }
+            ]
+            if (process.env.npm_lifecycle_event == 'test') pc[2] = ops
+            store.batch(ops, pc)
+          }
+          if (json.ipfs_id && config.ipfshost == 'ipfs') ipfsPeerConnect(json.ipfs_id)
+        } else {
+          pc[0](pc[2])
+        }
+      })
+    }
+  },
   {
     type: "on",
     op: "spk_send",
@@ -1405,7 +1775,15 @@ const CustomJsonProcessing = [
     type: "on",
     op: "contract_close",
     func: function (json, from, active, pc, context) {
-      const { store, config, getPathObj, postToDiscord } = context
+      const { store, config, getPathObj, postToDiscord, Base64 } = context
+      const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
+        if (typeof last != "string") last = '0,0'
+        const last_calc = Base64.toNumber(last.split(',')[1])
+        const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
+        var total = parseInt(last.split(',')[0]) + accured + add
+        if (total > (pow * 1000)) total = (pow * 1000)
+        return `${total},${Base64.fromNumber(bn)}`
+      }
       if (json?.id.indexOf(':') > 0) {
         var Pstats = getPathObj(["stats"])
         var Pcontract = getPathObj(["contract", from, json.id])
@@ -4359,8 +4737,8 @@ const CustomOperationsProcessing = [
                 fee = 0,
                 i = 0;
               console.log({ dex, govTick }, `dex${order.token == 'SPK' ? 's' : (order.token == 'BROCA' ? 'b' : '')}`, order.pair);
-              if(!dex.tick)dex.tick = 1
-              if(!govTick)govTick = 1
+              if (!dex.tick) dex.tick = 1
+              if (!govTick) govTick = 1
               if (typeof order.rate != "string") order.rate = dex.tick;
               if (order.token == 'SPK') stats.multiSigCollateralValue = parseInt(stats.multiSigCollateral * dex.tick)
               stats.MSHeld[json.amount.nai == "@@000000021" ? "HIVE" : "HBD"] +=
@@ -8231,5 +8609,7 @@ export var config = {
   featuresModelBroca,
   poav_address,
   govToken,
-  state
+  state,
+  CustomEvery,
+  CodeShare
 };
