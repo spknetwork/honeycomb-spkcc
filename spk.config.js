@@ -383,6 +383,10 @@ const CodeShare = {
       return [gte, lte]
     },
     getPrand58(account, prand) {
+      if(typeof prand != 'string'){
+        console.log('prand is not a string', prand)
+        return 7427658739644928
+      }
       p = prand.split('')
       a = account.split('')
       r = 1n
