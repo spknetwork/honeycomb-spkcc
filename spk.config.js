@@ -367,13 +367,13 @@ const CodeShare = {
         if (val[n[i]] >= cutoff) total += cutoff * 2
         else total += val[n] || 1
       }
-      const gte = CodeShare.PoA.getPrand58(account, prand)
+      const gte = CodeShare.PoA.getPrand58(account, prand, context)
       const range = parseInt(((val[account] >= cutoff ? cutoff * 2 : val[account] || 1) / total) * (stats.total_files * parseInt(stats.vals_target * 10000) / 288) * 7427658739)
       var lte = Base58.fromNumber(Base58.toNumber(gte) + range)
       if (lte.length > 9) lte = 'zzzzzzzzz'
       if (gte.length != lte.length) {
         console.log(
-          CodeShare.PoA.getPrand58(account, prand),
+          CodeShare.PoA.getPrand58(account, prand, context),
           range,
           gte,
           lte,
@@ -382,7 +382,8 @@ const CodeShare = {
       }
       return [gte, lte]
     },
-    getPrand58(account, prand) {
+    getPrand58(account, prand, context) {
+      const { Base38 } = context
       const p = prand.split('')
       const a = account.split('')
       let r = 1n
