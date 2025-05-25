@@ -383,7 +383,7 @@ const CodeShare = {
       return [gte, lte]
     },
     getPrand58(account, prand, context) {
-      const { Base38 } = context
+      const { Base38, Base58 } = context
       const p = prand.split('')
       const a = account.split('')
       let r = 1n
