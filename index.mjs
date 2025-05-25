@@ -154,7 +154,7 @@ function initializeContext() {
   delete configCopy.active;
   delete configCopy.msowner;
   CodeShare = config.CodeShare
-  Every = [HR.margins, ...config.CustomEvery]
+  if(config?.CustomEvery?.length)Every = [HR.margins, ...config.CustomEvery]
   runtimeContext = { store, config: configCopy, API, VERSION, getPathObj, getPathNum, getPathSome, RAM, burn, forceCancel, add, addc, addMT, addCol, addGov, deletePointer, credit, nodeUpdate, penalty, chronAssign, hashThis, isEmpty, postToDiscord, Base64, Base58, Base38, stringify, NFT, Chron, stringify, DEX, naizer, status, verifySig, CodeShare }
 }
 initializeContext()

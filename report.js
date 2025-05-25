@@ -1,4 +1,4 @@
-import config from './config.js'
+import { config } from './config.js'
 import { plasma, VERSION, CodeShare } from './index.mjs'
 
 //tell the hive your state, this is asynchronous with IPFS return... 
