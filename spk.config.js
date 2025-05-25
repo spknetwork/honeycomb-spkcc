@@ -383,14 +383,10 @@ const CodeShare = {
       return [gte, lte]
     },
     getPrand58(account, prand) {
-      if(typeof prand != 'string'){
-        console.log('prand is not a string', prand)
-        return 7427658739644928
-      }
-      p = prand.split('')
-      a = account.split('')
-      r = 1n
-      for (var i = 0; i < p.length; i++) {
+      const cp = prand.split('')
+      const a = account.split('')
+      let r = 1n
+      for (var i = 0; i < cp.length; i++) {
         r = r * BigInt(1 + parseInt(p[i], 16))
       }
       for (var i = 0; i < a.length; i++) {
