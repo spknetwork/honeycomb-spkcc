@@ -430,14 +430,14 @@ const CodeShare = {
     //   })
     // }
     PA: function (Name, CID, peerid, SALT, bn, context) {
-      const { config, RAM, CodeShare } = context
+      const { config, RAM, CodeShare, WebSocket } = context
       if (peerid.split(',').length > 1) {
         peerid = peerid.split(',')[0]
         restOfPeerIDs = peerid.split(',').slice(1).join(',')
         CodeShare.PoA.PA(Name, CID, restOfPeerIDs, SALT, bn, context)
       }
       if (config.mode == 'verbose') console.log("PA: ", Name, CID, peerid, SALT, bn)
-      var socket = new WebSocketClient();
+      var socket = new WebSocket();
       socket.on('connect', (connection) => {
         setTimeout(() => {
           connection.close()

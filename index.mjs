@@ -56,6 +56,7 @@ export var TXID = {
   },
 }
 import fetch from 'node-fetch';
+import WebSocket from 'ws';
 import { Hive } from "./hive.js"
 import { Pathwise } from './pathwise.js';
 import level from 'level';
@@ -155,7 +156,7 @@ function initializeContext() {
   delete configCopy.msowner;
   CodeShare = config.CodeShare
   if(config?.CustomEvery?.length)Every = [HR.margins, ...config.CustomEvery]
-  runtimeContext = { store, config: configCopy, fetch,API, VERSION, getPathObj, getPathNum, getPathSome, RAM, burn, forceCancel, add, addc, addMT, addCol, addGov, deletePointer, credit, nodeUpdate, penalty, chronAssign, hashThis, isEmpty, postToDiscord, Base64, Base58, Base38, stringify, NFT, Chron, stringify, DEX, naizer, status, verifySig, CodeShare }
+  runtimeContext = { store, config: configCopy, fetch, WebSocket, API, VERSION, getPathObj, getPathNum, getPathSome, RAM, burn, forceCancel, add, addc, addMT, addCol, addGov, deletePointer, credit, nodeUpdate, penalty, chronAssign, hashThis, isEmpty, postToDiscord, Base64, Base58, Base38, stringify, NFT, Chron, stringify, DEX, naizer, status, verifySig, CodeShare }
 }
 initializeContext()
 function hotAPI(api) {
