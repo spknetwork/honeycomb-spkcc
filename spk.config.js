@@ -437,7 +437,7 @@ const CodeShare = {
         CodeShare.PoA.PA(Name, CID, restOfPeerIDs, SALT, bn, context)
       }
       if (config.mode == 'verbose') console.log("PA: ", Name, CID, peerid, SALT, bn)
-      var socket = new WebSocket();
+      var socket = new WebSocket(`${config.poav_address}/validate`);
       socket.on('connect', (connection) => {
         setTimeout(() => {
           connection.close()
@@ -482,7 +482,7 @@ const CodeShare = {
       socket.on('connectFailed', function (error) {
         if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
       });
-      socket.connect(`${config.poav_address}/validate`)
+      //socket.connect(`${config.poav_address}/validate`)
     }
   }
 }
