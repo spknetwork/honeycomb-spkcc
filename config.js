@@ -19,8 +19,7 @@ const port = ENV.PORT || 3001;
 const pintoken = ENV.pintoken || ''
 const pinurl = ENV.pinurl || '';
 const status = ENV.status || true
-const dbcs = ENV.DATABASE_URL || ''; //connection string to a docker-data postgres database likely postgres://postgres:postgres@127.0.0.1:5432/postgres?sslmode=disable if running the full suite on the same machine
-
+const dbcs = ENV.DATABASE_URL || ''; //connection string to a postgres database
 const dbmods = ENV.DATABASE_MODS || []; //list of moderators to hide posts in above db
 const typeDefs = ENV.APPTYPES || {
   ["360"]: ['QmNby3SMAAa9hBVHvdkKvvTqs7ssK4nYa2jBdZkxqmRc16'],
@@ -83,6 +82,7 @@ const leader = 'spk-test' //Default account to pull state from, will post token
 const ben = '' //Account where comment benifits trigger token action
 const delegation = '' //account people can delegate to for rewards
 const govToken = "spow"
+const RAMreport = 'Pending'
 const delegationWeight = 1000 //when to trigger community rewards with bens
 const msaccount = ENV.msaccount || 'spk-cc-test' //account controlled by community leaders
 const msPubMemo = 'STM8hszG2prkmSBsPpgQ4ZipdGq5MMK7zoJDXD7cV2FL83HXascWk' //memo key for msaccount
@@ -122,7 +122,400 @@ const features = {
   claimdrop: false //claim drops
 }
 
+const CustomEvery = [
+  function (block, prand, stats, realTime, context) {
+    const { store, CodeShare } = context
+    return new Promise((res, rej) => {
+      let ops = [{
+        type: 'put',
+        path: ['rand', `${block % 200}`],
+        data: prand
+      }]
+      // build rando value from base38 account name and base 16 prand: convert random value to base 58: set range according to val votes
+      if (realTime) CodeShare.PoA.Validate(block, prand, stats)
+      store.batch(ops, [res, rej, 1])
+    })
+  },
+]
+
+const CodeShare = {
+  reportFunction: function (val, plas, con, proofs = {}) {
+    return new Promise((resolve, reject) => {
+      const offset = plas.hashBlock % 200 > 100 ? 0 : 100
+      for (var i = 0; i < 100; i++) {
+        for (var CID in proofs[`${i + offset}`]) {
+          var formated = [CID, `${i + offset}`]
+          var nodes
+          try {
+            nodes = Object.keys(proofs[`${i + offset}`][CID].npid)
+          } catch (e) { continue }
+          if (nodes.length) {
+            for (var j = 0; j < nodes.length; j++) {
+              if (proofs[`${i + offset}`][CID].npid[nodes[j]] && proofs[`${i + offset}`][CID].npid[nodes[j]].Elapsed) formated.push([nodes[j], msIzer(proofs[`${i + offset}`][CID].npid[nodes[j]].Elapsed)])
+            }
+            if (formated.length > 2) val.push(formated)
+
+          }
+        }
+        if (JSON.stringify(val).length > 7800) break
+      }
+      resolve(val)
+    })
+  },
+  PoA: {
+    Check: function (b, rand, stats, val, cBroca, vBroca, pc, context) {
+      const { getPathObj } = context
+      var promises = []
+      for (var i = 0; i < b.report.v.length; i++) {
+        const [gte, lte] = this.PoA.getRange(rand[b.report.v[i][1]], b.self, val, stats)
+        const rev = b.report.v[i][0].split("").reverse().join("")
+        if (config.mode == 'verbose') console.log('lottery:', gte, rev.substr(0, 9), lte)
+        if (Base58.toNumber(rev.substr(0, gte.length)) >= Base58.toNumber(gte) && Base58.toNumber(rev.substr(0, lte.length)) <= Base58.toNumber(lte)) {
+          promises.push(getPathObj(['IPFS', rev]))
+        } else {
+          b.report.v.splice(i, 1)
+          i--
+        }
+      }
+      if (promises.length) Promise.all(promises).then(contractIDs => {
+        promises = []
+        for (var i = 0; i < contractIDs.length; i++) {
+          try {
+            promises.push(getPathObj(['contract', contractIDs[i].split(',')[0], contractIDs[i].split(',')[1]]))
+          } catch (e) {
+            continue
+          }
+        }
+        if (promises.length) Promise.all(promises).then(contracts => {
+          const oldTotal = stats.val_tot_ms || 0
+          const oldCount = stats.val_count || 0
+          const oldMean = parseInt(oldTotal / oldCount)
+          const oldStdDevNum = stats.val_std_dev_num || parseInt((Math.pow(oldTotal - oldMean, 2)) * 1000)
+          const oldStdDev = parseInt(Math.sqrt(oldStdDevNum / (oldCount * 1000)))
+          var newStdDevNum = oldStdDevNum
+          var newCount = oldCount
+          var newTotal = oldTotal
+          for (var i = 0; i < contracts.length; i++) {
+            var reward = 0
+            try {
+              reward = parseInt((contracts[i].p * contracts[i].r * contracts[i].df[b.report.v[i][0]]) / (contracts[i].u * 3))
+              if (config.mode == 'verbose') console.log({ contract: contracts[i], reward })
+            } catch (e) {
+              if (config.mode == 'verbose') console.log(e)
+              continue
+            }
+            var preferential = contracts[i].b
+            var paid = 0
+            if (contracts[i].ex) {
+              var terms = contracts[i].ex.split(',')
+              for (var j = 0; j < terms.length; j++) {
+                const thisTermBuyer = terms[j].split(':')[0]
+                const thisTerm = terms[j].split(':')[1]
+                const startTerm = parseInt(thisTerm.split('-')[0])
+                const endTerm = parseInt(thisTerm.split('-')[1])
+                if (b.report.block >= startTerm && b.report.block <= endTerm) {
+                  preferential = thisTermBuyer
+                  if (config.mode == 'verbose') console.log({ preferential, thisTermBuyer, startTerm, endTerm, bn: b.report.block })
+                  break
+                }
+              }
+            }
+            var accepted = {}
+            for (var j = 2; j < b.report.v[i].length; j++) {
+              if (b.report.v[i][j][1] > 0 && typeof b.report.v[i][j][1] == 'number' && b.report.v[i][j][1] < 240000) {
+                newCount++
+                newTotal += b.report.v[i][j][1]
+                delta = b.report.v[i][j][1] - oldMean
+                newStdDevNum = parseInt(newStdDevNum + (Math.pow(b.report.v[i][j][1] - oldMean, 2) * 1000))
+                if (Math.abs(delta) < 2 * oldStdDev) {
+                  paid++
+                  accepted[b.report.v[i][j][0]] = { a: b.report.v[i][j][0], r: 2, p: 0 }
+                } else if (Math.abs(delta) < 3 * oldStdDev) {
+                  paid++
+                  accepted[b.report.v[i][j][0]] = { a: b.report.v[i][j][0], r: 1, p: 0 }
+                }
+              }
+            }
+            var order = []
+            if (typeof preferential == "string") {
+              order.push(preferential)
+            }
+            const storers = Base64.toNumber(contracts[i].nt)
+            for (var j = 1; j < storers; j++) {
+              order.push(contracts[i].n[Base64.fromNumber(j)])
+            }
+            order = [...new Set(order)]
+            var acc = []
+            for (var acct in accepted) {
+              accepted[acct].p = order.indexOf(acct)
+              acc.push(accepted[acct])
+            }
+            acc.sort((a, b) => a.p - b.p)
+            for (var j = 0; j < acc.length; j++) {
+              if (j < contracts[i].p) cBroca[acc[j].a] = cBroca[acc[j].a] ? cBroca[acc[j].a] + reward : reward
+              else cBroca[acc[j].a] = cBroca[acc[j].a] ? cBroca[acc[j].a] + parseInt(reward / Math.pow(j - 1 - contracts[i].p, 2)) : parseInt(reward / Math.pow(j - 1 - contracts[i].p, 2))
+            }
+            if (paid) vBroca[b.self] = vBroca[b.self] ? vBroca[b.self] + (2 * reward) : (2 * reward)
+          }
+          delete b.report.v
+          stats.val_tot_ms = newTotal
+          stats.val_count = newCount
+          stats.val_std_dev_num = newStdDevNum
+          var ops = [{ type: "put", path: ["markets", "node", b.self], data: b },
+          { type: "put", path: ["stats"], data: stats }]
+          if (Object.keys(vBroca).length) ops.push({ type: "put", path: ["vbroca"], data: vBroca })
+          if (Object.keys(cBroca).length) ops.push({ type: "put", path: ["cbroca"], data: cBroca })
+          store.batch(ops, pc)
+        })
+        else store.batch([{ type: "put", path: ["markets", "node", b.self], data: b }], pc)
+      })
+      else store.batch([{ type: "put", path: ["markets", "node", b.self], data: b }], pc)
+    },
+    BlackListed: function (reversedCID) {
+      return new Promise((resolve, reject) => {
+        const CID = reversedCID.split("").reverse().join("")
+        fetch(`${config.BlackListURL}/flag-qry/${CID}`).then(r => r.json()).then(json => {
+          if (json.flag) resolve(true)
+          else resolve(false)
+        }).catch(e => resolve(false))
+      })
+    },
+    Validate: function (block, prand, stats, account = config.username, context) {
+      const { config, RAM } = context
+      const { getPathObj, getPathSome } = context
+      if (!RAM.Pending) RAM.Pending = {}
+      RAM.Pending[`${block % 200}`] = {}
+      let Pval = getPathObj(['val'])
+      let Pnode = getPathObj(['markets', 'node', account])
+      Promise.all([Pval, Pnode]).then(mem => {
+        const val = mem[0],
+          node = mem[1]
+        if (node.val_code && val[node.val_code]) {
+          const [gte, lte] = this.PoA.getRange(prand, account, val, stats)
+          getPathSome(["IPFS"], { gte, lte }).then(items => { //need to wrap this call to 0 thru remainder 
+            var promises = [], toVerify = {}, BlackListed = []
+            for (var i = 0; i < items.length; i++) {
+              BlackListed.push(this.PoA.BlackListed(items[i]))
+              promises.push(getPathObj(['IPFS', items[i]]))
+            }
+            Promise.all(BlackListed).then(flags => {
+              for (var i = flags.length - 1; i >= 0; i--) {
+                if (flags[i]) promises.splice(i, 1)
+              }
+              Promise.all(promises).then(contractIDs => {
+                promises = []
+                for (var i = 0; i < contractIDs.length; i++) {
+                  promises.push(getPathObj(['contract', contractIDs[i].split(',')[0], contractIDs[i].split(',')[1]]))
+                  const asset = items[i].split("").reverse().join("")
+                  toVerify[asset] = {
+                    r: items[i],
+                    a: asset,
+                    fo: contractIDs[i].split(',')[0],
+                    id: contractIDs[i].split(',')[1]
+                  }
+                }
+                if (promises.length) Promise.all(promises).then(contracts => {
+                  promises = [], k = []
+                  for (var i = 0; i < contracts.length; i++) {
+                    const dfKeys = contracts[i].df ? Object.keys(contracts[i].df) : []
+                    for (var j = 0; j < dfKeys.length; j++) {
+                      if (toVerify[dfKeys[j]]) {
+                        toVerify[dfKeys[j]].n = contracts[i].n
+                        toVerify[dfKeys[j]].b = contracts[i].df[dfKeys[j]]
+                        toVerify[dfKeys[j]].i = i
+                        toVerify[dfKeys[j]].v = 0
+                        toVerify[dfKeys[j]].npid = {}
+                        for (var node in toVerify[dfKeys[j]].n) {
+                          toVerify[dfKeys[j]].npid[toVerify[dfKeys[j]].n[node]] = {
+                            Message: 0,
+                            Elapsed: 0
+                          }
+                          k.push([dfKeys[j], toVerify[dfKeys[j]].n[node]])
+                          if (config.mode == 'verbose') console.log('toVerify', toVerify[dfKeys[j]].n[node])
+                          promises.push(getPathObj(['service', 'IPFS', toVerify[dfKeys[j]].n[node]]))
+                        }
+                        RAM.Pending[block % 200] = toVerify
+                      }
+                    }
+                  }
+                  Promise.all(promises).then(peerIDs => {
+                    for (var i = 0; i < peerIDs.length; i++) {
+                      if (k[i]) {
+                        //this.Pending[`${block % 200}`][k[i][0]] = {}
+                        //console.log(this.Pending[`${block % 200}`])
+                      } else {
+                        if (config.mode == 'verbose') console.log(k, i, peerIDs)
+                        break
+                      }
+                      k[i].push(peerIDs[i])
+                      this.PoA.validate(k[i][0], k[i][1], k[i][2], prand, block, context)
+                    }
+                  })
+                })
+              })
+            })
+          })
+        }
+      })
+    },
+    getRange(prand, account, val, stats) {
+      const cutoff = stats.val_threshold || 1
+      var total = 0
+      var n = Object.keys(val)
+      for (var i = 0; i < n.length; i++) {
+        if (val[n[i]] >= cutoff) total += cutoff * 2
+        else total += val[n] || 1
+      }
+      const gte = this.PoA.getPrand58(account, prand)
+      const range = parseInt(((val[account] >= cutoff ? cutoff * 2 : val[account] || 1) / total) * (stats.total_files * parseInt(stats.vals_target * 10000) / 288) * 7427658739)
+      var lte = Base58.fromNumber(Base58.toNumber(gte) + range)
+      if (lte.length > 9) lte = 'zzzzzzzzz'
+      if (gte.length != lte.length) {
+        console.log(
+          this.PoA.getPrand58(account, prand),
+          range,
+          gte,
+          lte,
+          Base58.toNumber(gte)
+        )
+      }
+      return [gte, lte]
+    },
+    getPrand58(account, prand) {
+      p = prand.split('')
+      a = account.split('')
+      r = 1n
+      for (var i = 0; i < p.length; i++) {
+        r = r * BigInt(1 + parseInt(p[i], 16))
+      }
+      for (var i = 0; i < a.length; i++) {
+        r = r * BigInt(1 + Base38.toNumber(a[i]))
+      }
+      var gt = Base58.fromNumber(Number(r % 7427658739644928n))
+      while (gt.length < 9) {
+        gt = gt + '1'
+      }
+      return gt
+    },
+    validate: function (CID, Name, peerIDs, SALT, bn) {
+      peerids = peerIDs.split(',')
+      for (var i = 0; i < peerids.length; i++) {
+        this.PoA.PA(Name, CID, peerids[i], SALT, bn)
+      }
+    },
+    // read: function (key) {
+    //   return new Promise((res, rej) => {
+    //     fetch(`http://localhost:3000/read?key=${key}`)
+    //       .then(r => r.json())
+    //       .then(json => res(json))
+    //       .catch(e => {
+    //         if (config.mode == 'verbose') console.log('Failed to read:', key)
+    //         rej(e)
+    //       })
+    //   })
+    // },
+    // write: function (key, value) {
+    //   return new Promise((res, rej) => {
+    //     fetch(`http://localhost:3000/write?key=${key}&value=${value}`)
+    //       .then(r => r.json())
+    //       .then(json => res(json))
+    //       .catch(e => {
+    //         if (config.mode == 'verbose') console.log('Failed to read:', key)
+    //         rej(e)
+    //       })
+    //   })
+    // }
+    PA: function (Name, CID, peerid, SALT, bn, context) {
+      const { config, RAM } = context
+      if (peerid.split(',').length > 1) {
+        peerid = peerid.split(',')[0]
+        restOfPeerIDs = peerid.split(',').slice(1).join(',')
+        this.PoA.PA(Name, CID, restOfPeerIDs, SALT, bn, context)
+      }
+      if (config.mode == 'verbose') console.log("PA: ", Name, CID, peerid, SALT, bn)
+      var socket = new WebSocketClient();
+      socket.on('connect', (connection) => {
+        setTimeout(() => {
+          connection.close()
+          if (config.mode == 'verbose') console.log("Timeout:", CID)
+        }, 240000)
+        connection.send(JSON.stringify({ Name, CID, peerid, SALT }));
+        connection.on('message', (event) => {
+          const data = event.utf8Data ? JSON.parse(event.utf8Data) : {}
+          //const stepText = document.querySelectorAll('.step-text');
+          if (data.Status === 'Connecting to Peer') {
+            if (config.mode == 'verbose') console.log('Connecting to Peer')
+          } else if (data.Status === 'IpfsPeerIDError') {
+            connection.close()
+            if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
+          } else if (data.Status === 'RequestingProof') {
+            if (config.mode == 'verbose') console.log('RequestingProof')
+          } else if (data.Status === 'Connection Error') {
+            connection.close()
+            if (config.mode == 'verbose') console.log('Error: Connection Error')
+          } else if (data.Status === 'ProofReceived') {
+            if (config.mode == 'verbose') console.log('ProofReceived', { data })
+          } else if (data.Status === 'Waiting Proof') {
+            if (config.mode == 'verbose') console.log('Waiting Proof', { data })
+          } else if (data.Status === "Validating") {
+            if (config.mode == 'verbose') console.log('Validating', { data })
+          } else if (data.Status === "Validated") {
+            if (config.mode == 'verbose') console.log('Validated', { data })
+          } else if (data.Status === "Validating Proof") {
+            if (config.mode == 'verbose') console.log('Validating Proof', { data })
+          } else if (data.Status === "Valid") {
+            if (RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name] && !RAM.Pending[`${bn % 200}`][CID].npid[Name].Message) RAM.Pending[`${bn % 200}`][CID].npid[Name] = data
+            if (config.mode == 'verbose') console.log('Proof Valid', { data })
+            connection.close()
+          } else if (data.Status === "Invalid") {
+            if (config.mode == 'verbose') console.log('Proof Invalid', { data })
+            connection.close()
+          } else {
+            if (config.mode == 'verbose') console.log('Unknown Status:', data)
+          }
+        })
+      })
+      socket.on('connectFailed', function (error) {
+        if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
+      });
+      socket.connect(`${config.poav_address}/validate`)
+    }
+  }
+}
+
 const CustomJsonProcessing = [
+  {
+    type: "on",
+    op: "report",
+    func: function (json, from, active, pc, context) {
+      const { store, config, getPathObj, CodeShare } = context
+      var pReport = getPathObj(['markets', 'node', from])
+      var pRand = getPathObj(['rand'])
+      var pStats = getPathObj(['stats'])
+      let pVal = getPathObj(['val'])
+      let PcBroca = getPathObj(['cbroca'])
+      let PvBroca = getPathObj(['vbroca'])
+      Promise.all([pReport, pRand, pStats, pVal, PcBroca, PvBroca]).then(mem => {
+        var b = mem[0], rand = mem[1], stats = mem[2], val = mem[3], cBroca = mem[4]
+        if (from == b.self && active) {
+          b.report = json
+          delete b.report.timestamp
+          if (b.report.v) {
+            CodeShare.PoA.Check(b, rand, stats, val, cBroca, mem[5], pc)
+          } else {
+            var ops = [
+              { type: 'put', path: ['markets', 'node', from], data: b }
+            ]
+            if (process.env.npm_lifecycle_event == 'test') pc[2] = ops
+            store.batch(ops, pc)
+          }
+          if (json.ipfs_id && config.ipfshost == 'ipfs') ipfsPeerConnect(json.ipfs_id)
+        } else {
+          pc[0](pc[2])
+        }
+      })
+    }
+  },
   {
     type: "on",
     op: "spk_send",
@@ -1406,7 +1799,15 @@ const CustomJsonProcessing = [
     type: "on",
     op: "contract_close",
     func: function (json, from, active, pc, context) {
-      const { store, config, getPathObj, postToDiscord } = context
+      const { store, config, getPathObj, postToDiscord, Base64 } = context
+      const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
+        if (typeof last != "string") last = '0,0'
+        const last_calc = Base64.toNumber(last.split(',')[1])
+        const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
+        var total = parseInt(last.split(',')[0]) + accured + add
+        if (total > (pow * 1000)) total = (pow * 1000)
+        return `${total},${Base64.fromNumber(bn)}`
+      }
       if (json?.id.indexOf(':') > 0) {
         var Pstats = getPathObj(["stats"])
         var Pcontract = getPathObj(["contract", from, json.id])
@@ -1900,6 +2301,20 @@ const CustomJsonProcessing = [
             const sortedCids = Object.keys(contract.df).sort()
             const metadataFields = contract.m.split(',')
             const expectedFieldCount = 4 * sortedCids.length + 1
+            // pull thumbnails and delete them as well
+            const thumbUsage = new Map();
+            for (const cid of cids) {
+              const index = sortedCids.indexOf(cid);
+              if (index !== -1) {
+                const thumbCID = metadataFields[1 + 4 * index + 3];
+                thumbUsage.set(thumbCID, (thumbUsage.get(thumbCID) || 0) + 1);
+              }
+            }
+            for (const [thumbCID, usage] of thumbUsage.entries()) {
+              if (usage === metadataFields.filter(field => field.includes(thumbCID)).length) {
+                cids.push(thumbCID);
+              }
+            }
             for (const cid of cids) {
               if (contract.df[cid]) {
                 const bytes = contract.df[cid]
@@ -2782,7 +3197,7 @@ const CustomJsonProcessing = [
                   }
                 }
               } else {
-                let txid = config.TOKEN + hashThis(from + json.transaction_id),
+                let txid = 'SPK' + hashThis(from + json.transaction_id),
                   crate =
                     typeof parseFloat(order.rate) == "number"
                       ? parseFloat(order.rate).toFixed(6)
@@ -3309,7 +3724,7 @@ const CustomJsonProcessing = [
                   }
                 }
               } else {
-                let txid = config.TOKEN + hashThis(from + json.transaction_id),
+                let txid = 'BROCA' + hashThis(from + json.transaction_id),
                   crate =
                     typeof parseFloat(order.rate) == "number"
                       ? parseFloat(order.rate).toFixed(6)
@@ -3578,7 +3993,7 @@ const CustomOperationsProcessing = [
     type: "onOperation",
     op: "transfer",
     func: function (json, pc, context) {
-      const { store, config, getPathObj, getPathNum, add, addMT, addCol, addGov, deletePointer, credit, chronAssign, hashThis, isEmpty, naizer } = context
+      const { store, config, getPathObj, getPathNum, add, addMT, addCol, addGov, deletePointer, credit, chronAssign, hashThis, isEmpty, naizer, DEX, postToDiscord, stringify } = context
       json = naizer(json);
       const burnBroca = (node, amount = 0) => {
         return new Promise((resolve, reject) => {
@@ -4327,22 +4742,27 @@ const CustomOperationsProcessing = [
           order.amount = parseInt(json.amount.amount);
           //console.log({order})
           if (order.type == "MARKET" || order.type == "LIMIT") {
-            if (order.token != 'SPK') order.token = 'LARYNX'
-            let pDEX = getPathObj([`dex${order.token == 'SPK' ? 's' : (order.token == 'BROCA' ? 'b' : '')}}`, order.pair]),
-              pBal = getPathNum([order.token == 'SPK' ? 'spk' : 'balances', json.from]),
+            if (!(order.token == 'SPK' || order.token == 'BROCA')) order.token = 'LARYNX'
+            let pDEX = getPathObj([`dex${order.token == 'SPK' ? 's' : (order.token == 'BROCA' ? 'b' : '')}`, order.pair]),
+              pBal = getPathNum([order.token == 'SPK' ? 'spk' : (order.token == 'BROCA' ? 'lbroca' : 'balances'), json.from]),
               pInv = getPathNum(["balances", "ri"]),
-              pStats = getPathObj(["stats"]);
-            Promise.all([pDEX, pBal, pInv, pStats]).then((mem) => {
+              pStats = getPathObj(["stats"]),
+              PgovTick = getPathObj(["dexs", "hive", "tick"]);
+            Promise.all([pDEX, pBal, pInv, pStats, PgovTick]).then((mem) => {
               let dex = mem[0],
                 bal = mem[1],
                 inv = mem[2],
                 stats = mem[3],
+                govTick = mem[4],
                 filled = 0,
                 remaining = order.amount,
                 ops = [],
                 his = {},
                 fee = 0,
                 i = 0;
+              console.log({ dex, govTick }, `dex${order.token == 'SPK' ? 's' : (order.token == 'BROCA' ? 'b' : '')}`, order.pair);
+              if (!dex.tick) dex.tick = 1
+              if (!govTick) govTick = 1
               if (typeof order.rate != "string") order.rate = dex.tick;
               if (order.token == 'SPK') stats.multiSigCollateralValue = parseInt(stats.multiSigCollateral * dex.tick)
               stats.MSHeld[json.amount.nai == "@@000000021" ? "HIVE" : "HBD"] +=
@@ -4689,9 +5109,10 @@ const CustomOperationsProcessing = [
                       return max > remaining ? 0 : parseInt(remaining - max);
                     }
                     const txid =
-                      config.TOKEN + hashThis(json.from + json.transaction_id),
+                      order.TOKEN + hashThis(json.from + json.transaction_id),
                       crate = parseFloat(order.rate) > 0 ? order.rate : dex.tick,
-                      toRefund = maxAllowed(stats, dex.tick, remaining, crate);
+                      govRateTick = (govTick / dex.tick) * dex.tick,
+                      toRefund = order.type == "MARKET" ? 0 : maxAllowed(stats, govRateTick, remaining, crate)
                     remaining = remaining - toRefund;
                     //console.log({ toRefund, remaining });
                     const hours = 720,
@@ -6105,7 +6526,7 @@ const CustomAPI = [
             order.feenai = {
               amount: order.fee,
               precision: 0,
-              token: "BROCA",
+              token: "SPK",
             };
             markets.hive.buys.push(order);
           }
@@ -6133,7 +6554,7 @@ const CustomAPI = [
             order.feenai = {
               amount: order.fee,
               precision: 0,
-              token: "BROCA",
+              token: "SPK",
             };
             markets.hbd.sells.push(order);
           }
@@ -7594,6 +8015,7 @@ const CustomChron = [
       }
       function extend(json, from, active, pc, contextD) {
         const { store, getPathObj, postToDiscord, config, getPathNum, chronAssign } = contextD
+        console.log('extend')
         if (json.broca && json.id && json.file_owner) {
           var Pbroca = getPathObj(["broca", from]);
           var Ppow = getPathNum(["bpow", from])
@@ -7605,8 +8027,8 @@ const CustomChron = [
               pow = mem[2],
               contract = mem[3],
               ops = [],
-              err = '' //no log no broca?
-            brocaString = broca_calc(broca, pow, stats, json.block_num),
+              err = '', //no log no broca?
+              brocaString = broca_calc(broca, pow, stats, json.block_num),
               broca = parseInt(brocaString.split(',')[0])
             if (json.broca <= broca && contract.c == 3) {
               broca = broca - json.broca
@@ -7624,11 +8046,12 @@ const CustomChron = [
                   cidsFlaggedForDeletion.push(cidsSorted[i])
                 }
               }
-              let deletePromise = new Promise((resolve, reject) => {
+              let deletePromise = new Promise((res, rej) => {
                 if (cidsFlaggedForDeletion.length) {
-                  exports.delete_files({ cids: cidsFlaggedForDeletion, block_num: json.block_num, transaction_id: json.transaction_id }, contract.t, true, [resolve, reject, 0])
+                  console.log('delete_files')
+                  exports.delete_files({ cids: cidsFlaggedForDeletion, block_num: json.block_num, transaction_id: json.transaction_id }, contract.t, true, [res, rej, 0])
                 } else {
-                  resolve([])
+                  res([])
                 }
               })
               deletePromise.then(contracts => {
@@ -7696,7 +8119,7 @@ const CustomChron = [
                   if (config.hookurl || config.status)
                     postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
                   if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-                  //console.log(ops)
+                  console.log(ops)
                   store.batch(ops, pc);
                 })
               })
@@ -7713,7 +8136,7 @@ const CustomChron = [
         return new Promise((resolve, reject) => {
           Promise.all(promies)
             .then((mem) => {
-              //console.log(delkey)
+              console.log(delkey)
               let contract = mem[0],
                 stats = mem[1],
                 ops = [],
@@ -7729,6 +8152,7 @@ const CustomChron = [
                   transaction_id: `v_op_${contract.t}_autoExtend_${contract.i}`
                 }, contract.t, true, [resolve, reject, 0], context)
               } else {
+                console.log('contract_close else')
                 if (contract.df) {
                   var items = Object.keys(contract.df)//goods
                   for (var i = 0; i < items.length; i++) {
@@ -7751,6 +8175,7 @@ const CustomChron = [
                   data: `${contract.i} expired`,
                 });
                 ops.push({ type: "del", path: ["chrono", delkey] });
+                console.log(ops)
                 store.batch(ops, [resolve, reject]);
               }
             })
@@ -7759,13 +8184,12 @@ const CustomChron = [
             });
         });
       }
-      let Pproffer = getPathObj(['proffer', b.to, b.from, b.c]),
-        Ptemplate = getPathObj(["template", b.c]),
+      let Pcontract = getPathObj(['contract', b.fo, b.id]),
         Pstats = getPathObj(["stats"]),
-        Pbroca = getPathObj(["broca", b.from]),
-        Ppow = getPathObj(["bpow", b.from]);
+        Pbroca = getPathObj(["broca", b.fo]),
+        Ppow = getPathObj(["spow", b.fo]);
       contractClose(
-        [Pproffer, Ptemplate, Pstats, Pbroca, Ppow],
+        [Pcontract, Pstats, Pbroca, Ppow],
         passed.delKey,
         num,
         passed.delKey.split(":")[1],
@@ -7811,8 +8235,7 @@ const CustomChron = [
                 });
                 if (contract?.s) ops.push({ type: "del", path: ['ben', b.to, contract?.s.split(',')[0]] });
                 ops.push({ type: "del", path: ['proffer', b.to, b.from, b.c] });
-                if (b.c.indexOf(':') > -1) ops.push({ type: "del", path: ['partial_update', b.c.split(":")[2]] });
-                else console.log('no partial update')
+                ops.push({ type: "del", path: ['partial_update', b.c.split(":")[2]] })
                 ops.push({ type: "del", path: ['contract', b.to, contract.i] });
                 if (contract.s) ops.push({ type: "del", path: ['ben', b.to, contract.s.split(',')[0]] });
                 ops.push({
@@ -7840,7 +8263,7 @@ const CustomChron = [
         Pstats = getPathObj(["stats"]),
         Pbroca = getPathObj(["broca", b.from]),
         Ppow = getPathObj(["bpow", b.from]);
-        channelCheck(
+      channelCheck(
         [Pproffer, Ptemplate, Pstats, Pbroca, Ppow],
         passed.delKey,
         num,
@@ -7855,16 +8278,13 @@ const featuresModel = {
   rewards: {
     id: 'claim',
     msg: 'Claiming LARYNX rewards',
+    addr: 'claim',
+    fa_class: 'fas fa-money-bill-wave', //font awesome tags
     auth: 'posting',
     type: "move",
-    string: 'Reward ',
+    string: 'Claim',
     B: true,
     json: {
-      gov: {
-        type: "B",
-        string: "Lock to Governance",
-        req: false
-      }
     },
   },
   send: {
@@ -7872,6 +8292,8 @@ const featuresModel = {
     string: 'Send',
     B: true,
     msg: 'Sending LARYNX',
+    addr: 'balance',
+    fa_class: 'fas fa-paper-plane', //font awesome tags
     auth: 'active',
     type: "move",
     json: {
@@ -7898,6 +8320,8 @@ const featuresModel = {
     string: 'Power Up',
     B: true,
     msg: 'Powering LARYNX',
+    addr: 'balance',
+    fa_class: 'fas fa-angle-double-up', //font awesome tags
     auth: 'active',
     type: "move",
     json: {
@@ -7911,6 +8335,8 @@ const featuresModel = {
   powdn: {
     id: 'power_down',
     msg: 'Powering Down LARYNX',
+    addr: 'poweredUp',
+    fa_class: 'fas fa-angle-double-down', //font awesome tags
     auth: 'active',
     type: "move",
     string: 'Power Down',
@@ -7926,6 +8352,8 @@ const featuresModel = {
   powdel: {
     id: "power_grant",
     msg: 'Granting LARYNX',
+    addr: 'poweredUp',
+    fa_class: 'fas fa-user-friends', //font awesome tags
     auth: 'active',
     type: "move",
     string: "Grant",
@@ -7946,57 +8374,52 @@ const featuresModel = {
   },
   node: {
     id: 'node_add',
-    opts: [{
-      S: 'Domain',
-      type: 'text',
-      info: 'https://no-trailing-slash.com',
-      json: 'domain',
-      val: ''
+    msg: 'Updating Node',
+    addr: 'spk_power',
+    fa_class: 'fas fa-server', //font awesome tags
+    auth: 'active',
+    string: "Update",
+    json: {
+      domain: {
+        type: "S",
+        string: "Domain",
+        req: true
+      },
+      bidRate: {
+        type: "I",
+        string: "DEX Fee Vote",
+        req: false
+      },
+      dm: {
+        type: "I",
+        string: "DEX Max Vote",
+        req: false,
+        max: 10000,
+        min: 0,
+        step: 1
+      },
+      ds: {
+        type: "I",
+        string: "DEX Slope Vote",
+        req: false,
+        max: 10000,
+        min: 0,
+        step: 1
+      }
     },
-    {
-      S: 'DEX Fee Vote',
-      type: 'number',
-      info: '500 = .5%',
-      max: 1000,
-      min: 0,
-      json: 'bidRate',
-      val: ''
-    },
-    {
-      S: 'DEX Max Vote',
-      type: 'number',
-      info: '10000 = 100%',
-      max: 10000,
-      min: 0,
-      json: 'dm',
-      val: ''
-    },
-    {
-      S: 'DEX Slope Vote',
-      type: 'number',
-      info: '10000 = 100%',
-      max: 10000,
-      min: 0,
-      json: 'ds',
-      val: ''
-    }
-    ],
   }
 }
 const featuresModelSpk = {
   rewards: {
     id: 'claim',
     msg: 'Claiming SPK rewards',
+    addr: 'claim',
+    fa_class: 'fas fa-money-bill-wave', //font awesome tags
     auth: 'posting',
     type: "move",
-    string: 'Reward ',
+    string: 'Claim',
     B: true,
     json: {
-      gov: {
-        type: "B",
-        string: "Lock to Governance",
-        req: false
-      }
     },
   },
   send: {
@@ -8004,6 +8427,8 @@ const featuresModelSpk = {
     string: 'Send',
     B: true,
     msg: 'Sending SPK',
+    addr: 'balance',
+    fa_class: 'fas fa-paper-plane', //font awesome tags
     auth: 'active',
     type: "move",
     json: {
@@ -8030,6 +8455,8 @@ const featuresModelSpk = {
     string: 'Power Up',
     B: true,
     msg: 'Powering SPK',
+    addr: 'balance',
+    fa_class: 'fas fa-angle-double-up', //font awesome tags
     auth: 'active',
     type: "move",
     json: {
@@ -8043,6 +8470,8 @@ const featuresModelSpk = {
   powdn: {
     id: 'power_down',
     msg: 'Powering Down SPK',
+    addr: 'poweredUp',
+    fa_class: 'fas fa-angle-double-down', //font awesome tags
     auth: 'active',
     type: "move",
     string: 'Power Down',
@@ -8060,16 +8489,13 @@ const featuresModelBroca = {
   rewards: {
     id: 'claim',
     msg: 'Claiming BROCA rewards',
+    addr: 'claim',
+    fa_class: 'fas fa-money-bill-wave', //font awesome tags
     auth: 'posting',
     type: "move",
-    string: 'Reward ',
+    string: 'Claim ',
     B: true,
     json: {
-      gov: {
-        type: "B",
-        string: "Lock to Governance",
-        req: false
-      }
     },
   },
   send: {
@@ -8077,6 +8503,8 @@ const featuresModelBroca = {
     string: 'Send',
     B: true,
     msg: 'Sending BROCA',
+    addr: 'balance',
+    fa_class: 'fas fa-paper-plane', //font awesome tags
     auth: 'active',
     type: "move",
     json: {
@@ -8103,6 +8531,8 @@ const featuresModelBroca = {
     string: 'Power Up',
     B: true,
     msg: 'Powering BROCA',
+    addr: 'balance',
+    fa_class: 'fas fa-angle-double-up', //font awesome tags
     auth: 'active',
     type: "move",
     json: {
@@ -8116,6 +8546,8 @@ const featuresModelBroca = {
   powdn: {
     id: 'power_down',
     msg: 'Powering Down BROCA',
+    addr: 'poweredUp',
+    fa_class: 'fas fa-angle-double-down', //font awesome tags
     auth: 'active',
     type: "move",
     string: 'Power Down',
@@ -8201,5 +8633,8 @@ export var config = {
   featuresModelBroca,
   poav_address,
   govToken,
-  state
+  RAMreport,
+  state,
+  CustomEvery,
+  CodeShare
 };

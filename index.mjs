@@ -693,7 +693,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
               }
             }
             function every(stats) {
-              return new Promise(async (resolve, reject) => {
+              return new Promise(async (resolveEvery, rejectEvery) => {
                 let promises = []
                 const realTime = API.RAM.behind < 50 ? true : false
                 try {
@@ -701,7 +701,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                     await func(stats, num, prand, realTime, runtimeContext);
                   }
                 } catch (error) {
-                  reject(error);
+                  rejectEvery(error);
                   return;
                 }
                 
@@ -800,9 +800,8 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                 if ((num - 2) % 3000 === 0) {
                   promises.push(voter());
                 }
-                console.log(promises)
-                if(!promises.length)resolve(pc)
-                Promise.all(promises).then(() => resolve(pc))
+                if(!promises.length)resolveEvery(resolve(pc))
+                Promise.all(promises).then(() => resolveEvery(resolve(pc)))
               })
             }
             if (num % 100 === 1 && !block.root) {
