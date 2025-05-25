@@ -386,7 +386,7 @@ const CodeShare = {
       const p = prand.split('')
       const a = account.split('')
       let r = 1n
-      for (var i = 0; i < cp.length; i++) {
+      for (var i = 0; i < p.length; i++) {
         r = r * BigInt(1 + parseInt(p[i], 16))
       }
       for (var i = 0; i < a.length; i++) {
