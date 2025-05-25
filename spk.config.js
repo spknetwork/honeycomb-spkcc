@@ -316,7 +316,7 @@ const CodeShare = {
                   }
                 }
                 if (promises.length) Promise.all(promises).then(contracts => {
-                  promises = [], k = []
+                  var promises = [], k = []
                   for (var i = 0; i < contracts.length; i++) {
                     const dfKeys = contracts[i].df ? Object.keys(contracts[i].df) : []
                     for (var j = 0; j < dfKeys.length; j++) {
