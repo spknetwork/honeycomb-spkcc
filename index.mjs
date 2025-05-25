@@ -698,9 +698,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                 const realTime = API.RAM.behind < 50 ? true : false
                 try {
                   for (const func of Every) {
-                    console.log(func)
                     await func(stats, num, prand, realTime, runtimeContext);
-                    console.log('done')
                   }
                 } catch (error) {
                   reject(error);
@@ -802,6 +800,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                 if ((num - 2) % 3000 === 0) {
                   promises.push(voter());
                 }
+                console.log(promises)
                 if(!promises.length)resolve(pc)
                 Promise.all(promises).then(() => resolve(pc))
               })
