@@ -802,6 +802,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                 if ((num - 2) % 3000 === 0) {
                   promises.push(voter());
                 }
+                if(!promises.length)resolve(pc)
                 Promise.all(promises).then(() => resolve(pc))
               })
             }
