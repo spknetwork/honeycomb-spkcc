@@ -383,7 +383,7 @@ const CodeShare = {
       return [gte, lte]
     },
     getPrand58(account, prand) {
-      const cp = prand.split('')
+      const p = prand.split('')
       const a = account.split('')
       let r = 1n
       for (var i = 0; i < cp.length; i++) {
