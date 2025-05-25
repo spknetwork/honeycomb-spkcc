@@ -164,10 +164,10 @@ const CodeShare = {
   },
   PoA: {
     Check: function (b, rand, stats, val, cBroca, vBroca, pc, context) {
-      const { getPathObj } = context
+      const { getPathObj, CodeShare } = context
       var promises = []
       for (var i = 0; i < b.report.v.length; i++) {
-        const [gte, lte] = this.PoA.getRange(rand[b.report.v[i][1]], b.self, val, stats)
+        const [gte, lte] = CodeShare.PoA.getRange(rand[b.report.v[i][1]], b.self, val, stats)
         const rev = b.report.v[i][0].split("").reverse().join("")
         if (config.mode == 'verbose') console.log('lottery:', gte, rev.substr(0, 9), lte)
         if (Base58.toNumber(rev.substr(0, gte.length)) >= Base58.toNumber(gte) && Base58.toNumber(rev.substr(0, lte.length)) <= Base58.toNumber(lte)) {
@@ -281,7 +281,7 @@ const CodeShare = {
       })
     },
     Validate: function (block, prand, stats, account = config.username, context) {
-      const { config, RAM } = context
+      const { config, RAM, CodeShare } = context
       const { getPathObj, getPathSome } = context
       if (!RAM.Pending) RAM.Pending = {}
       RAM.Pending[`${block % 200}`] = {}
@@ -291,11 +291,11 @@ const CodeShare = {
         const val = mem[0],
           node = mem[1]
         if (node.val_code && val[node.val_code]) {
-          const [gte, lte] = this.PoA.getRange(prand, account, val, stats)
+          const [gte, lte] = CodeShare.PoA.getRange(prand, account, val, stats)
           getPathSome(["IPFS"], { gte, lte }).then(items => { //need to wrap this call to 0 thru remainder 
             var promises = [], toVerify = {}, BlackListed = []
             for (var i = 0; i < items.length; i++) {
-              BlackListed.push(this.PoA.BlackListed(items[i]))
+              BlackListed.push(CodeShare.PoA.BlackListed(items[i]))
               promises.push(getPathObj(['IPFS', items[i]]))
             }
             Promise.all(BlackListed).then(flags => {
@@ -348,7 +348,7 @@ const CodeShare = {
                         break
                       }
                       k[i].push(peerIDs[i])
-                      this.PoA.validate(k[i][0], k[i][1], k[i][2], prand, block, context)
+                      CodeShare.PoA.validate(k[i][0], k[i][1], k[i][2], prand, block, context)
                     }
                   })
                 })
@@ -358,7 +358,8 @@ const CodeShare = {
         }
       })
     },
-    getRange(prand, account, val, stats) {
+    getRange(prand, account, val, stats, context) {
+      const { CodeShare } = context
       const cutoff = stats.val_threshold || 1
       var total = 0
       var n = Object.keys(val)
@@ -366,13 +367,13 @@ const CodeShare = {
         if (val[n[i]] >= cutoff) total += cutoff * 2
         else total += val[n] || 1
       }
-      const gte = this.PoA.getPrand58(account, prand)
+      const gte = CodeShare.PoA.getPrand58(account, prand)
       const range = parseInt(((val[account] >= cutoff ? cutoff * 2 : val[account] || 1) / total) * (stats.total_files * parseInt(stats.vals_target * 10000) / 288) * 7427658739)
       var lte = Base58.fromNumber(Base58.toNumber(gte) + range)
       if (lte.length > 9) lte = 'zzzzzzzzz'
       if (gte.length != lte.length) {
         console.log(
-          this.PoA.getPrand58(account, prand),
+          CodeShare.PoA.getPrand58(account, prand),
           range,
           gte,
           lte,
@@ -397,10 +398,11 @@ const CodeShare = {
       }
       return gt
     },
-    validate: function (CID, Name, peerIDs, SALT, bn) {
+    validate: function (CID, Name, peerIDs, SALT, bn, context) {
+      const { CodeShare } = context
       peerids = peerIDs.split(',')
       for (var i = 0; i < peerids.length; i++) {
-        this.PoA.PA(Name, CID, peerids[i], SALT, bn)
+        CodeShare.PoA.PA(Name, CID, peerids[i], SALT, bn, context)
       }
     },
     // read: function (key) {
@@ -426,11 +428,11 @@ const CodeShare = {
     //   })
     // }
     PA: function (Name, CID, peerid, SALT, bn, context) {
-      const { config, RAM } = context
+      const { config, RAM, CodeShare } = context
       if (peerid.split(',').length > 1) {
         peerid = peerid.split(',')[0]
         restOfPeerIDs = peerid.split(',').slice(1).join(',')
-        this.PoA.PA(Name, CID, restOfPeerIDs, SALT, bn, context)
+        CodeShare.PoA.PA(Name, CID, restOfPeerIDs, SALT, bn, context)
       }
       if (config.mode == 'verbose') console.log("PA: ", Name, CID, peerid, SALT, bn)
       var socket = new WebSocketClient();
