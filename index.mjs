@@ -343,7 +343,7 @@ export function customInit(api, chron, processor, CS, E) {
   return new Promise((resolve, reject) => {
     console.log('customInit')
     CodeShare = {...CodeShare, ...CS}
-    if(E.length)Every = [...E]
+    if(E?.length)Every = [...E]
     hotAPI(api)
     hotChron(chron)
     hotCustom(processor)
