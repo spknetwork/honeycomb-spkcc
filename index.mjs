@@ -698,7 +698,9 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                 const realTime = API.RAM.behind < 50 ? true : false
                 try {
                   for (const func of Every) {
+                    console.log(func)
                     await func(stats, num, prand, realTime, runtimeContext);
+                    console.log('done')
                   }
                 } catch (error) {
                   reject(error);
