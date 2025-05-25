@@ -402,7 +402,7 @@ const CodeShare = {
     },
     validate: function (CID, Name, peerIDs, SALT, bn, context) {
       const { CodeShare } = context
-      peerids = peerIDs.split(',')
+      const peerids = peerIDs.split(',')
       for (var i = 0; i < peerids.length; i++) {
         CodeShare.PoA.PA(Name, CID, peerids[i], SALT, bn, context)
       }
