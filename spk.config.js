@@ -5192,7 +5192,7 @@ const CustomOperationsProcessing = [
               }
               if (config.hookurl || config.status)
                 postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
-              ops.push({ type: "put", path: [order.token == 'SPK' ? "spk" : (order.token == 'BROCA' ? "Broca" : "balances"), json.from], data: bal });
+              ops.push({ type: "put", path: [order.token == 'SPK' ? "spk" : (order.token == 'BROCA' ? "broca" : "balances"), json.from], data: bal });
               ops.push({
                 type: "put",
                 path: ["feed", `${json.block_num}:${json.transaction_id}.${i++}`],
@@ -8422,7 +8422,6 @@ const featuresModelSpk = {
     auth: 'posting',
     type: "move",
     string: 'Claim',
-    B: true,
     json: {
     },
   },

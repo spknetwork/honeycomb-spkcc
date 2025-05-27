@@ -1921,7 +1921,7 @@ const state = (req, res, next) => {
 
 const pending = (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
-    result = {
+    const result = {
         nodeOps: GetNodeOps(),
         plasma: plasma
     }
