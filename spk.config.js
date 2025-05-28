@@ -459,7 +459,7 @@ const CodeShare = {
             if (config.mode == 'verbose') console.log('Proof Invalid', { data })
               socket.close()
           } else {
-            if (config.mode == 'verbose') console.log('Unknown Status:', event)
+            if (config.mode == 'verbose') console.log('Unknown Status:', data)
           }
         })
       })
