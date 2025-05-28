@@ -420,8 +420,8 @@ const CodeShare = {
       // Add initial connection attempt logging
       if (config.mode == 'verbose') console.log("Attempting WebSocket connection to:", `${config.poav_address}/validate`)
       
-      var socket = new WebSocket.client();
-      socket.on('connect', (connection) => {
+      var socket = new WebSocket(`${config.poav_address}/validate`);
+      socket.on('open', (connection) => {
         if (config.mode == 'verbose') console.log("WebSocket connected successfully")
         setTimeout(() => {
           connection.close()
