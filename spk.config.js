@@ -419,7 +419,7 @@ const CodeShare = {
       
       // Add initial connection attempt logging
       if (config.mode == 'verbose') console.log("Attempting WebSocket connection to:", `${config.poav_address}/validate`)
-      
+      try {
       var socket = new WebSocket(`${config.poav_address}/validate`);
       socket.on('open', (connection) => {
         if (config.mode == 'verbose') console.log("WebSocket connected successfully")
@@ -459,7 +459,7 @@ const CodeShare = {
             if (config.mode == 'verbose') console.log('Proof Invalid', { data })
               socket.close()
           } else {
-            if (config.mode == 'verbose') console.log('Unknown Status:', data)
+            if (config.mode == 'verbose') console.log('Unknown Status:', event)
           }
         })
       })
@@ -468,6 +468,9 @@ const CodeShare = {
       });
 
       if (config.mode == 'verbose') console.log("WebSocket connection initiated")
+      } catch (error) {
+        if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
+      }
     }
   }
 }
