@@ -366,7 +366,7 @@ const CodeShare = {
       var n = Object.keys(val)
       for (var i = 0; i < n.length; i++) {
         if (val[n[i]] >= cutoff) total += cutoff * 2
-        else total += val[n] || 1
+        else total += val[n[i]] || 1
       }
       const gte = CodeShare.PoA.getPrand58(account, prand, context)
       const range = parseInt(((val[account] >= cutoff ? cutoff * 2 : val[account] || 1) / total) * (stats.total_files * parseInt(stats.vals_target * 10000) / 288) * 7427658739)
@@ -401,49 +401,25 @@ const CodeShare = {
       return gt
     },
     validate: function (CID, Name, peerIDs, SALT, bn, context) {
-      const { CodeShare } = context
-      const peerids = peerIDs.split(',')
-      for (var i = 0; i < peerids.length; i++) {
-        CodeShare.PoA.PA(Name, CID, peerids[i], SALT, bn, context)
-      }
-    },
-    // read: function (key) {
-    //   return new Promise((res, rej) => {
-    //     fetch(`http://localhost:3000/read?key=${key}`)
-    //       .then(r => r.json())
-    //       .then(json => res(json))
-    //       .catch(e => {
-    //         if (config.mode == 'verbose') console.log('Failed to read:', key)
-    //         rej(e)
-    //       })
-    //   })
-    // },
-    // write: function (key, value) {
-    //   return new Promise((res, rej) => {
-    //     fetch(`http://localhost:3000/write?key=${key}&value=${value}`)
-    //       .then(r => r.json())
-    //       .then(json => res(json))
-    //       .catch(e => {
-    //         if (config.mode == 'verbose') console.log('Failed to read:', key)
-    //         rej(e)
-    //       })
-    //   })
-    // }
-    PA: function (Name, CID, peerid, SALT, bn, context) {
       const { config, RAM, CodeShare, WebSocket } = context
-      if (peerid.split(',').length > 1) {
-        peerid = peerid.split(',')[0]
-        restOfPeerIDs = peerid.split(',').slice(1).join(',')
+      if (peerIDs.split(',').length > 1) {
+        peerid = peerIDs.split(',')[0]
+        restOfPeerIDs = peerIDs.split(',').slice(1).join(',')
         CodeShare.PoA.PA(Name, CID, restOfPeerIDs, SALT, bn, context)
       }
-      if (config.mode == 'verbose') console.log("PA: ", Name, CID, peerid, SALT, bn)
+      if (config.mode == 'verbose') console.log("PA: ", Name, CID, peerIDs, SALT, bn)
+      
+      // Add initial connection attempt logging
+      if (config.mode == 'verbose') console.log("Attempting WebSocket connection to:", `${config.poav_address}/validate`)
+      
       var socket = new WebSocket(`${config.poav_address}/validate`);
       socket.on('connect', (connection) => {
+        if (config.mode == 'verbose') console.log("WebSocket connected successfully")
         setTimeout(() => {
           connection.close()
           if (config.mode == 'verbose') console.log("Timeout:", CID)
         }, 240000)
-        connection.send(JSON.stringify({ Name, CID, peerid, SALT }));
+        connection.send(JSON.stringify({ Name, CID, peerid: peerIDs, SALT }));
         connection.on('message', (event) => {
           const data = event.utf8Data ? JSON.parse(event.utf8Data) : {}
           //const stepText = document.querySelectorAll('.step-text');
@@ -482,7 +458,10 @@ const CodeShare = {
       socket.on('connectFailed', function (error) {
         if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
       });
-      //socket.connect(`${config.poav_address}/validate`)
+      
+      // Actually initiate the connection - this was commented out!
+      socket.connect(`${config.poav_address}/validate`)
+      if (config.mode == 'verbose') console.log("WebSocket connection initiated")
     }
   }
 }
@@ -1260,40 +1239,6 @@ const CustomJsonProcessing = [
   },
   {
     type: "on",
-    op: "broca_shares_claim",
-    func: function (json, from, active, pc, context) {
-      const { store, config, getPathNum, postToDiscord } = context
-      let fbalp = getPathNum(['cbalances', from]),
-        tbp = getPathNum(['balances', from]),
-        pspk = getPathNum(['spk', from]),
-        pcspk = getPathNum(['cspk', from])
-      Promise.all([fbalp, tbp, pspk, pcspk])
-        .then(mem => {
-          let fbal = mem[0],
-            tbal = mem[1],
-            spk = mem[2],
-            claimSpk = mem[3],
-            ops = [],
-            claim = parseInt(fbal);
-          if (claim > 0) {
-            const msg = `@${from}| Claimed: ${parseFloat(parseInt(claim) / 1000).toFixed(3)}${claimSpk ? ' ' : ''}${config.TOKEN} ${claimSpk ? parseFloat(parseInt(claimSpk) / 1000).toFixed(3) : ''} ${claimSpk ? 'SPK' : ''}`
-            ops.push({ type: 'del', path: ['cbalances', from] });
-            ops.push({ type: 'del', path: ['cspk', from] });
-            ops.push({ type: 'put', path: ['spk', from], data: parseInt(claimSpk + spk) });
-            ops.push({ type: 'put', path: ['balances', from], data: parseInt(tbal + claim) });
-            if (config.hookurl || config.status) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
-            ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
-          } else {
-            ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: `@${from}| Invalid claim operation` });
-          }
-          if (process.env.npm_lifecycle_event == 'test') pc[2] = ops
-          store.batch(ops, pc);
-        })
-        .catch(e => { console.log(e); });
-    }
-  },
-  {
-    type: "on",
     op: "channel_open",
     func: function (json, from, active, pc, context) {
       console.log("channel_open", json)
@@ -1937,281 +1882,6 @@ const CustomJsonProcessing = [
       } else {
         pc[0](pc[2]);
       }
-    }
-  },
-  {
-    type: "on",
-    op: "update_metadata",
-    func: function (json, from, active, pc, context) {
-      const { store, config, getPathObj, postToDiscord, Base58, Base64 } = context
-      function isValidMetadata(metadataString) {
-        let metaData = metadataString.split(',')
-        const contractData = metaData[0]
-        const metadata = metaData.splice(1)
-        if (metadata.length % 4 !== 0) return false
-        let firstChar = contractData.split('')[0]
-        if (firstChar == '#' || firstChar == '|') firstChar = "1"
-        let simpleTest = Base64.toNumber(firstChar) + 1
-        if (typeof simpleTest !== 'number') return false
-        let encryptionData = contractData.split('#')
-        encryptionData[encryptionData.length - 1] = encryptionData[encryptionData.length - 1].split('|')[0]
-        encryptionData = encryptionData.splice(1)
-        for (let i = 0; i < encryptionData.length; i++) {
-          let key = encryptionData[i]
-          if (key.endsWith(';')) key = key.substring(0, key.length - 1)
-          let atIndex = key.indexOf('@')
-          if (atIndex === -1) return false
-          let cipher = key.substring(0, atIndex)
-          if (!/^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/.test(cipher)) return false
-          let account = key.substring(atIndex + 1)
-          if (!/^[a-z0-9-.]{1,16}$/.test(account)) return false
-        }
-        let folderData = contractData.split('|')
-        folderData = folderData.splice(1)
-        if (folderData.length > 48) return false
-        let folderIndexMap = new Map()
-        folderIndexMap.set(0, "Root")
-        let k = 1
-        for (var l = 2; l < 10; l++) {
-          folderIndexMap.set(l, l)
-        }
-        for (let i = 0; i < folderData.length; i++) {
-          let folderPath = folderData[i]
-          let pathParts = folderPath.split('/')
-          for (let j = 0; j < pathParts.length; j++) {
-            let part = pathParts[j]
-            if (j < pathParts.length - 1) {
-              if (!part.match(/^[0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/))
-                return false
-              let parentIndex = Base58.toNumber(part);
-              if (!folderIndexMap.has(parentIndex)) return false
-            } else {
-              if (!part.match(/^[0-9a-zA-Z+_.\- ]{2,16}$/)) return false
-              folderIndexMap.set(k, folderPath)
-              if (k == 1) {
-                k = 9
-              }
-              k++
-            }
-          }
-        }
-
-        if (!validateFileMetadata(metadata, folderIndexMap)) return false
-        return true
-        function validateFileMetadata(metadataStr, folderIndexMap) {
-          const fileEntries = [];
-          for (let i = 0; i < metadataStr.length; i += 4) {
-            if (i + 4 <= metadataStr.length) {
-              fileEntries.push(metadataStr.slice(i, i + 4));
-            } else return false
-          }
-          const namePattern = /^[^,]{1,32}$/u
-          const typePattern = /^[a-z0-9]{0,4}(?:\.[0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)?$/
-          const ipfsPattern = /^Qm[1-9A-HJ-NP-Za-km-z]{44}$/
-          const urlPattern = /^(https?:\/\/[^\s$.?#].[^\s]*)$/
-          const flagsPattern = /^([0-9a-zA-Z+/=]?)-([0-9a-zA-Z+/=]?)-([0-9a-zA-Z+/=]*)$/
-          for (let i = 0; i < fileEntries.length; i++) {
-            const entry = fileEntries[i];
-            if (entry.length !== 4) return false;
-            const [name, type, thumb, flagsCombined] = entry
-            if (!namePattern.test(name)) return false
-            if (!typePattern.test(type)) return false
-            const typeParts = type.split('.');
-            if (typeParts.length > 1 && !folderIndexMap.has(Base58.toNumber(typeParts[1])) && typeParts[1] != "0") return false
-            if (thumb && !ipfsPattern.test(thumb) && !urlPattern.test(thumb)) return false
-            if (flagsCombined && !flagsPattern.test(flagsCombined)) return false
-          }
-          return true
-        }
-      }
-      function handleSingleUpdate(json, from, ops, errors) {
-        return Promise.all([
-          getPathObj(["contract", from, json.id]),
-          getPathObj(["partial_metadata_updates", json.id.split(':')[2]])
-        ])
-          .then(([contract, partial]) => {
-            if (!contract || !contract.e) {
-              errors.push(`Contract ${json.id} not found or not editable`)
-              return
-            }
-            if (from !== contract.t) {
-              errors.push(`Unauthorized edit attempt for contract ${json.id}`)
-              return
-            }
-            const metadata_size_verification = (Object.keys(contract.df).length * 4 + 1)
-            if (json.chunk_data && json.chunk_id && json.total_chunks) {
-              const chunk_id = json.chunk_id
-              const total_chunks = json.total_chunks
-              const chunk_data = json.chunk_data
-              if (!partial) partial = { total_chunks, from, chunks: {} }
-              else if (partial.from !== from || partial.total_chunks !== total_chunks) {
-                errors.push(`Chunk mismatch for contract ${json.id}`)
-                return
-              }
-              partial.chunks[chunk_id] = chunk_data
-              if (Object.keys(partial.chunks).length === total_chunks) {
-                let complete_metadata = ""
-                for (let i = 1; i <= total_chunks; i++) {
-                  if (!partial.chunks[i]) {
-                    errors.push(`Missing chunk ${i} for contract ${json.id}`)
-                    return
-                  }
-                  complete_metadata += partial.chunks[i];
-                }
-                if (!isValidMetadata(complete_metadata) || complete_metadata.split(',').length !== metadata_size_verification) {
-                  errors.push(`Invalid metadata format or size for contract ${json.id}`)
-                  ops.push({
-                    type: "del",
-                    path: ["partial_metadata_updates", json.id.split(':')[2]]
-                  });
-                  return
-                }
-                contract.m = complete_metadata
-                ops.push({
-                  type: "del",
-                  path: ["partial_metadata_updates", json.id.split(':')[2]]
-                })
-                if (config.hookurl || config.status) {
-                  postToDiscord(`${from} updated metadata for ${json.id} via chunks`, `${json.block_num}:${json.transaction_id}`)
-                }
-              } else {
-                ops.push({
-                  type: "put",
-                  path: ["partial_metadata_updates", json.id.split(':')[2]],
-                  data: partial
-                })
-                return
-              }
-            } else if (json.m && typeof json.m === "string") {
-              if (!isValidMetadata(json.m) || json.m.split(',').length !== metadata_size_verification) {
-                errors.push(`Invalid metadata format or size for contract ${json.id}`);
-                return
-              }
-              contract.m = json.m
-              if (config.hookurl || config.status) {
-                postToDiscord(`${from} updated metadata for ${json.id}`, `${json.block_num}:${json.transaction_id}`)
-              }
-            } else if (json.diff && typeof json.diff === "string") {
-              const newMetadata = jsdiff.applyPatch(contract.m, json.diff)
-              if (newMetadata === false) {
-                errors.push(`Failed to apply diff for contract ${json.id}`)
-                return
-              }
-              if (!isValidMetadata(newMetadata) || newMetadata.split(',').length !== metadata_size_verification) {
-                errors.push(`Invalid metadata format or size after diff for contract ${json.id}`);
-                return
-              }
-              contract.m = newMetadata
-              if (config.hookurl || config.status) {
-                postToDiscord(`${from} updated metadata for ${json.id} via diff`, `${json.block_num}:${json.transaction_id}`)
-              }
-            } else {
-              errors.push(`Invalid update request for contract ${json.id}`)
-              return
-            }
-            ops.push({
-              type: "put",
-              path: ["contract", from, json.id],
-              data: contract
-            })
-          })
-          .catch((e) => {
-            console.log("Error in handleSingleUpdate:", e)
-            errors.push(`Error processing contract ${json.id}`)
-          })
-      }
-      function handleMultipleUpdates(updates, from, ops, errors, json) {
-        const contractIds = Object.keys(updates)
-        const contractPaths = contractIds.map((id) => getPathObj(["contract", from, id]))
-        return Promise.all(contractPaths)
-          .then((contracts) => {
-            contracts.forEach((contract, i) => {
-              const contractId = contractIds[i]
-              const update = updates[contractId]
-              if (!contract || !contract.e) {
-                errors.push(`Contract ${contractId} not found or not editable`)
-                return
-              }
-              if (from !== contract.t) {
-                errors.push(`Unauthorized edit attempt for contract ${contractId}`)
-                return
-              }
-              const metadata_size_verification = (Object.keys(contract.df).length * 4 + 1)
-              if (update.m && typeof update.m === "string") {
-                if (!isValidMetadata(update.m) || update.m.split(',').length !== metadata_size_verification) {
-                  errors.push(`Invalid metadata format or size for contract ${contractId}`);
-                  //console.log(!isValidMetadata(update.m), update.m.split(',').length, metadata_size_verification)
-                  return
-                }
-                contract.m = update.m
-                if (config.hookurl || config.status) {
-                  postToDiscord(`${from} updated metadata for ${contractId}`, `${json.block_num}:${json.transaction_id}`)
-                }
-              } else if (update.diff && typeof update.diff === "string") {
-                const newMetadata = jsdiff.applyPatch(contract.m, update.diff)
-                if (!isValidMetadata(newMetadata) || newMetadata.split(',').length !== metadata_size_verification) {
-                  errors.push(`Invalid metadata format or size for contract ${contractId}`);
-                  //console.log(!isValidMetadata(newMetadata), newMetadata.split(',').length, metadata_size_verification)
-                  return
-                }
-                if (newMetadata === false) {
-                  errors.push(`Failed to apply diff for contract ${contractId}`)
-                  return
-                }
-                contract.m = newMetadata
-                if (config.hookurl || config.status) {
-                  postToDiscord(`${from} updated metadata for ${contractId} via diff`, `${json.block_num}:${json.transaction_id}`)
-                }
-              } else {
-                errors.push(`Invalid update for contract ${contractId}`)
-                return
-              }
-              ops.push({
-                type: "put",
-                path: ["contract", from, contractId],
-                data: contract
-              })
-            })
-          })
-          .catch((e) => {
-            console.log("Error in handleMultipleUpdates:", e)
-            errors.push("Error processing multiple updates")
-          });
-      }
-      const ops = []
-      const errors = []
-      let updatePromise
-      if (json.id) {
-        updatePromise = handleSingleUpdate(json, from, ops, errors);
-      } else if (json.updates && typeof json.updates === "object") {
-        updatePromise = handleMultipleUpdates(json.updates, from, ops, errors, json);
-      } else {
-        pc[0](pc[2]);
-        return;
-      }
-      updatePromise
-        .then(() => {
-          if (errors.length > 0) {
-            ops.push({
-              type: "put",
-              path: ["feed", `${json.block_num}:${json.transaction_id}`],
-              data: `Errors: ${errors.join("; ")}`
-            });
-          } else {
-            ops.push({
-              type: "put",
-              path: ["feed", `${json.block_num}:${json.transaction_id}`],
-              data: `Updated metadata for contracts: ${Object.keys(json.updates || { [json.id]: true }).join(", ")}`
-            });
-          }
-          if (process.env.npm_lifecycle_event === "test") pc[2] = ops;
-          store.batch(ops, pc);
-        })
-        .catch((e) => {
-          console.log("Error in update_metadata:", e);
-          pc[0](pc[2]);
-        });
-
     }
   },
   {
