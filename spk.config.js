@@ -410,23 +410,24 @@ const CodeShare = {
     PA: function (Name, CID, peerid, SALT, bn, context) {
       const { config, RAM, CodeShare, WebSocket } = context
       if (peerid.split(',').length > 1) {
-        peerid = peerid.split(',')[0]
+        const firstPeerId = peerid.split(',')[0]
         const restOfPeerIDs = peerid.split(',').slice(1).join(',')
         CodeShare.PoA.PA(Name, CID, restOfPeerIDs, SALT, bn, context)
+        peerid = firstPeerId
       }
       if (config.mode == 'verbose') console.log("PA: ", Name, CID, peerid, SALT, bn)
       
       // Add initial connection attempt logging
       if (config.mode == 'verbose') console.log("Attempting WebSocket connection to:", `${config.poav_address}/validate`)
       
-      var socket = new WebSocket(`${config.poav_address}/validate`);
+      var socket = new WebSocket.client();
       socket.on('connect', (connection) => {
         if (config.mode == 'verbose') console.log("WebSocket connected successfully")
         setTimeout(() => {
           connection.close()
           if (config.mode == 'verbose') console.log("Timeout:", CID)
         }, 240000)
-        connection.send(JSON.stringify({ Name, CID, peerid, SALT }));
+        connection.send(JSON.stringify({ Name, CID, peerid: peerid, SALT }));
         connection.on('message', (event) => {
           const data = event.utf8Data ? JSON.parse(event.utf8Data) : {}
           //const stepText = document.querySelectorAll('.step-text');
@@ -465,9 +466,7 @@ const CodeShare = {
       socket.on('connectFailed', function (error) {
         if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
       });
-      
-      // Actually initiate the connection - this was commented out!
-      socket.connect(`${config.poav_address}/validate`)
+
       if (config.mode == 'verbose') console.log("WebSocket connection initiated")
     }
   }
