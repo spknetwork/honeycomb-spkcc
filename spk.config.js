@@ -424,22 +424,22 @@ const CodeShare = {
       socket.on('open', (connection) => {
         if (config.mode == 'verbose') console.log("WebSocket connected successfully")
         setTimeout(() => {
-          connection.close()
+          socket.close()
           if (config.mode == 'verbose') console.log("Timeout:", CID)
         }, 240000)
-        connection.send(JSON.stringify({ Name, CID, peerid: peerid, SALT }));
-        connection.on('message', (event) => {
+        socket.send(JSON.stringify({ Name, CID, peerid: peerid, SALT }));
+        socket.on('message', (event) => {
           const data = event.utf8Data ? JSON.parse(event.utf8Data) : {}
           //const stepText = document.querySelectorAll('.step-text');
           if (data.Status === 'Connecting to Peer') {
             if (config.mode == 'verbose') console.log('Connecting to Peer')
           } else if (data.Status === 'IpfsPeerIDError') {
-            connection.close()
+            socket.close()
             if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
           } else if (data.Status === 'RequestingProof') {
             if (config.mode == 'verbose') console.log('RequestingProof')
           } else if (data.Status === 'Connection Error') {
-            connection.close()
+            socket.close()
             if (config.mode == 'verbose') console.log('Error: Connection Error')
           } else if (data.Status === 'ProofReceived') {
             if (config.mode == 'verbose') console.log('ProofReceived', { data })
@@ -454,10 +454,10 @@ const CodeShare = {
           } else if (data.Status === "Valid") {
             if (RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name] && !RAM.Pending[`${bn % 200}`][CID].npid[Name].Message) RAM.Pending[`${bn % 200}`][CID].npid[Name] = data
             if (config.mode == 'verbose') console.log('Proof Valid', { data })
-            connection.close()
+              socket.close()
           } else if (data.Status === "Invalid") {
             if (config.mode == 'verbose') console.log('Proof Invalid', { data })
-            connection.close()
+              socket.close()
           } else {
             if (config.mode == 'verbose') console.log('Unknown Status:', data)
           }
