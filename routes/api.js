@@ -1923,7 +1923,8 @@ const pending = (req, res, next) => {
     res.setHeader('Content-Type', 'application/json');
     const result = {
         nodeOps: GetNodeOps(),
-        plasma: plasma
+        plasma: plasma,
+        RAM: RAM
     }
     res.send(JSON.stringify(result, null, 3))
 }
