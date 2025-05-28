@@ -366,7 +366,7 @@ const CodeShare = {
       var n = Object.keys(val)
       for (var i = 0; i < n.length; i++) {
         if (val[n[i]] >= cutoff) total += cutoff * 2
-        else total += val[n] || 1
+        else total += val[n[i]] || 1
       }
       const gte = CodeShare.PoA.getPrand58(account, prand, context)
       const range = parseInt(((val[account] >= cutoff ? cutoff * 2 : val[account] || 1) / total) * (stats.total_files * parseInt(stats.vals_target * 10000) / 288) * 7427658739)
@@ -407,43 +407,26 @@ const CodeShare = {
         CodeShare.PoA.PA(Name, CID, peerids[i], SALT, bn, context)
       }
     },
-    // read: function (key) {
-    //   return new Promise((res, rej) => {
-    //     fetch(`http://localhost:3000/read?key=${key}`)
-    //       .then(r => r.json())
-    //       .then(json => res(json))
-    //       .catch(e => {
-    //         if (config.mode == 'verbose') console.log('Failed to read:', key)
-    //         rej(e)
-    //       })
-    //   })
-    // },
-    // write: function (key, value) {
-    //   return new Promise((res, rej) => {
-    //     fetch(`http://localhost:3000/write?key=${key}&value=${value}`)
-    //       .then(r => r.json())
-    //       .then(json => res(json))
-    //       .catch(e => {
-    //         if (config.mode == 'verbose') console.log('Failed to read:', key)
-    //         rej(e)
-    //       })
-    //   })
-    // }
     PA: function (Name, CID, peerid, SALT, bn, context) {
       const { config, RAM, CodeShare, WebSocket } = context
-      if (peerid.split(',').length > 1) {
-        peerid = peerid.split(',')[0]
-        restOfPeerIDs = peerid.split(',').slice(1).join(',')
+      if (peerIDs.split(',').length > 1) {
+        peerid = peerIDs.split(',')[0]
+        restOfPeerIDs = peerIDs.split(',').slice(1).join(',')
         CodeShare.PoA.PA(Name, CID, restOfPeerIDs, SALT, bn, context)
       }
-      if (config.mode == 'verbose') console.log("PA: ", Name, CID, peerid, SALT, bn)
+      if (config.mode == 'verbose') console.log("PA: ", Name, CID, peerIDs, SALT, bn)
+      
+      // Add initial connection attempt logging
+      if (config.mode == 'verbose') console.log("Attempting WebSocket connection to:", `${config.poav_address}/validate`)
+      
       var socket = new WebSocket(`${config.poav_address}/validate`);
       socket.on('connect', (connection) => {
+        if (config.mode == 'verbose') console.log("WebSocket connected successfully")
         setTimeout(() => {
           connection.close()
           if (config.mode == 'verbose') console.log("Timeout:", CID)
         }, 240000)
-        connection.send(JSON.stringify({ Name, CID, peerid, SALT }));
+        connection.send(JSON.stringify({ Name, CID, peerid: peerIDs, SALT }));
         connection.on('message', (event) => {
           const data = event.utf8Data ? JSON.parse(event.utf8Data) : {}
           //const stepText = document.querySelectorAll('.step-text');
@@ -482,7 +465,10 @@ const CodeShare = {
       socket.on('connectFailed', function (error) {
         if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
       });
-      //socket.connect(`${config.poav_address}/validate`)
+      
+      // Actually initiate the connection - this was commented out!
+      socket.connect(`${config.poav_address}/validate`)
+      if (config.mode == 'verbose') console.log("WebSocket connection initiated")
     }
   }
 }

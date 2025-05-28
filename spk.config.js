@@ -409,9 +409,9 @@ const CodeShare = {
     },
     PA: function (Name, CID, peerid, SALT, bn, context) {
       const { config, RAM, CodeShare, WebSocket } = context
-      if (peerIDs.split(',').length > 1) {
-        peerid = peerIDs.split(',')[0]
-        restOfPeerIDs = peerIDs.split(',').slice(1).join(',')
+      if (peerid.split(',').length > 1) {
+        peerid = peerid.split(',')[0]
+        const restOfPeerIDs = peerid.split(',').slice(1).join(',')
         CodeShare.PoA.PA(Name, CID, restOfPeerIDs, SALT, bn, context)
       }
       if (config.mode == 'verbose') console.log("PA: ", Name, CID, peerIDs, SALT, bn)
