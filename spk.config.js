@@ -431,8 +431,16 @@ const CodeShare = {
         socket.on('message', (event) => {
           const data = event instanceof Buffer ? JSON.parse(event.toString('utf8')) : (event.utf8Data ? JSON.parse(event.utf8Data) : {})
           //const stepText = document.querySelectorAll('.step-text');
-          if (data.Status === 'Connecting to Peer') {
+          if (data.Status === 'Connecting') {
             if (config.mode == 'verbose') console.log('Connecting to Peer')
+          } else if (data.Status === 'Connected') {
+            if (config.mode == 'verbose') console.log('Connected to Peer')
+          } else if (data.Status === 'FoundHiveAccount') {
+            socket.close()
+            if (config.mode == 'verbose') console.log('Found Hive Account')
+          } else if (data.Status === 'IpfsPeerIDError') {
+            socket.close()
+            if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
           } else if (data.Status === 'IpfsPeerIDError') {
             socket.close()
             if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
