@@ -137,7 +137,7 @@ export const node_add = function (json, from, active, pc) {
       store.batch(ops, pc);
     });
   } else {
-    ops = [
+    let ops = [
       {
         type: "put",
         path: ["feed", `${json.block_num}:${json.transaction_id}`],

@@ -154,8 +154,9 @@ function initializeContext() {
   const configCopy = { ...config };
   delete configCopy.active;
   delete configCopy.msowner;
-  CodeShare = config.CodeShare
+  CodeShare = config.CodeShare || {}
   if(config?.CustomEvery?.length)Every = [HR.margins, ...config.CustomEvery]
+  else Every = [HR.margins]
   runtimeContext = { store, config: configCopy, fetch, WebSocket, API, VERSION, getPathObj, getPathNum, getPathSome, RAM, burn, forceCancel, add, addc, addMT, addCol, addGov, deletePointer, credit, nodeUpdate, penalty, chronAssign, hashThis, isEmpty, postToDiscord, Base64, Base58, Base38, stringify, NFT, Chron, stringify, DEX, naizer, status, verifySig, CodeShare }
 }
 initializeContext()
@@ -1042,7 +1043,9 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                         RAMreport: config.RAMreport,
                         CustomJsonProcessing: config.CustomJsonProcessing,
                         CustomOperationsProcessing: config.CustomOperationsProcessing,
-                        CustomChron: config.CustomChron
+                        CustomChron: config.CustomChron,
+                        CustomEvery: config.CustomEvery,
+                        CodeShare: config.CodeShare
                       }
 
                       store.put([], cleanState, function (err) {
@@ -1224,6 +1227,8 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
     if (typeof config.CustomJsonProcessing === 'string') config.CustomJsonProcessing = config.CustomJsonProcessing.length ? JSON.parse(config.CustomJsonProcessing) : "NA"
     if (typeof config.CustomOperationsProcessing === 'string') config.CustomOperationsProcessing = config.CustomOperationsProcessing.length ? JSON.parse(config.CustomOperationsProcessing) : "NA"
     if (typeof config.CustomChron === 'string') config.CustomChron = config.CustomChron.length ? JSON.parse(config.CustomChron) : "NA"
+    if (typeof config.CustomEvery === 'string') config.CustomEvery = config.CustomEvery.length ? JSON.parse(config.CustomEvery) : []
+    if (typeof config.CodeShare === 'string') config.CodeShare = config.CodeShare.length ? JSON.parse(config.CodeShare) : {}
     customInit(api, chronOps, processor)
   }
 

@@ -1,5 +1,4 @@
-import { Config, store, unshiftOp, TXID } from "../index.mjs"
-import hivejs from '@hiveio/hive-js'
+import { Config, store, unshiftOp, TXID, hiveClient } from "../index.mjs"
 
 export const onStreamingStart = () => {
     console.log("At real time.");
@@ -9,7 +8,7 @@ export const onStreamingStart = () => {
             var mskey, mschallenge
             if(Config("msowner") && Config("mspublic")){
                 mskey = Config("mspublic")
-                mschallenge = hivejs.encode(Config("msowner"), Config("msPubMemo"), `#${Config("mspublic")}`)
+                mschallenge = hiveClient.memo.encode(Config("msowner"), Config("msPubMemo"), `#${Config("mspublic")}`)
             }
             var op = ["custom_json", {
                 required_auths: [Config("username")],
