@@ -471,9 +471,9 @@ const CodeShare = {
           }
         })
       })
-      socket.on('connectFailed', function (error) {
+      socket.onerror = (error) => {
         if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
-      });
+      };
 
       if (config.mode == 'verbose') console.log("WebSocket connection initiated")
       } catch (error) {
