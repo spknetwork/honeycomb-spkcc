@@ -436,7 +436,7 @@ const CodeShare = {
           } else if (data.Status === 'Connected') {
             if (config.mode == 'verbose') console.log('Connected to Peer')
           } else if (data.Status === 'FoundHiveAccount') {
-            socket.close()
+            //socket.close()
             if (config.mode == 'verbose') console.log('Found Hive Account')
           } else if (data.Status === 'IpfsPeerIDError') {
             socket.close()
