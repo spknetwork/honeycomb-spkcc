@@ -429,7 +429,7 @@ const CodeShare = {
         }, 240000)
         socket.send(JSON.stringify({ Name, CID, peerid: peerid, SALT }));
         socket.on('message', (event) => {
-          const data = event.utf8Data ? JSON.parse(event.utf8Data) : {}
+          const data = event instanceof Buffer ? JSON.parse(event.toString('utf8')) : (event.utf8Data ? JSON.parse(event.utf8Data) : {})
           //const stepText = document.querySelectorAll('.step-text');
           if (data.Status === 'Connecting to Peer') {
             if (config.mode == 'verbose') console.log('Connecting to Peer')
@@ -1215,40 +1215,6 @@ const CustomJsonProcessing = [
   {
     type: "on",
     op: "spk_shares_claim",
-    func: function (json, from, active, pc, context) {
-      const { store, config, getPathNum, postToDiscord } = context
-      let fbalp = getPathNum(['cbalances', from]),
-        tbp = getPathNum(['balances', from]),
-        pspk = getPathNum(['spk', from]),
-        pcspk = getPathNum(['cspk', from])
-      Promise.all([fbalp, tbp, pspk, pcspk])
-        .then(mem => {
-          let fbal = mem[0],
-            tbal = mem[1],
-            spk = mem[2],
-            claimSpk = mem[3],
-            ops = [],
-            claim = parseInt(fbal);
-          if (claim > 0) {
-            const msg = `@${from}| Claimed: ${parseFloat(parseInt(claim) / 1000).toFixed(3)}${claimSpk ? ' ' : ''}${config.TOKEN} ${claimSpk ? parseFloat(parseInt(claimSpk) / 1000).toFixed(3) : ''} ${claimSpk ? 'SPK' : ''}`
-            ops.push({ type: 'del', path: ['cbalances', from] });
-            ops.push({ type: 'del', path: ['cspk', from] });
-            ops.push({ type: 'put', path: ['spk', from], data: parseInt(claimSpk + spk) });
-            ops.push({ type: 'put', path: ['balances', from], data: parseInt(tbal + claim) });
-            if (config.hookurl || config.status) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
-            ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
-          } else {
-            ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: `@${from}| Invalid claim operation` });
-          }
-          if (process.env.npm_lifecycle_event == 'test') pc[2] = ops
-          store.batch(ops, pc);
-        })
-        .catch(e => { console.log(e); });
-    }
-  },
-  {
-    type: "on",
-    op: "broca_shares_claim",
     func: function (json, from, active, pc, context) {
       const { store, config, getPathNum, postToDiscord } = context
       let fbalp = getPathNum(['cbalances', from]),
