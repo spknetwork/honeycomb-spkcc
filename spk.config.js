@@ -141,6 +141,35 @@ const CustomEvery = [
 const CodeShare = {
   reportFunction: function (val, plas, con, proofs = {}) {
     return new Promise((resolve, reject) => {
+      function msIzer(timer) {
+        var ms = 0
+        // regex to match m but not ms
+        var minuteD = timer.split(/m(?![s])/g)
+        if (minuteD.length > 1) {
+            var minutes = minuteD[0]
+            timer = minuteD[1]
+            const dotSplit = minutes.split(".")
+            if (dotSplit.length > 1) {
+                ms += parseInt(dotSplit[0]) * 60000
+                ms = parseInt(dotSplit[1] * 60) * 1000
+            } else {
+                ms += parseInt(dotSplit[0]) * 60000
+            }
+        }
+        // regex to match s but not ms
+        var secondD = timer.split(/(?<![m])s/g)
+        if (secondD.length > 1) {
+            var seconds = secondD[0]
+            timer = secondD[1]
+            ms += parseInt(parseFloat(seconds) * 1000)
+        }
+        // regex to match ms
+        var millisecondD = timer.split(/ms/g)
+        if (millisecondD.length > 1) {
+            ms += parseInt(millisecondD[0])
+        }
+        return ms
+    }
       const offset = plas.hashBlock % 200 > 100 ? 0 : 100
       for (var i = 0; i < 100; i++) {
         for (var CID in proofs[`${i + offset}`]) {

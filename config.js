@@ -369,7 +369,8 @@ const CodeShare = {
         else total += val[n[i]] || 1
       }
       const gte = CodeShare.PoA.getPrand58(account, prand, context)
-      const range = parseInt(((val[account] >= cutoff ? cutoff * 2 : val[account] || 1) / total) * (stats.total_files * parseInt(stats.vals_target * 10000) / 288) * 7427658739)
+      const range = parseInt(((val[account] >= cutoff ? cutoff * 2 : val[account] || 1) / total) * (stats.total_files * parseInt(stats.vals_target) * 100 / 288) * 7427658739)
+      
       var lte = Base58.fromNumber(Base58.toNumber(gte) + range)
       if (lte.length > 9) lte = 'zzzzzzzzz'
       if (gte.length != lte.length) {
@@ -381,6 +382,7 @@ const CodeShare = {
           Base58.toNumber(gte)
         )
       }
+      if (config.mode == 'verbose') console.log('getRange', { gte, lte })
       return [gte, lte]
     },
     getPrand58(account, prand, context) {
@@ -409,36 +411,45 @@ const CodeShare = {
     },
     PA: function (Name, CID, peerid, SALT, bn, context) {
       const { config, RAM, CodeShare, WebSocket } = context
-      if (peerIDs.split(',').length > 1) {
-        peerid = peerIDs.split(',')[0]
-        restOfPeerIDs = peerIDs.split(',').slice(1).join(',')
+      if (peerid.split(',').length > 1) {
+        const firstPeerId = peerid.split(',')[0]
+        const restOfPeerIDs = peerid.split(',').slice(1).join(',')
         CodeShare.PoA.PA(Name, CID, restOfPeerIDs, SALT, bn, context)
+        peerid = firstPeerId
       }
-      if (config.mode == 'verbose') console.log("PA: ", Name, CID, peerIDs, SALT, bn)
+      if (config.mode == 'verbose') console.log("PA: ", Name, CID, peerid, SALT, bn)
       
       // Add initial connection attempt logging
       if (config.mode == 'verbose') console.log("Attempting WebSocket connection to:", `${config.poav_address}/validate`)
-      
+      try {
       var socket = new WebSocket(`${config.poav_address}/validate`);
-      socket.on('connect', (connection) => {
+      socket.on('open', (connection) => {
         if (config.mode == 'verbose') console.log("WebSocket connected successfully")
         setTimeout(() => {
-          connection.close()
+          socket.close()
           if (config.mode == 'verbose') console.log("Timeout:", CID)
         }, 240000)
-        connection.send(JSON.stringify({ Name, CID, peerid: peerIDs, SALT }));
-        connection.on('message', (event) => {
-          const data = event.utf8Data ? JSON.parse(event.utf8Data) : {}
+        socket.send(JSON.stringify({ Name, CID, peerid: peerid, SALT }));
+        socket.on('message', (event) => {
+          const data = event instanceof Buffer ? JSON.parse(event.toString('utf8')) : (event.utf8Data ? JSON.parse(event.utf8Data) : {})
           //const stepText = document.querySelectorAll('.step-text');
-          if (data.Status === 'Connecting to Peer') {
+          if (data.Status === 'Connecting') {
             if (config.mode == 'verbose') console.log('Connecting to Peer')
+          } else if (data.Status === 'Connected') {
+            if (config.mode == 'verbose') console.log('Connected to Peer')
+          } else if (data.Status === 'FoundHiveAccount') {
+            //socket.close()
+            if (config.mode == 'verbose') console.log('Found Hive Account')
           } else if (data.Status === 'IpfsPeerIDError') {
-            connection.close()
+            socket.close()
+            if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
+          } else if (data.Status === 'IpfsPeerIDError') {
+            socket.close()
             if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
           } else if (data.Status === 'RequestingProof') {
             if (config.mode == 'verbose') console.log('RequestingProof')
           } else if (data.Status === 'Connection Error') {
-            connection.close()
+            socket.close()
             if (config.mode == 'verbose') console.log('Error: Connection Error')
           } else if (data.Status === 'ProofReceived') {
             if (config.mode == 'verbose') console.log('ProofReceived', { data })
@@ -453,22 +464,23 @@ const CodeShare = {
           } else if (data.Status === "Valid") {
             if (RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name] && !RAM.Pending[`${bn % 200}`][CID].npid[Name].Message) RAM.Pending[`${bn % 200}`][CID].npid[Name] = data
             if (config.mode == 'verbose') console.log('Proof Valid', { data })
-            connection.close()
+              socket.close()
           } else if (data.Status === "Invalid") {
             if (config.mode == 'verbose') console.log('Proof Invalid', { data })
-            connection.close()
+              socket.close()
           } else {
             if (config.mode == 'verbose') console.log('Unknown Status:', data)
           }
         })
       })
-      socket.on('connectFailed', function (error) {
+      socket.onerror = (error) => {
         if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
-      });
-      
-      // Actually initiate the connection - this was commented out!
-      socket.connect(`${config.poav_address}/validate`)
+      };
+
       if (config.mode == 'verbose') console.log("WebSocket connection initiated")
+      } catch (error) {
+        if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
+      }
     }
   }
 }
