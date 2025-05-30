@@ -330,17 +330,23 @@ export function hotConfig(newConfig, cleanState, api, chronOps, processor) {
 export function customInit(api, chron, processor, codeShareDefsFromChain, everyDefsFromChain) {
   return new Promise((resolve, reject) => {
     console.log('customInit called to rebuild CodeShare and Every from definitions');
+    console.log('codeShareDefsFromChain:', codeShareDefsFromChain);
 
     const newCodeShare = {};
     
     // If we have definitions from chain, rehydrate them
     if (codeShareDefsFromChain && typeof codeShareDefsFromChain === 'object') {
       console.log('Rehydrating CodeShare from chain definitions...');
+      console.log('Available definition keys:', Object.keys(codeShareDefsFromChain));
       rehydrateObjectRecursively(codeShareDefsFromChain, newCodeShare);
+      console.log('Rehydrated CodeShare structure:', newCodeShare);
+      console.log('Rehydrated CodeShare.PoA:', newCodeShare.PoA);
+      console.log('Rehydrated CodeShare.PoA.Check type:', typeof newCodeShare.PoA?.Check);
     } else {
       // Fall back to initial config.CodeShare if available
       if (config.CodeShare && typeof config.CodeShare === 'object') {
         console.log('Using initial config.CodeShare as fallback...');
+        console.log('config.CodeShare.PoA.Check type:', typeof config.CodeShare.PoA?.Check);
         rehydrateObjectRecursively(config.CodeShare, newCodeShare);
       }
     }
@@ -378,7 +384,9 @@ export function customInit(api, chron, processor, codeShareDefsFromChain, everyD
     CodeShare = newCodeShare;
     Every = newEvery;
     
-    console.log('CodeShare after rehydration:', CodeShare);
+    console.log('Final CodeShare after rehydration:', CodeShare);
+    console.log('Final CodeShare.PoA:', CodeShare.PoA);
+    console.log('Final CodeShare.PoA.Check type:', typeof CodeShare.PoA?.Check);
     console.log('Every after rehydration:', Every.length, 'functions');
 
     // Re-initialize context so it picks up the new CodeShare and Every
@@ -395,9 +403,11 @@ export function customInit(api, chron, processor, codeShareDefsFromChain, everyD
 
 // Helper function to rehydrate an object that may contain function definitions
 function rehydrateObjectRecursively(source, target) {
+  console.log('rehydrateObjectRecursively called with source keys:', Object.keys(source));
   for (const key in source) {
     if (Object.hasOwnProperty.call(source, key)) {
       const value = source[key];
+      console.log(`Processing key: ${key}, value type: ${typeof value}`);
       if (typeof value === 'object' && value !== null) {
         if (value.params && value.body && Array.isArray(value.params) && typeof value.body === 'string') {
           // This is a function definition - rehydrate it

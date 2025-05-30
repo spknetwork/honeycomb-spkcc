@@ -1241,8 +1241,12 @@ function _dehydrateObjectRecursively(obj, currentPath, definitions) {
 
 export function dehydrateCodeShare(liveCodeShare) {
   if (typeof liveCodeShare !== 'object' || liveCodeShare === null) return {};
+  console.log('dehydrateCodeShare input:', liveCodeShare);
+  console.log('dehydrateCodeShare input PoA:', liveCodeShare.PoA);
+  console.log('dehydrateCodeShare input PoA.Check type:', typeof liveCodeShare.PoA?.Check);
   const definitions = {};
   _dehydrateObjectRecursively(liveCodeShare, '', definitions);
+  console.log('dehydrateCodeShare output:', definitions);
   return definitions; // This will be an object of { "path.to.func": {params, body} }
 }
 
