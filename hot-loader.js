@@ -404,22 +404,38 @@ export function customInit(api, chron, processor, codeShareDefsFromChain, everyD
 // Helper function to rehydrate an object that may contain function definitions
 function rehydrateObjectRecursively(source, target) {
   console.log('rehydrateObjectRecursively called with source keys:', Object.keys(source));
+  
+  // Handle path-based definitions (e.g., "PoA.Check": {params, body})
   for (const key in source) {
     if (Object.hasOwnProperty.call(source, key)) {
       const value = source[key];
       console.log(`Processing key: ${key}, value type: ${typeof value}`);
-      if (typeof value === 'object' && value !== null) {
-        if (value.params && value.body && Array.isArray(value.params) && typeof value.body === 'string') {
-          // This is a function definition - rehydrate it
-          try {
-            target[key] = new Function(...value.params, value.body);
-            console.log(`Rehydrated function: ${key}`);
-          } catch (e) {
-            console.error(`Error rehydrating function ${key}:`, e, value);
-            target[key] = () => { console.error(`Function ${key} failed to rehydrate`); };
+      
+      if (typeof value === 'object' && value !== null && value.params && value.body && typeof value.body === 'string') {
+        // This is a function definition - rehydrate it and place it at the correct path
+        try {
+          // Convert params object to array if needed
+          let paramsArray = [];
+          if (Array.isArray(value.params)) {
+            paramsArray = value.params;
+          } else if (typeof value.params === 'object') {
+            // Convert object with numeric keys to array
+            const keys = Object.keys(value.params).sort((a, b) => parseInt(a) - parseInt(b));
+            paramsArray = keys.map(k => value.params[k]);
           }
-        } else {
-          // This is a nested object - recurse
+          
+          const func = new Function(...paramsArray, value.body);
+          
+          // Set the function at the correct nested path
+          setNestedProperty(target, key, func);
+          console.log(`Rehydrated function at path: ${key}`);
+        } catch (e) {
+          console.error(`Error rehydrating function ${key}:`, e, value);
+          setNestedProperty(target, key, () => { console.error(`Function ${key} failed to rehydrate`); });
+        }
+      } else if (typeof value === 'object' && value !== null) {
+        // This might be a nested object with more definitions - recurse if it doesn't look like a function definition
+        if (!key.includes('.')) {
           target[key] = {};
           rehydrateObjectRecursively(value, target[key]);
         }
@@ -429,6 +445,25 @@ function rehydrateObjectRecursively(source, target) {
       }
     }
   }
+}
+
+// Helper function to set a property at a nested path like "PoA.Check"
+function setNestedProperty(obj, path, value) {
+  const keys = path.split('.');
+  let current = obj;
+  
+  // Navigate to the parent object, creating nested objects as needed
+  for (let i = 0; i < keys.length - 1; i++) {
+    const key = keys[i];
+    if (!(key in current) || typeof current[key] !== 'object' || current[key] === null) {
+      current[key] = {};
+    }
+    current = current[key];
+  }
+  
+  // Set the final property
+  const finalKey = keys[keys.length - 1];
+  current[finalKey] = value;
 }
 
 // Helper function to rehydrate an array that may contain function definitions
