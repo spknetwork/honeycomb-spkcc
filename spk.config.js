@@ -8045,7 +8045,6 @@ const CustomChron = [
         if (total > (pow * 1000)) total = (pow * 1000)
         return `${total},${Base64.fromNumber(bn)}`
       }
-      processor.doOp( 'extend', json, from, active, pc, contextD) 
       function contractClose(promies, delkey, num, id, b) {
         return new Promise((resolve, reject) => {
           Promise.all(promies)
@@ -8058,7 +8057,7 @@ const CustomChron = [
                 broca = broca_calc(mem[2], mem[3], stats, num),
                 renew = contract.m ? (contract.m.indexOf('"') >= 0 ? Base64.toNumber(JSON.parse(contract.m)[0]) & 1 : Base64.toNumber(contract.m[0]) & 1) : 0
               if (contract.c == 3 && renew && parseInt(broca.split(',')[0]) > 100) {
-                extend({
+                processor.doOp( 'extend', {
                   broca: parseInt(broca.split(',')[0]) > parseInt(3 * contract.r / contract.p) ? parseInt(3 * contract.r / contract.p) + 1 : parseInt(parseInt(broca.split(',')[0]) / 2) + 1,
                   id: contract.i,
                   file_owner: contract.t,
@@ -8102,6 +8101,7 @@ const CustomChron = [
         Pstats = getPathObj(["stats"]),
         Pbroca = getPathObj(["broca", b.fo]),
         Ppow = getPathObj(["spow", b.fo]);
+        console.log('cc', passed)
       contractClose(
         [Pcontract, Pstats, Pbroca, Ppow],
         passed.delKey,

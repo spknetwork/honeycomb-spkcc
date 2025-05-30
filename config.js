@@ -141,6 +141,35 @@ const CustomEvery = [
 const CodeShare = {
   reportFunction: function (val, plas, con, proofs = {}) {
     return new Promise((resolve, reject) => {
+      function msIzer(timer) {
+        var ms = 0
+        // regex to match m but not ms
+        var minuteD = timer.split(/m(?![s])/g)
+        if (minuteD.length > 1) {
+          var minutes = minuteD[0]
+          timer = minuteD[1]
+          const dotSplit = minutes.split(".")
+          if (dotSplit.length > 1) {
+            ms += parseInt(dotSplit[0]) * 60000
+            ms = parseInt(dotSplit[1] * 60) * 1000
+          } else {
+            ms += parseInt(dotSplit[0]) * 60000
+          }
+        }
+        // regex to match s but not ms
+        var secondD = timer.split(/(?<![m])s/g)
+        if (secondD.length > 1) {
+          var seconds = secondD[0]
+          timer = secondD[1]
+          ms += parseInt(parseFloat(seconds) * 1000)
+        }
+        // regex to match ms
+        var millisecondD = timer.split(/ms/g)
+        if (millisecondD.length > 1) {
+          ms += parseInt(millisecondD[0])
+        }
+        return ms
+      }
       const offset = plas.hashBlock % 200 > 100 ? 0 : 100
       for (var i = 0; i < 100; i++) {
         for (var CID in proofs[`${i + offset}`]) {
@@ -164,7 +193,7 @@ const CodeShare = {
   },
   PoA: {
     Check: function (b, rand, stats, val, cBroca, vBroca, pc, context) {
-      const { getPathObj, CodeShare } = context
+      const { getPathObj, CodeShare, Base58, config, Base64, store } = context
       var promises = []
       for (var i = 0; i < b.report.v.length; i++) {
         const [gte, lte] = CodeShare.PoA.getRange(rand[b.report.v[i][1]], b.self, val, stats, context)
@@ -225,7 +254,7 @@ const CodeShare = {
               if (b.report.v[i][j][1] > 0 && typeof b.report.v[i][j][1] == 'number' && b.report.v[i][j][1] < 240000) {
                 newCount++
                 newTotal += b.report.v[i][j][1]
-                delta = b.report.v[i][j][1] - oldMean
+                const delta = b.report.v[i][j][1] - oldMean
                 newStdDevNum = parseInt(newStdDevNum + (Math.pow(b.report.v[i][j][1] - oldMean, 2) * 1000))
                 if (Math.abs(delta) < 2 * oldStdDev) {
                   paid++
@@ -274,7 +303,7 @@ const CodeShare = {
     BlackListed: function (reversedCID, context) {
       const { config, fetch } = context
       return new Promise((resolve, reject) => {
-        if(!config.BlackListURL)return resolve(false)
+        if (!config.BlackListURL) return resolve(false)
         const CID = reversedCID.split("").reverse().join("")
         fetch(`${config.BlackListURL}/flag-qry/${CID}`).then(r => r.json()).then(json => {
           if (json.flag) resolve(true)
@@ -370,7 +399,7 @@ const CodeShare = {
       }
       const gte = CodeShare.PoA.getPrand58(account, prand, context)
       const range = parseInt(((val[account] >= cutoff ? cutoff * 2 : val[account] || 1) / total) * (stats.total_files * parseInt(stats.vals_target) * 100 / 288) * 7427658739)
-      
+
       var lte = Base58.fromNumber(Base58.toNumber(gte) + range)
       if (lte.length > 9) lte = 'zzzzzzzzz'
       if (gte.length != lte.length) {
@@ -418,66 +447,66 @@ const CodeShare = {
         peerid = firstPeerId
       }
       if (config.mode == 'verbose') console.log("PA: ", Name, CID, peerid, SALT, bn)
-      
+
       // Add initial connection attempt logging
       if (config.mode == 'verbose') console.log("Attempting WebSocket connection to:", `${config.poav_address}/validate`)
       try {
-      var socket = new WebSocket(`${config.poav_address}/validate`);
-      socket.on('open', (connection) => {
-        if (config.mode == 'verbose') console.log("WebSocket connected successfully")
-        setTimeout(() => {
-          socket.close()
-          if (config.mode == 'verbose') console.log("Timeout:", CID)
-        }, 240000)
-        socket.send(JSON.stringify({ Name, CID, peerid: peerid, SALT }));
-        socket.on('message', (event) => {
-          const data = event instanceof Buffer ? JSON.parse(event.toString('utf8')) : (event.utf8Data ? JSON.parse(event.utf8Data) : {})
-          //const stepText = document.querySelectorAll('.step-text');
-          if (data.Status === 'Connecting') {
-            if (config.mode == 'verbose') console.log('Connecting to Peer')
-          } else if (data.Status === 'Connected') {
-            if (config.mode == 'verbose') console.log('Connected to Peer')
-          } else if (data.Status === 'FoundHiveAccount') {
-            //socket.close()
-            if (config.mode == 'verbose') console.log('Found Hive Account')
-          } else if (data.Status === 'IpfsPeerIDError') {
+        var socket = new WebSocket(`${config.poav_address}/validate`);
+        socket.on('open', (connection) => {
+          if (config.mode == 'verbose') console.log("WebSocket connected successfully")
+          setTimeout(() => {
             socket.close()
-            if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
-          } else if (data.Status === 'IpfsPeerIDError') {
-            socket.close()
-            if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
-          } else if (data.Status === 'RequestingProof') {
-            if (config.mode == 'verbose') console.log('RequestingProof')
-          } else if (data.Status === 'Connection Error') {
-            socket.close()
-            if (config.mode == 'verbose') console.log('Error: Connection Error')
-          } else if (data.Status === 'ProofReceived') {
-            if (config.mode == 'verbose') console.log('ProofReceived', { data })
-          } else if (data.Status === 'Waiting Proof') {
-            if (config.mode == 'verbose') console.log('Waiting Proof', { data })
-          } else if (data.Status === "Validating") {
-            if (config.mode == 'verbose') console.log('Validating', { data })
-          } else if (data.Status === "Validated") {
-            if (config.mode == 'verbose') console.log('Validated', { data })
-          } else if (data.Status === "Validating Proof") {
-            if (config.mode == 'verbose') console.log('Validating Proof', { data })
-          } else if (data.Status === "Valid") {
-            if (RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name] && !RAM.Pending[`${bn % 200}`][CID].npid[Name].Message) RAM.Pending[`${bn % 200}`][CID].npid[Name] = data
-            if (config.mode == 'verbose') console.log('Proof Valid', { data })
+            if (config.mode == 'verbose') console.log("Timeout:", CID)
+          }, 240000)
+          socket.send(JSON.stringify({ Name, CID, peerid: peerid, SALT }));
+          socket.on('message', (event) => {
+            const data = event instanceof Buffer ? JSON.parse(event.toString('utf8')) : (event.utf8Data ? JSON.parse(event.utf8Data) : {})
+            //const stepText = document.querySelectorAll('.step-text');
+            if (data.Status === 'Connecting') {
+              if (config.mode == 'verbose') console.log('Connecting to Peer')
+            } else if (data.Status === 'Connected') {
+              if (config.mode == 'verbose') console.log('Connected to Peer')
+            } else if (data.Status === 'FoundHiveAccount') {
+              //socket.close()
+              if (config.mode == 'verbose') console.log('Found Hive Account')
+            } else if (data.Status === 'IpfsPeerIDError') {
               socket.close()
-          } else if (data.Status === "Invalid") {
-            if (config.mode == 'verbose') console.log('Proof Invalid', { data })
+              if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
+            } else if (data.Status === 'IpfsPeerIDError') {
               socket.close()
-          } else {
-            if (config.mode == 'verbose') console.log('Unknown Status:', data)
-          }
+              if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
+            } else if (data.Status === 'RequestingProof') {
+              if (config.mode == 'verbose') console.log('RequestingProof')
+            } else if (data.Status === 'Connection Error') {
+              socket.close()
+              if (config.mode == 'verbose') console.log('Error: Connection Error')
+            } else if (data.Status === 'ProofReceived') {
+              if (config.mode == 'verbose') console.log('ProofReceived', { data })
+            } else if (data.Status === 'Waiting Proof') {
+              if (config.mode == 'verbose') console.log('Waiting Proof', { data })
+            } else if (data.Status === "Validating") {
+              if (config.mode == 'verbose') console.log('Validating', { data })
+            } else if (data.Status === "Validated") {
+              if (config.mode == 'verbose') console.log('Validated', { data })
+            } else if (data.Status === "Validating Proof") {
+              if (config.mode == 'verbose') console.log('Validating Proof', { data })
+            } else if (data.Status === "Valid") {
+              if (RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name] && !RAM.Pending[`${bn % 200}`][CID].npid[Name].Message) RAM.Pending[`${bn % 200}`][CID].npid[Name] = data
+              if (config.mode == 'verbose') console.log('Proof Valid', { data })
+              socket.close()
+            } else if (data.Status === "Invalid") {
+              if (config.mode == 'verbose') console.log('Proof Invalid', { data })
+              socket.close()
+            } else {
+              if (config.mode == 'verbose') console.log('Unknown Status:', data)
+            }
+          })
         })
-      })
-      socket.onerror = (error) => {
-        if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
-      };
+        socket.onerror = (error) => {
+          if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
+        };
 
-      if (config.mode == 'verbose') console.log("WebSocket connection initiated")
+        if (config.mode == 'verbose') console.log("WebSocket connection initiated")
       } catch (error) {
         if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
       }
@@ -503,7 +532,7 @@ const CustomJsonProcessing = [
           b.report = json
           delete b.report.timestamp
           if (b.report.v) {
-            CodeShare.PoA.Check(b, rand, stats, val, cBroca, mem[5], pc)
+            CodeShare.PoA.Check(b, rand, stats, val, cBroca, mem[5], pc, context)
           } else {
             var ops = [
               { type: 'put', path: ['markets', 'node', from], data: b }
@@ -2229,7 +2258,7 @@ const CustomJsonProcessing = [
         return new Promise(resolve => {
           const ops = []
           const accountPromises = []
-          for (const contractId in deletedFilesByContract) {
+          for (var contractId in deletedFilesByContract) {
             const { contract, totalDeletedBytes, originalTotalBytes } = deletedFilesByContract[contractId]
             const proportionDeleted = totalDeletedBytes / originalTotalBytes
             const extensions = contract.ex ? contract.ex.split(",") : []
@@ -2246,7 +2275,7 @@ const CustomJsonProcessing = [
                 }
               }
             })
-            for (const account in refundsByAccount) {
+            for (var account in refundsByAccount) {
               const refundAmount = refundsByAccount[account]
               accountPromises.push(
                 Promise.all([
@@ -2305,19 +2334,19 @@ const CustomJsonProcessing = [
             const expectedFieldCount = 4 * sortedCids.length + 1
             // pull thumbnails and delete them as well
             const thumbUsage = new Map();
-            for (const cid of cids) {
+            for (var cid of cids) {
               const index = sortedCids.indexOf(cid);
               if (index !== -1) {
                 const thumbCID = metadataFields[1 + 4 * index + 3];
                 thumbUsage.set(thumbCID, (thumbUsage.get(thumbCID) || 0) + 1);
               }
             }
-            for (const [thumbCID, usage] of thumbUsage.entries()) {
+            for (var [thumbCID, usage] of thumbUsage.entries()) {
               if (usage === metadataFields.filter(field => field.includes(thumbCID)).length) {
                 cids.push(thumbCID);
               }
             }
-            for (const cid of cids) {
+            for (var cid of cids) {
               if (contract.df[cid]) {
                 const bytes = contract.df[cid]
                 totalDeletedBytes += bytes
@@ -2331,7 +2360,7 @@ const CustomJsonProcessing = [
               contract.u -= totalDeletedBytes
               if (metadataFields.length === expectedFieldCount) {
                 const indicesToRemove = []
-                for (const cid of deletedCids) {
+                for (var cid of deletedCids) {
                   const index = sortedCids.indexOf(cid)
                   if (index !== -1) {
                     const startIndex = 1 + index * 4;
@@ -2341,7 +2370,7 @@ const CustomJsonProcessing = [
                   }
                 }
                 indicesToRemove.sort((a, b) => b - a)
-                for (const index of indicesToRemove) {
+                for (var index of indicesToRemove) {
                   metadataFields.splice(index, 1)
                 }
                 contract.m = metadataFields.join(',')
@@ -2354,7 +2383,7 @@ const CustomJsonProcessing = [
           })
           calculateRefunds(deletedFilesByContract, json.block_num, from).then(refundOps => {
             ops.push(...refundOps)
-            for (const contractId in deletedFilesByContract) {
+            for (var contractId in deletedFilesByContract) {
               const { contract } = deletedFilesByContract[contractId];
               if (Object.keys(contract.df).length > 0) {
                 ops.push({ type: "put", path: ["contract", from, contractId], data: contract });
@@ -2445,7 +2474,7 @@ const CustomJsonProcessing = [
     type: "on",
     op: "extend",
     func: function (json, from, active, pc, context) {
-      const { store, getPathObj, Base64, postToDiscord, config, getPathNum, chronAssign } = context
+      const { store, getPathObj, Base64, postToDiscord, config, getPathNum, chronAssign, processor } = context
       const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
         if (typeof last != "string") last = '0,0'
         const last_calc = Base64.toNumber(last.split(',')[1])
@@ -2486,7 +2515,7 @@ const CustomJsonProcessing = [
             }
             let deletePromise = new Promise((resolve, reject) => {
               if (cidsFlaggedForDeletion.length) {
-                exports.delete_files({ cids: cidsFlaggedForDeletion, block_num: json.block_num, transaction_id: json.transaction_id }, contract.t, true, [resolve, reject, 0])
+                processor.doOn( 'delete_files', { cids: cidsFlaggedForDeletion, block_num: json.block_num, transaction_id: json.transaction_id }, contract.t, true, [resolve, reject, 0])
               } else {
                 resolve([])
               }
@@ -8006,7 +8035,8 @@ const CustomChron = [
   {
     op: 'contract_close',
     func: function (b, passed, res, rej, num, prand, ints, bh, context) {
-      const { store, getPathObj, getPathNum, Base64 } = context;
+      console.log('This block')
+      const { store, getPathObj, getPathNum, Base64, processor } = context;
       const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
         if (typeof last != "string") last = '0,0'
         const last_calc = Base64.toNumber(last.split(',')[1])
@@ -8015,125 +8045,7 @@ const CustomChron = [
         if (total > (pow * 1000)) total = (pow * 1000)
         return `${total},${Base64.fromNumber(bn)}`
       }
-      function extend(json, from, active, pc, contextD) {
-        const { store, getPathObj, postToDiscord, config, getPathNum, chronAssign } = contextD
-        console.log('extend')
-        if (json.broca && json.id && json.file_owner) {
-          var Pbroca = getPathObj(["broca", from]);
-          var Ppow = getPathNum(["bpow", from])
-          var Pstats = getPathObj(["stats"])
-          var Pcontract = getPathObj(["contract", json.file_owner, json.id])
-          Promise.all([Pbroca, Pstats, Ppow, Pcontract]).then(mem => {
-            var broca = mem[0],
-              stats = mem[1],
-              pow = mem[2],
-              contract = mem[3],
-              ops = [],
-              err = '', //no log no broca?
-              brocaString = broca_calc(broca, pow, stats, json.block_num),
-              broca = parseInt(brocaString.split(',')[0])
-            if (json.broca <= broca && contract.c == 3) {
-              broca = broca - json.broca
-              const exp_block = parseInt(contract.e.split(':')[0])
-              let cidsSorted = Object.keys(contract.df).sort()
-              let cidsMetaData = []
-              let cidsFlaggedForDeletion = []
-              try {
-                cidsMetaData = contract.m.split(',').splice(1)
-              } catch (e) {
-                console.log("Error parsing metadata:", e);
-              }
-              for (var i = 0; i < cidsMetaData.length; i++) {
-                if (cidsMetaData[(i * 4) + 1] && cidsMetaData[(i * 4) + 1].split('.').length > 1 && cidsMetaData[(i * 4) + 1].split('.')[1] == "8") {
-                  cidsFlaggedForDeletion.push(cidsSorted[i])
-                }
-              }
-              let deletePromise = new Promise((res, rej) => {
-                if (cidsFlaggedForDeletion.length) {
-                  console.log('delete_files')
-                  exports.delete_files({ cids: cidsFlaggedForDeletion, block_num: json.block_num, transaction_id: json.transaction_id }, contract.t, true, [res, rej, 0])
-                } else {
-                  res([])
-                }
-              })
-              deletePromise.then(contracts => {
-                if (contracts.length) {
-                  contract = contracts[contracts.i]
-                }
-                if (from == contract.t && parseInt(json.power) > 0) {
-                  const broca_per_old_term = parseInt((contract.u * contract.p) / (stats.channel_bytes * 3)) || 1
-                  contract.p++
-                  const payUp = exp_block - json.block_num
-                  const broca_per_new_term = parseInt((contract.u * contract.p) / (stats.channel_bytes * 3)) || 1
-                  const debt = parseInt((broca_per_new_term - broca_per_old_term) * payUp)
-                  if (debt > json.broca) {
-                    const msg = `@${from} | Failed to increase decentralizition of ${json.id} due to lack of BROCA`
-                    ops.push({
-                      type: "put",
-                      path: ["feed", `${json.block_num}:${json.transaction_id}`],
-                      data: msg,
-                    });
-                    if (config.hookurl || config.status)
-                      postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
-                    if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-                    store.batch(ops, pc);
-                  } else {
-                    json.broca -= debt
-                  }
-                }
-                const broca_per_term = parseInt((contract.u * contract.p) / (stats.channel_bytes * 3)) || 1
-                const blocks_additional = parseInt((json.broca / broca_per_term) * 28800 * 30)
-                chronAssign(parseInt(exp_block + blocks_additional), {
-                  block: parseInt(exp_block + blocks_additional),
-                  op: 'contract_close',
-                  fo: json.file_owner,
-                  id: json.id
-                }).then(exe_path => {
-                  ops.push({
-                    type: 'del',
-                    path: ['chrono', contract.e]
-                  })
-                  contract.ex = contract.ex ? contract.ex + `,${from}:${json.broca}:${exp_block}-${exp_block + blocks_additional}` : `${from}:${contract.r}:${exp_block}-${exp_block + blocks_additional}`
-                  // clean extentions
-                  var extentions = contract.ex.split(',')
-                  var valid_exts = []
-                  for (var i = 0; i < extentions.length; i++) {
-                    if (extentions[i].split('-')[1] > json.block_num) valid_exts.push(extentions[i])
-                  }
-                  contract.ex = valid_exts.join(',')
-                  contract.e = exe_path
-                  ops.push({
-                    type: 'put',
-                    path: ["contract", json.file_owner, json.id],
-                    data: contract
-                  })
-                  ops.push({
-                    type: 'put',
-                    path: ["broca", from],
-                    data: `${broca},${brocaString.split(',')[1]}`
-                  })
-                  const msg = `@${from} | Extended ${json.id} by ${blocks_additional} blocks for ${json.broca} BROCA`
-                  ops.push({
-                    type: "put",
-                    path: ["feed", `${json.block_num}:${json.transaction_id}`],
-                    data: msg,
-                  });
-                  if (config.hookurl || config.status)
-                    postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
-                  if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-                  console.log(ops)
-                  store.batch(ops, pc);
-                })
-              })
-            } else {
-              console.log('failOnContract', json.broca <= broca, contract.c == 3)
-              pc[0](pc[2]);
-            }
-          })
-        } else {
-          pc[0](pc[2]);
-        }
-      }
+      processor.doOp( 'extend', json, from, active, pc, contextD) 
       function contractClose(promies, delkey, num, id, b) {
         return new Promise((resolve, reject) => {
           Promise.all(promies)
