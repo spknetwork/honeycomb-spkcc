@@ -532,7 +532,7 @@ const CustomJsonProcessing = [
           b.report = json
           delete b.report.timestamp
           if (b.report.v) {
-            CodeShare.PoA.Check(b, rand, stats, val, cBroca, mem[5], pc)
+            CodeShare.PoA.Check(b, rand, stats, val, cBroca, mem[5], pc, context)
           } else {
             var ops = [
               { type: 'put', path: ['markets', 'node', from], data: b }
