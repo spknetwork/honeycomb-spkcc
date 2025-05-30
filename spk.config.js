@@ -193,7 +193,7 @@ const CodeShare = {
   },
   PoA: {
     Check: function (b, rand, stats, val, cBroca, vBroca, pc, context) {
-      const { getPathObj, CodeShare } = context
+      const { getPathObj, CodeShare, Base58, config, Base64, store } = context
       var promises = []
       for (var i = 0; i < b.report.v.length; i++) {
         const [gte, lte] = CodeShare.PoA.getRange(rand[b.report.v[i][1]], b.self, val, stats, context)
