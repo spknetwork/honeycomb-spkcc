@@ -1,4 +1,4 @@
-import { store } from "../index.js"
+import { store } from "../index.mjs"
 import { getPathObj } from "./../getPathObj.js"
 import { chronAssign } from '../lil_ops.js'
 

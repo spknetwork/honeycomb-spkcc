@@ -1,4 +1,4 @@
-import { store, Config } from "../index.js"
+import { store, Config } from "../index.mjs"
 import { postToDiscord } from './../discord.js'
 
 export const delegate_vesting_shares = (json, pc) => {

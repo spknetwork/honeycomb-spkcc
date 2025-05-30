@@ -1,4 +1,4 @@
-import { store, unshiftOp, Config } from "../index.js"
+import { store, unshiftOp, Config } from "../index.mjs"
 import { chronAssign, add, hashThis, addMT } from './../lil_ops.js'
 import { getPathObj, getPathNum } from '../getPathObj.js'
 import { postToDiscord } from './../discord.js'

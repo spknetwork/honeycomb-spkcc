@@ -1,4 +1,4 @@
-import { store, TXID, Config, processor } from "./index.js"
+import { store, TXID, Config, processor } from "./index.mjs"
 import { renderNFTtoDiscord, postToDiscord } from "./discord.js"
 import { add, addMT, burn, chronAssign, hashThis } from "./lil_ops.js"
 import stringify from "json-stable-stringify"
@@ -600,12 +600,12 @@ export const NFT = {
             ops = [],
             promises = [];
           if (!contract.m) contract.m = {};
-          for (const item in sales) {
+          for (var item in sales) {
             if (item.split(":")[0] == set.n) {
               contract.m[sales[item].o] = 0;
             }
           }
-          for (const item in auc) {
+          for (var item in auc) {
             if (item.split(":")[0] == set.n) {
               contract.m[auc[item].o] = 0;
             }
@@ -759,7 +759,7 @@ export const Chron = {
           totalWeight: 0,
           linearWeight: 0,
         };
-        for (const vote in b.votes) {
+        for (var vote in b.votes) {
           totals.totalWeight += b.votes[vote].v;
           linearWeight = parseInt(
             b.votes[vote].v * ((201600 - (b.votes[vote].b - b.block)) / 201600)
@@ -792,7 +792,7 @@ export const Chron = {
       store.get(["posts", `${l.author}/${l.permlink}`], function (e, b) {
         let ops = [];
         let totalWeight = 0;
-        for (const vote in b.votes) {
+        for (var vote in b.votes) {
           totalWeight += b.votes[vote].v;
         }
         b.v = totalWeight;
@@ -971,7 +971,7 @@ export const Base64 = {
   toFlags: function (chars) {
     var result = [];
     chars = chars.split("");
-    for (const j = 0; j < chars.length; j++) {
+    for (var j = 0; j < chars.length; j++) {
       for (var i = 32; i >= 1; i = i / 2) {
         if (this.glyphs64.indexOf(chars[j]) >= i) {
           result.unshift(1);

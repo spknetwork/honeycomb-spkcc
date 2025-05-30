@@ -1,4 +1,4 @@
-import { Config, store } from "../index.js"
+import { Config, store } from "../index.mjs"
 import { getPathNum } from "./../getPathObj.js"
 import { postToDiscord } from './../discord.js'
 import { updatePromote } from './../edb.js'

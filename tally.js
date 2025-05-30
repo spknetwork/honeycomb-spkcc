@@ -1,5 +1,5 @@
 import { getPathObj, getPathNum, deleteObjs } from "./getPathObj.js"
-import { Config, store, hiveClient, plasma, Owners } from "./index.js"
+import { Config, store, hiveClient, plasma, Owners } from "./index.mjs"
 import { updatePost } from "./edb.js"
 import hiveTx from "hive-tx"
 import { sha256 } from "hive-tx/helpers/crypto.js"
@@ -62,7 +62,7 @@ export const tally = (num, plasma, isStreaming) => {
                             mssb = block;
                         }
                     }
-                    for (const node in nodes) {
+                    for (var node in nodes) {
                         var hash = "",
                             when = 0;
                         try {
@@ -106,7 +106,7 @@ export const tally = (num, plasma, isStreaming) => {
                       (stats.chaos > tally.agreements.votes / 3 ? parseInt((stats.chaos + tally.agreements.votes)/tally.agreements.votes) : parseInt(tally.agreements.votes / 3));
                     if (Object.keys(runners).length > threshhold)
                         threshhold = Object.keys(runners).length;
-                    for (const hash in tally.agreements.hashes) {
+                    for (var hash in tally.agreements.hashes) {
                         if (
                             tally.agreements.tally[tally.agreements.hashes[hash]] >
                             threshhold / 2
@@ -124,7 +124,7 @@ export const tally = (num, plasma, isStreaming) => {
                     if (owners < stats.ms.active_threshold) consensus = undefined; //ensure owners are part of consensus branch
                     if (!consensus && stats.chaos) {
                         //lower consensus threshold to owners in case of non-agreement
-                        for (const hash in tally.agreements.hashes) {
+                        for (var hash in tally.agreements.hashes) {
                             if (
                                 tally.agreements.tally[tally.agreements.hashes[hash]] >
                                 altThreshhold / 2
@@ -155,7 +155,7 @@ export const tally = (num, plasma, isStreaming) => {
                         stats.hashLastIBlock = consensus;
                         stats.lastIBlock = num - 100;
                         let counting_array = [];
-                        for (const node in tally.agreements.hashes) {
+                        for (var node in tally.agreements.hashes) {
                             if (tally.agreements.hashes[node] == consensus) {
                                 new_queue[node] = {
                                     g: rgov[node] || 0,
@@ -165,7 +165,7 @@ export const tally = (num, plasma, isStreaming) => {
                                 counting_array.push(new_queue[node].g);
                             }
                         }
-                        for (const node in new_queue) {
+                        for (var node in new_queue) {
                             if (runners.hasOwnProperty(node)) {
                                 still_running[node] = new_queue[node];
                             } else {
@@ -182,7 +182,7 @@ export const tally = (num, plasma, isStreaming) => {
                         counting_array.sort((a, b) => b - a);
                         for (var j = 9; j < counting_array.length || j == 25; j++) {
                             low_sum = 0;
-                            for (const i = parseInt(j / 2) + 1; i < j; i++) {
+                            for (var i = parseInt(j / 2) + 1; i < j; i++) {
                                 low_sum += counting_array[i];
                                 last_bal = counting_array[i];
                             }
@@ -198,7 +198,7 @@ export const tally = (num, plasma, isStreaming) => {
                                 g: 0,
                                 api: "",
                             };
-                            for (const node in election) {
+                            for (var node in election) {
                                 if (election[node].g > winner.g) {
                                     //disallow 0 bals in governance
                                     winner.node = node;
@@ -223,7 +223,7 @@ export const tally = (num, plasma, isStreaming) => {
                         }
                         let collateral = [];
                         let liq_rewards = [];
-                        for (const node in still_running) {
+                        for (var node in still_running) {
                             collateral.push(still_running[node].g);
                             liq_rewards.push(still_running[node].l || 100);
                         }
@@ -235,7 +235,7 @@ export const tally = (num, plasma, isStreaming) => {
                         let MultiSigCollateral = 0;
                         collateral.sort((a, b) => b - a);
                         highest_low_sum = 0;
-                        for (const i = 0; i < collateral.length; i++) {
+                        for (var i = 0; i < collateral.length; i++) {
                             MultiSigCollateral += collateral[i];
                             if (i > collateral.length / 2) highest_low_sum += collateral[i];
                         }
@@ -279,7 +279,7 @@ export const tally = (num, plasma, isStreaming) => {
                     let this_payout;
                     if (Config("features").pob) {
                         let weights = 0;
-                        for (const post in pending) {
+                        for (var post in pending) {
                             weights += pending[post].t.totalWeight;
                         }
                         let inflation_floor =
@@ -320,7 +320,7 @@ export const tally = (num, plasma, isStreaming) => {
                                 data: rbal.rc - (this_payout - change[0]),
                             });
                         var legal = 0;
-                        for (const node in stats.ms.active_account_auths) {
+                        for (var node in stats.ms.active_account_auths) {
                             if (Object.keys(still_running).includes(node)) legal++;
                         }
                         if (Object.keys(still_running).length && legal)
@@ -471,13 +471,13 @@ function payout(this_payout, weights, pending, num) {
     return new Promise((resolve, reject) => {
         let payments = {},
             out = 0;
-        for (const post in pending) {
+        for (var post in pending) {
             payments[post.split("/")[0]] = 0;
-            for (const voter in pending[post].votes) {
+            for (var voter in pending[post].votes) {
                 payments[voter] = 0;
             }
         }
-        for (const post in pending) {
+        for (var post in pending) {
             if (pending[post].t.totalWeight > 0) {
                 const TotalPostPayout = parseInt(
                     (this_payout * pending[post].t.totalWeight) / weights
@@ -486,7 +486,7 @@ function payout(this_payout, weights, pending, num) {
                 pending[post].author_payout = parseInt(TotalPostPayout / 2);
                 payments[post.split("/")[0]] += parseInt(TotalPostPayout / 2); //author reward
                 out += parseInt(TotalPostPayout / 2);
-                for (const voter in pending[post].votes) {
+                for (var voter in pending[post].votes) {
                     if (pending[post].votes[voter].v > 0) {
                         const this_vote = parseInt(
                             (TotalPostPayout * pending[post].votes[voter].w) /
@@ -500,7 +500,7 @@ function payout(this_payout, weights, pending, num) {
             }
         }
         let promises = [];
-        for (const account in payments) {
+        for (var account in payments) {
             promises.push(getPathNum(["balances", account]));
         }
         Promise.all(promises).then((p) => {
@@ -510,11 +510,11 @@ function payout(this_payout, weights, pending, num) {
                         { type: "put", path: ["paid", num.toString()], data: pending },
                     ];
                 if (Config("dbcs")) {
-                    for (const i in pending) {
-                        updatePost(pending[i]);
+                    for (var j in pending) {
+                        updatePost(pending[j]);
                     }
                 }
-                for (const account in payments) {
+                for (var account in payments) {
                     ops.push({
                         type: "put",
                         path: ["balances", account],

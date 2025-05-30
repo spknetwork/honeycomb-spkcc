@@ -134,7 +134,7 @@ import broadcastClient from '@hiveio/hive-js';
 import { ChainTypes, makeBitMaskFilter } from './hive-js-auth.js';
 
 import { API, RAM } from './routes/api.js'
-import { HR } from './processing_routes/index.js'
+import { HR } from './processing_routes/index.mjs'
 import { NFT, Chron, Watchdog, Log, Base64, Base58, Base38, DEX, verifySig } from './helpers.js'
 import { enforce } from "./enforce.js"
 import { tally } from "./tally.js"
@@ -188,7 +188,7 @@ function hotAPI(api) {
   });
 
   // Now register the custom routes
-  for (const customRoute of config.CustomAPI) {
+  for (var customRoute of config.CustomAPI) {
     console.log(`Registering custom API route: ${customRoute.path}`);
     
     const func = typeof customRoute.func === 'function' 
@@ -231,7 +231,7 @@ function hotCustom(processor) {
     CJP_Array = CJP_Source;
   } else if (CJP_Source && typeof CJP_Source === 'object' && Object.keys(CJP_Source).length) {
     // Convert object to array
-    for (const key in CJP_Source) {
+    for (var key in CJP_Source) {
       if (Object.hasOwnProperty.call(CJP_Source, key)) {
         CJP_Array.push(CJP_Source[key]);
       }
@@ -242,7 +242,7 @@ function hotCustom(processor) {
     return true; // Nothing to process
   }
 
-  for (const customOp of CJP_Array) {
+  for (var customOp of CJP_Array) {
     if (!customOp || typeof customOp.func !== 'string') continue; // Skip if invalid
 
     const funcBody = extractFunctionBody(customOp.func);
@@ -271,7 +271,7 @@ function hotOps(processor) {
   if (Array.isArray(COP_Source)) {
     COP_Array = COP_Source;
   } else if (COP_Source && typeof COP_Source === 'object' && Object.keys(COP_Source).length) {
-    for (const key in COP_Source) {
+    for (var key in COP_Source) {
        if (Object.hasOwnProperty.call(COP_Source, key)) {
           COP_Array.push(COP_Source[key]);
        }
@@ -282,7 +282,7 @@ function hotOps(processor) {
   }
   if (!COP_Array.length) return true;
 
-  for (const customOp of COP_Array) {
+  for (var customOp of COP_Array) {
     if (!customOp || typeof customOp.func !== 'string') continue;
     const funcBody = extractFunctionBody(customOp.func);
 
@@ -310,7 +310,7 @@ function hotChron(chronOps) {
         Chron_Array = Chron_Source;
     } else if (Chron_Source && typeof Chron_Source === 'object' && Object.keys(Chron_Source).length) {
         // Convert object to array - Corrected loop
-        for (const key in Chron_Source) {
+        for (var key in Chron_Source) {
             if (Object.hasOwnProperty.call(Chron_Source, key)) {
                 Chron_Array.push(Chron_Source[key]);
             }
@@ -321,7 +321,7 @@ function hotChron(chronOps) {
     }
 
 
-    for (const customChronJob of Chron_Array) { // Iterate over the processed array
+    for (var customChronJob of Chron_Array) { // Iterate over the processed array
         customChronJob.function = customChronJob.func
         console.log('Registering customChronJob:', customChronJob.op)
         if (!customChronJob || typeof customChronJob.func !== 'function') {
@@ -381,7 +381,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
   // Parse command line arguments
   const args = process.argv.slice(2);
   const swIndex = args.indexOf('-sw');
-  
+  var dyn = false
   if (swIndex !== -1 && swIndex + 1 < args.length) {
     // -sw flag found with a hash argument
     const hash = args[swIndex + 1];
@@ -708,7 +708,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                 let promises = []
                 const realTime = API.RAM.behind < 50 ? true : false
                 try {
-                  for (const func of Every) {
+                  for (var func of Every) {
                     await func(num, prand, stats, realTime, runtimeContext);
                   }
                 } catch (error) {
@@ -854,7 +854,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                   var ops = [],
                     cjbool = false,
                     votebool = false
-                  signerloop: for (const i = 0; i < NodeOps.length; i++) {
+                  signerloop: for (var i = 0; i < NodeOps.length; i++) {
                     if (NodeOps[i][0][1] == 0 && NodeOps[i][0][0] <= 100) {
                       if (NodeOps[i][1][0] == 'custom_json' && JSON.parse(NodeOps[i][1][1].json).sig_block && num - 100 > JSON.parse(NodeOps[i][1][1].json).sig_block) {
                         NodeOps.splice(i, 1)
@@ -882,7 +882,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                       NodeOps[i][0][0] = 0
                     }
                   }
-                  for (const i = 0; i < NodeOps.length; i++) {
+                  for (var i = 0; i < NodeOps.length; i++) {
                     if (NodeOps[i][0][2] == true) {
                       NodeOps.splice(i, 1)
                     }
@@ -895,7 +895,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                     }, [config.active], (err, result) => {
                       if (err) {
                         console.log(err) //push ops back in.
-                        for (const q = 0; q < ops.length; q++) {
+                        for (var q = 0; q < ops.length; q++) {
                           if (NodeOps[q][0][1] == 1) {
                             NodeOps[q][0][1] = 3
                           }
@@ -930,7 +930,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
     return new Promise((resolve, reject) => {
       Promise.all(promises_array)
         .then(r => {
-          for (const i = 0; i < r.length; i++) {
+          for (var i = 0; i < r.length; i++) {
             if (r[i].consensus) {
               plasma.consensus = r[1].consensus
             }
@@ -964,7 +964,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
       }
       Promise.all(consensus_init.reports).then((r) => {
         //console.log(r);
-        for (const i = 0; i < r.length; i++) {
+        for (var i = 0; i < r.length; i++) {
           if (r[i]) {
             if (r[i][1] > consensus_init.last) {
               consensus_init.last = r[i][1]
@@ -1177,7 +1177,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                       }
                       var tally = 0,
                         winner = null;
-                      for (const hash in votes) {
+                      for (var hash in votes) {
                         if (
                           votes[hash] >= tally &&
                           blocks[values[acc].hash] == newest

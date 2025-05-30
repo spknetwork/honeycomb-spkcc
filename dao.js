@@ -1,4 +1,4 @@
-import { store, Config } from "./index.js";
+import { store, Config } from "./index.mjs";
 import { getPathObj, getPathNum } from "./getPathObj.js"
 import { isEmpty, addMT } from './lil_ops.js'
 import { sortBuyArray } from './helpers.js'

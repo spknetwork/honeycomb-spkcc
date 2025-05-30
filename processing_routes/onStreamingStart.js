@@ -1,4 +1,4 @@
-import { Config, store, unshiftOp, TXID, hiveClient } from "../index.js"
+import { Config, store, unshiftOp, TXID, hiveClient } from "../index.mjs"
 
 export const onStreamingStart = () => {
     console.log("At real time.");

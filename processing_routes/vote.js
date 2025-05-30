@@ -1,4 +1,4 @@
-import { store, Config } from "../index.js"
+import { store, Config } from "../index.mjs"
 import { getPathObj, getPathNum, deleteObjs } from './../getPathObj.js'
 import { updatePostVotes } from './../edb.js'
 

@@ -3,10 +3,10 @@
     "type": "module",
     "version": "1.0.0",
     "description": "A Honeycomb for Hive Layer 2",
-    "main": "index.js",
+    "main": "index.mjs",
     "scripts": {
         "test": "mocha || true",
-        "start": "node index.js",
+        "start": "node index.mjs",
         "lint": "eslint"
     },
     "keywords": [

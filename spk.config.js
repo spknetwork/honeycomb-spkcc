@@ -2258,7 +2258,7 @@ const CustomJsonProcessing = [
         return new Promise(resolve => {
           const ops = []
           const accountPromises = []
-          for (const contractId in deletedFilesByContract) {
+          for (var contractId in deletedFilesByContract) {
             const { contract, totalDeletedBytes, originalTotalBytes } = deletedFilesByContract[contractId]
             const proportionDeleted = totalDeletedBytes / originalTotalBytes
             const extensions = contract.ex ? contract.ex.split(",") : []
@@ -2275,7 +2275,7 @@ const CustomJsonProcessing = [
                 }
               }
             })
-            for (const account in refundsByAccount) {
+            for (var account in refundsByAccount) {
               const refundAmount = refundsByAccount[account]
               accountPromises.push(
                 Promise.all([
@@ -2334,19 +2334,19 @@ const CustomJsonProcessing = [
             const expectedFieldCount = 4 * sortedCids.length + 1
             // pull thumbnails and delete them as well
             const thumbUsage = new Map();
-            for (const cid of cids) {
+            for (var cid of cids) {
               const index = sortedCids.indexOf(cid);
               if (index !== -1) {
                 const thumbCID = metadataFields[1 + 4 * index + 3];
                 thumbUsage.set(thumbCID, (thumbUsage.get(thumbCID) || 0) + 1);
               }
             }
-            for (const [thumbCID, usage] of thumbUsage.entries()) {
+            for (var [thumbCID, usage] of thumbUsage.entries()) {
               if (usage === metadataFields.filter(field => field.includes(thumbCID)).length) {
                 cids.push(thumbCID);
               }
             }
-            for (const cid of cids) {
+            for (var cid of cids) {
               if (contract.df[cid]) {
                 const bytes = contract.df[cid]
                 totalDeletedBytes += bytes
@@ -2360,7 +2360,7 @@ const CustomJsonProcessing = [
               contract.u -= totalDeletedBytes
               if (metadataFields.length === expectedFieldCount) {
                 const indicesToRemove = []
-                for (const cid of deletedCids) {
+                for (var cid of deletedCids) {
                   const index = sortedCids.indexOf(cid)
                   if (index !== -1) {
                     const startIndex = 1 + index * 4;
@@ -2370,7 +2370,7 @@ const CustomJsonProcessing = [
                   }
                 }
                 indicesToRemove.sort((a, b) => b - a)
-                for (const index of indicesToRemove) {
+                for (var index of indicesToRemove) {
                   metadataFields.splice(index, 1)
                 }
                 contract.m = metadataFields.join(',')
@@ -2383,7 +2383,7 @@ const CustomJsonProcessing = [
           })
           calculateRefunds(deletedFilesByContract, json.block_num, from).then(refundOps => {
             ops.push(...refundOps)
-            for (const contractId in deletedFilesByContract) {
+            for (var contractId in deletedFilesByContract) {
               const { contract } = deletedFilesByContract[contractId];
               if (Object.keys(contract.df).length > 0) {
                 ops.push({ type: "put", path: ["contract", from, contractId], data: contract });
@@ -8035,7 +8035,8 @@ const CustomChron = [
   {
     op: 'contract_close',
     func: function (b, passed, res, rej, num, prand, ints, bh, context) {
-      const { store, getPathObj, getPathNum, Base64 } = context;
+      console.log('This block')
+      const { store, getPathObj, getPathNum, Base64, processor } = context;
       const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
         if (typeof last != "string") last = '0,0'
         const last_calc = Base64.toNumber(last.split(',')[1])
@@ -8044,125 +8045,7 @@ const CustomChron = [
         if (total > (pow * 1000)) total = (pow * 1000)
         return `${total},${Base64.fromNumber(bn)}`
       }
-      function extend(json, from, active, pc, contextD) {
-        const { store, getPathObj, postToDiscord, config, getPathNum, chronAssign } = contextD
-        console.log('extend')
-        if (json.broca && json.id && json.file_owner) {
-          var Pbroca = getPathObj(["broca", from]);
-          var Ppow = getPathNum(["bpow", from])
-          var Pstats = getPathObj(["stats"])
-          var Pcontract = getPathObj(["contract", json.file_owner, json.id])
-          Promise.all([Pbroca, Pstats, Ppow, Pcontract]).then(mem => {
-            var broca = mem[0],
-              stats = mem[1],
-              pow = mem[2],
-              contract = mem[3],
-              ops = [],
-              err = '', //no log no broca?
-              brocaString = broca_calc(broca, pow, stats, json.block_num),
-              broca = parseInt(brocaString.split(',')[0])
-            if (json.broca <= broca && contract.c == 3) {
-              broca = broca - json.broca
-              const exp_block = parseInt(contract.e.split(':')[0])
-              let cidsSorted = Object.keys(contract.df).sort()
-              let cidsMetaData = []
-              let cidsFlaggedForDeletion = []
-              try {
-                cidsMetaData = contract.m.split(',').splice(1)
-              } catch (e) {
-                console.log("Error parsing metadata:", e);
-              }
-              for (var i = 0; i < cidsMetaData.length; i++) {
-                if (cidsMetaData[(i * 4) + 1] && cidsMetaData[(i * 4) + 1].split('.').length > 1 && cidsMetaData[(i * 4) + 1].split('.')[1] == "8") {
-                  cidsFlaggedForDeletion.push(cidsSorted[i])
-                }
-              }
-              let deletePromise = new Promise((res, rej) => {
-                if (cidsFlaggedForDeletion.length) {
-                  console.log('delete_files')
-                  exports.delete_files({ cids: cidsFlaggedForDeletion, block_num: json.block_num, transaction_id: json.transaction_id }, contract.t, true, [res, rej, 0])
-                } else {
-                  res([])
-                }
-              })
-              deletePromise.then(contracts => {
-                if (contracts.length) {
-                  contract = contracts[contracts.i]
-                }
-                if (from == contract.t && parseInt(json.power) > 0) {
-                  const broca_per_old_term = parseInt((contract.u * contract.p) / (stats.channel_bytes * 3)) || 1
-                  contract.p++
-                  const payUp = exp_block - json.block_num
-                  const broca_per_new_term = parseInt((contract.u * contract.p) / (stats.channel_bytes * 3)) || 1
-                  const debt = parseInt((broca_per_new_term - broca_per_old_term) * payUp)
-                  if (debt > json.broca) {
-                    const msg = `@${from} | Failed to increase decentralizition of ${json.id} due to lack of BROCA`
-                    ops.push({
-                      type: "put",
-                      path: ["feed", `${json.block_num}:${json.transaction_id}`],
-                      data: msg,
-                    });
-                    if (config.hookurl || config.status)
-                      postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
-                    if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-                    store.batch(ops, pc);
-                  } else {
-                    json.broca -= debt
-                  }
-                }
-                const broca_per_term = parseInt((contract.u * contract.p) / (stats.channel_bytes * 3)) || 1
-                const blocks_additional = parseInt((json.broca / broca_per_term) * 28800 * 30)
-                chronAssign(parseInt(exp_block + blocks_additional), {
-                  block: parseInt(exp_block + blocks_additional),
-                  op: 'contract_close',
-                  fo: json.file_owner,
-                  id: json.id
-                }).then(exe_path => {
-                  ops.push({
-                    type: 'del',
-                    path: ['chrono', contract.e]
-                  })
-                  contract.ex = contract.ex ? contract.ex + `,${from}:${json.broca}:${exp_block}-${exp_block + blocks_additional}` : `${from}:${contract.r}:${exp_block}-${exp_block + blocks_additional}`
-                  // clean extentions
-                  var extentions = contract.ex.split(',')
-                  var valid_exts = []
-                  for (var i = 0; i < extentions.length; i++) {
-                    if (extentions[i].split('-')[1] > json.block_num) valid_exts.push(extentions[i])
-                  }
-                  contract.ex = valid_exts.join(',')
-                  contract.e = exe_path
-                  ops.push({
-                    type: 'put',
-                    path: ["contract", json.file_owner, json.id],
-                    data: contract
-                  })
-                  ops.push({
-                    type: 'put',
-                    path: ["broca", from],
-                    data: `${broca},${brocaString.split(',')[1]}`
-                  })
-                  const msg = `@${from} | Extended ${json.id} by ${blocks_additional} blocks for ${json.broca} BROCA`
-                  ops.push({
-                    type: "put",
-                    path: ["feed", `${json.block_num}:${json.transaction_id}`],
-                    data: msg,
-                  });
-                  if (config.hookurl || config.status)
-                    postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
-                  if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-                  console.log(ops)
-                  store.batch(ops, pc);
-                })
-              })
-            } else {
-              console.log('failOnContract', json.broca <= broca, contract.c == 3)
-              pc[0](pc[2]);
-            }
-          })
-        } else {
-          pc[0](pc[2]);
-        }
-      }
+      processor.doOp( 'extend', json, from, active, pc, contextD) 
       function contractClose(promies, delkey, num, id, b) {
         return new Promise((resolve, reject) => {
           Promise.all(promies)

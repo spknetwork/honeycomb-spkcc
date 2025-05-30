@@ -1,5 +1,5 @@
 import Pool from 'pg'
-import { Config } from "./index.js";
+import { Config } from "./index.mjs";
 var pool = Config("dbcs") ? new Pool({
     connectionString: Config("dbcs"),
     ssl: {

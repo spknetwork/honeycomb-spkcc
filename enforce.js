@@ -1,5 +1,5 @@
 import { getPathObj, getPathNum } from "./getPathObj.js"
-import { store } from "./index.js"
+import { store } from "./index.mjs"
 import { chronAssign, penalty, add, nodeUpdate, deletePointer, addCol, addGov } from './lil_ops.js'
 
 export function enforce(agent, txid, pointer, block_num) {
@@ -234,7 +234,7 @@ function waitfor(promises_array) {
     return new Promise((resolve, reject) => {
         Promise.all(promises_array)
             .then(r => {
-                for (const i = 0; i < r.length; i++) {
+                for (var i = 0; i < r.length; i++) {
                     console.log(r[i])
                     if (r[i].consensus) {
                         plasma.consensus = r[1].consensus

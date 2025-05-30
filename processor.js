@@ -1,5 +1,5 @@
 import fetch from "node-fetch"
-import { TXID, runtimeContext } from "./index.js"
+import { TXID, runtimeContext } from "./index.mjs"
 export function hiveState (
   client,
   nextBlock = 1,

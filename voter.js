@@ -1,5 +1,5 @@
 import { getPathObj, deleteObjs } from "./getPathObj.js"
-import { Config, store } from "./index.js";
+import { Config, store } from "./index.mjs";
 
 //determine consensus... needs some work with memory management
 export const voter = () => {
@@ -13,10 +13,10 @@ export const voter = () => {
                         let posts = v[0],
                             totalWeight = 0,
                             ops = []
-                        for (const post in posts) {
+                        for (var post in posts) {
                             totalWeight += posts[post].v
                         }
-                        for (const post in posts) {
+                        for (var post in posts) {
                             let b = {
                                 author: post.split('/')[0],
                                 permlink: post.split('/')[1]

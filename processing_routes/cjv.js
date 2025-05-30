@@ -1,4 +1,4 @@
-import { Config, store } from "../index.js"
+import { Config, store } from "../index.mjs"
 import  { getPathObj } from "./../getPathObj.js"
 
 export const cjv = (json, from, active, pc) => {

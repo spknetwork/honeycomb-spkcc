@@ -5,7 +5,7 @@ import type from 'component-type';
 import after from 'after';
 import streamToArray from 'stream-to-array';
 import stringify from 'json-stable-stringify';
-import { block } from './index.js'
+import { block } from './index.mjs'
 export var Pathwise = function (db) {
     assert(db, 'db required');
     this._db = defaults(db, {

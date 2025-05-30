@@ -1,10 +1,10 @@
 import { assert } from 'chai';
-import { HR } from './../processing_routes/index.js';
+import { HR } from './../processing_routes/index.mjs';
 import { tally } from './../tally.js';
-import { store } from './../index.js';
+import { store } from './../index.mjs';
 import test_state from './test_state.js';
 import { config } from '../working.config.js';
-import { Config, configSet, TXID, GetNodeOps, newOps, unshiftOp, pushOp, block, status, plasma } from './../index.js';
+import { Config, configSet, TXID, GetNodeOps, newOps, unshiftOp, pushOp, block, status, plasma } from './../index.mjs';
 
 function init() {
     return new Promise((resolve, reject) => {

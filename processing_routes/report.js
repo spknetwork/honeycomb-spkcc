@@ -1,4 +1,4 @@
-import { store, Config } from "../index.js"
+import { store, Config } from "../index.mjs"
 import { ipfsPeerConnect } from "./../ipfsSaveState.js"
 
 export const report = (json, from, active, pc) => {
