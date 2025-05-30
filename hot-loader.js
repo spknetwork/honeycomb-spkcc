@@ -119,7 +119,7 @@ export function hotCustom(processor) {
     
        processor[customOp.type](customOp.op, (json, from, active, pc, context) => {
          try {
-             return func(json, from, active, pc, context);
+             return func(json, from, active, pc, runtimeContext);
          } catch (e) {
              console.error(`Error executing custom operation ${customOp.op} (type ${customOp.type}):`, e);
              // Decide how to handle errors, maybe return a default or throw
