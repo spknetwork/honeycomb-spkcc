@@ -56,7 +56,6 @@ export var TXID = {
   },
 }
 import fetch from 'node-fetch';
-import WebSocket from 'ws';
 import { Hive } from "./hive.js"
 import { Pathwise } from './pathwise.js';
 import level from 'level';
@@ -135,19 +134,17 @@ import { ChainTypes, makeBitMaskFilter } from './hive-js-auth.js';
 
 import { API, RAM } from './routes/api.js'
 import { HR } from './processing_routes/index.mjs'
-import { NFT, Chron, Watchdog, Log, Base64, Base58, Base38, DEX, verifySig } from './helpers.js'
+import { NFT, Chron, Watchdog, Log } from './helpers.js'
 import { enforce } from "./enforce.js"
 import { tally } from "./tally.js"
 import { voter } from "./voter.js"
 import { report, sig_submit, osig_submit } from "./report.js"
 import { ipfsSaveState } from "./ipfsSaveState.js"
 import { dao, Liquidity } from "./dao.js"
-//import everything from lil_ops deconstructed
-import { burn, forceCancel, add, addc, addMT, addCol, addGov, deletePointer, credit, nodeUpdate, penalty, chronAssign, hashThis, isEmpty, naizer, release } from './lil_ops.js'
+import { release } from './lil_ops.js'
 import { hiveState } from './processor.js'
 import { getPathObj, getPathNum, getPathSome } from './getPathObj.js'
-import { consolidate, sign, osign, updateAccount } from './msa.js'
-import { postToDiscord } from './discord.js'
+import { consolidate, sign, osign } from './msa.js'
 import { 
   initializeContext, 
   hotAPI, 
@@ -155,8 +152,6 @@ import {
   hotOps, 
   hotChron, 
   customInit, 
-  hotConfig, 
-  extractFunctionBody,
   runtimeContext,
   CodeShare,
   Every 

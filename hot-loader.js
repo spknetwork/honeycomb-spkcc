@@ -18,9 +18,15 @@ export function initializeContext(processor, store, status, VERSION) {
   const configCopy = { ...config };
   delete configCopy.active;
   delete configCopy.msowner;
-  CodeShare = config.CodeShare || {}
+  
+  // Update CodeShare from config if available
+  if (config.CodeShare) {
+    CodeShare = { ...CodeShare, ...config.CodeShare }
+  }
+  
   if(config?.CustomEvery?.length)Every = [HR.margins, ...config.CustomEvery]
   else Every = [HR.margins]
+  
   runtimeContext = { store, config: configCopy, fetch, WebSocket, API, VERSION, getPathObj, getPathNum, getPathSome, RAM, burn, forceCancel, add, addc, addMT, addCol, addGov, deletePointer, credit, nodeUpdate, penalty, chronAssign, hashThis, isEmpty, postToDiscord, Base64, Base58, Base38, stringify, NFT, Chron, stringify, DEX, naizer, status, verifySig, CodeShare, processor }
 }
 
@@ -212,6 +218,13 @@ export function customInit(api, chron, processor, CS, E) {
     console.log('customInit')
     CodeShare = {...CodeShare, ...CS}
     if(E?.length)Every = [...E]
+    
+    // Update runtimeContext with the new CodeShare and Every
+    if (runtimeContext) {
+      runtimeContext.CodeShare = CodeShare
+      runtimeContext.Every = Every
+    }
+    
     hotAPI(api)
     hotChron(chron)
     hotCustom(processor)
@@ -232,5 +245,10 @@ export function hotConfig(newConfig, cleanState, api, chronOps, processor) {
   if (typeof config.CustomChron === 'string') config.CustomChron = config.CustomChron.length ? JSON.parse(config.CustomChron) : "NA"
   if (typeof config.CustomEvery === 'string') config.CustomEvery = config.CustomEvery.length ? JSON.parse(config.CustomEvery) : []
   if (typeof config.CodeShare === 'string') config.CodeShare = config.CodeShare.length ? JSON.parse(config.CodeShare) : {}
-  customInit(api, chronOps, processor)
+  
+  // Get CodeShare and Every from chain state if available
+  const chainCodeShare = cleanState.chain?.CodeShare || config.CodeShare || {}
+  const chainEvery = cleanState.chain?.CustomEvery || config.CustomEvery || []
+  
+  customInit(api, chronOps, processor, chainCodeShare, chainEvery)
 } 
