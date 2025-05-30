@@ -254,8 +254,8 @@ const CodeShare = {
               if (b.report.v[i][j][1] > 0 && typeof b.report.v[i][j][1] == 'number' && b.report.v[i][j][1] < 240000) {
                 newCount++
                 newTotal += b.report.v[i][j][1]
-                delta = b.report.v[i][j][1] - oldMean
-                newStdDevNum = parseInt(newStdDevNum + (Math.pow(b.report.v[i][j][1] - oldMean, 2) * 1000))
+                const delta = b.report.v[i][j][1] - oldMean
+                const newStdDevNum = parseInt(newStdDevNum + (Math.pow(b.report.v[i][j][1] - oldMean, 2) * 1000))
                 if (Math.abs(delta) < 2 * oldStdDev) {
                   paid++
                   accepted[b.report.v[i][j][0]] = { a: b.report.v[i][j][0], r: 2, p: 0 }
