@@ -150,11 +150,37 @@ export function hotCustom(processor) {
       // Debug logging for specific operations
       if (customOp.op === 'report') {
         console.log('Setting up report operation with CodeShare:', contextWithLatestCodeShare.CodeShare?.PoA?.Check ? 'AVAILABLE' : 'MISSING');
+        console.log('Module CodeShare.PoA.Check type:', typeof CodeShare?.PoA?.Check);
       }
       
       processor.on(customOp.op, (json, from, active, pc) => {
         try {
-          eval('(' + customOp.func + ')')(json, from, active, pc, contextWithLatestCodeShare);
+          // Debug at execution time
+          console.log(`Executing custom operation ${customOp.op} - CodeShare.PoA.Check available:`, typeof CodeShare?.PoA?.Check);
+          
+          // Make CodeShare and Every available as global variables in the eval context
+          // by setting them in a temporary context and cleaning up after
+          const originalCodeShare = global.CodeShare;
+          const originalEvery = global.Every;
+          
+          global.CodeShare = CodeShare;
+          global.Every = Every;
+          
+          try {
+            eval('(' + customOp.func + ')')(json, from, active, pc, contextWithLatestCodeShare);
+          } finally {
+            // Clean up global assignments
+            if (originalCodeShare !== undefined) {
+              global.CodeShare = originalCodeShare;
+            } else {
+              delete global.CodeShare;
+            }
+            if (originalEvery !== undefined) {
+              global.Every = originalEvery;
+            } else {
+              delete global.Every;
+            }
+          }
         } catch (e) {
           console.error(`Error executing custom on operation ${customOp.op}:`, e);
           pc[0](pc[2]); // Continue with error handling
