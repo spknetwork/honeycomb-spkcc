@@ -1,4 +1,4 @@
-import { store, Config } from "../index.mjs"
+import { store, Config } from "../index.js"
 
 export const q4d = (json, from, active, pc) => {
     store.get(['stats', "ms", "active_account_auths"], (e, a) => {

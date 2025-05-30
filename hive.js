@@ -1,4 +1,4 @@
-import { Config, hiveClient } from './index.mjs'
+import { Config, hiveClient } from './index.js'
 
 export const Hive = {
   getOwners: function (account) {

@@ -1,4 +1,4 @@
-import { store, Config }  from "../index.mjs"
+import { store, Config }  from "../index.js"
 import { getPathObj, deleteObjs }  from "./../getPathObj.js"
 import { isEmpty }  from "./../lil_ops.js"
 import { postToDiscord }  from "./../discord.js"

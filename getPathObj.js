@@ -1,4 +1,4 @@
-import { store } from "./index.mjs"
+import { store } from "./index.js"
 
 export const getPathObj = function (path) {
     return new Promise(function(resolve, reject) {

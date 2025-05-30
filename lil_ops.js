@@ -1,4 +1,4 @@
-import { store } from './index.mjs'
+import { store } from './index.js'
 import { getPathObj, getPathNum } from './getPathObj.js'
 import { DEX } from './helpers.js'
 import { postToDiscord } from './discord.js'

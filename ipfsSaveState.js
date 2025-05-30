@@ -1,4 +1,4 @@
-import { ipfs } from "./index.mjs"
+import { ipfs } from "./index.js"
 
 export const ipfsSaveState = (blocknum, buffer, ipfsc, tries) => {
   return new Promise((resolve, reject) => {

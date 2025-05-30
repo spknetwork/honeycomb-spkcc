@@ -1,4 +1,4 @@
-import { Config, store } from "../index.mjs"
+import { Config, store } from "../index.js"
 import { getPathObj, getPathNum } from '../getPathObj.js'
 import { chronAssign } from '../lil_ops.js'
 import { postToDiscord } from './../discord.js'

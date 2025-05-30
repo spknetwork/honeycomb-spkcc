@@ -1,4 +1,4 @@
-import { store } from '../index.mjs'
+import { store } from '../index.js'
 
 export const nomention = (json, from, active, pc) => {
     if (typeof json.nomention == 'boolean') {

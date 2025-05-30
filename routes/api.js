@@ -1,5 +1,5 @@
 import { Base64 } from './../helpers.js'
-import { Config, store, GetNodeOps, VERSION, status, TXID, plasma } from "./../index.mjs"
+import { Config, store, GetNodeOps, VERSION, status, TXID, plasma } from "./../index.js"
 import  fetch from 'node-fetch'
 import { getPathObj, getPathNum } from "./../getPathObj.js"
 import  decodeURIcomponent from 'decode-uri-component'

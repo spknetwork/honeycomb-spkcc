@@ -1,5 +1,5 @@
 import { config } from './config.js'
-import { plasma, VERSION, CodeShare } from './index.mjs'
+import { plasma, VERSION, CodeShare } from './index.js'
 
 //tell the hive your state, this is asynchronous with IPFS return... 
 export function report(plas, con, additional = {}) {

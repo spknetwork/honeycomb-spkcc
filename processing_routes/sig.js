@@ -1,4 +1,4 @@
-import { Config, store, Owners } from "../index.mjs"
+import { Config, store, Owners } from "../index.js"
 import { getPathObj } from "./../getPathObj.js"
 import { verify, isValidTxSig } from "./../tally.js"
 

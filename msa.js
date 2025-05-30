@@ -1,4 +1,4 @@
-import  { Config, store, hiveClient } from './index.mjs'
+import  { Config, store, hiveClient } from './index.js'
 import { getPathObj } from './getPathObj.js'
 import stringify from 'json-stable-stringify'
 //const privateKey = hiveClient.PrivateKey.fromString(Config("msprivatekey");

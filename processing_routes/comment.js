@@ -1,4 +1,4 @@
-import { store, Config } from "../index.mjs"
+import { store, Config } from "../index.js"
 import { chronAssign } from './../lil_ops.js'
 import { getPathObj } from '../getPathObj.js'
 import { contentToDiscord } from './../discord.js'

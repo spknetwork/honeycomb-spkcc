@@ -1,5 +1,5 @@
 import { getPathObj, getPathNum } from "./getPathObj.js"
-import { store } from "./index.mjs"
+import { store } from "./index.js"
 import { chronAssign, penalty, add, nodeUpdate, deletePointer, addCol, addGov } from './lil_ops.js'
 
 export function enforce(agent, txid, pointer, block_num) {

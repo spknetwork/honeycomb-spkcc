@@ -1,5 +1,5 @@
 import { getPathObj, deleteObjs } from "./getPathObj.js"
-import { Config, store } from "./index.mjs";
+import { Config, store } from "./index.js";
 
 //determine consensus... needs some work with memory management
 export const voter = () => {

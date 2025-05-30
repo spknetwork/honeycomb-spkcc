@@ -1,4 +1,4 @@
-import { store, Config } from "../index.mjs"
+import { store, Config } from "../index.js"
 
 import { Base64, NFT, DEX } from "../helpers.js"
 import { getPathObj, getPathNum } from "../getPathObj.js"

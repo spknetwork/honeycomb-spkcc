@@ -1,4 +1,4 @@
-import { store, TXID, Config, processor } from "./index.mjs"
+import { store, TXID, Config, processor } from "./index.js"
 import { renderNFTtoDiscord, postToDiscord } from "./discord.js"
 import { add, addMT, burn, chronAssign, hashThis } from "./lil_ops.js"
 import stringify from "json-stable-stringify"

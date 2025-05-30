@@ -1,5 +1,5 @@
 import { Webhook, MessageBuilder } from 'discord-webhook-node'
-import { Config, TXID } from "./index.mjs";
+import { Config, TXID } from "./index.js";
 import fetch from 'node-fetch'
 const hook = Config("hookurl") ? new Webhook(Config("hookurl")) : null
 

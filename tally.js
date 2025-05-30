@@ -1,5 +1,5 @@
 import { getPathObj, getPathNum, deleteObjs } from "./getPathObj.js"
-import { Config, store, hiveClient, plasma, Owners } from "./index.mjs"
+import { Config, store, hiveClient, plasma, Owners } from "./index.js"
 import { updatePost } from "./edb.js"
 import hiveTx from "hive-tx"
 import { sha256 } from "hive-tx/helpers/crypto.js"
