@@ -8106,7 +8106,7 @@ const CustomChron = [
         [Pcontract, Pstats, Pbroca, Ppow],
         passed.delKey,
         num,
-        passed.delKey.split(":")[1],
+        b.id,
         b
       ).then((x) => res(x));
     }

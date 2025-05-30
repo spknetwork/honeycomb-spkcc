@@ -162,8 +162,19 @@ import {
   Every 
 } from './hot-loader.js'
 
-// Re-export for compatibility with existing imports
-export { CodeShare, runtimeContext }
+export var runtimeContext, Every = [HR.margins], CodeShare = {}
+
+function initializeContext(processor) {
+  // make a copy of config and leave out any private keys
+  const configCopy = { ...config };
+  delete configCopy.active;
+  delete configCopy.msowner;
+  CodeShare = config.CodeShare || {}
+  if(config?.CustomEvery?.length)Every = [HR.margins, ...config.CustomEvery]
+  else Every = [HR.margins]
+  runtimeContext = { store, config: configCopy, fetch, WebSocket, API, VERSION, getPathObj, getPathNum, getPathSome, RAM, burn, forceCancel, add, addc, addMT, addCol, addGov, deletePointer, credit, nodeUpdate, penalty, chronAssign, hashThis, isEmpty, postToDiscord, Base64, Base58, Base38, stringify, NFT, Chron, stringify, DEX, naizer, status, verifySig, CodeShare, processor }
+}
+initializeContext()
 
 Promise.all([config.startURL, config.clientURL]).then(urls => {
   config.startURL = urls[0]
@@ -288,9 +299,8 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
     for (var i in state.chain) {
       config[i] = state.chain[i]
     }
-    initializeContext(null, store, status, VERSION)
     processor = hiveState(client, startingBlock, runtimeContext);
-    initializeContext(processor, store, status, VERSION)
+    initializeContext(processor)
     processor.on('send', HR.send);
     processor.on('claim', HR.claim);
     processor.on('node_add', HR.node_add);
