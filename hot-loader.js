@@ -255,16 +255,19 @@ export function hotChron(chronOps) {
           customChronJob.function = new Function('b', 'passed', 'res', 'rej', 'num', 'prand', 'ints', 'bh', 'context', funcBody); 
         }
 
-        chronOps[customChronJob.op] = (b, passed, res, rej, num, prand, ints, bh, context) => {
-            try {
-                console.log('customChronJob.function', customChronJob.function.toString())
-                return customChronJob.function(b, passed, res, rej, num, prand, ints, bh, context);
-            } catch (e) {
-                console.error(`Error executing custom chron job ${customChronJob.op}:`, e);
-                // Chron jobs often need to resolve/reject, handle error appropriately
-                rej(e); // Example: reject the promise on error
-            }
-        };
+        // Create a closure that captures the current customChronJob by value
+        chronOps[customChronJob.op] = ((chronJob) => {
+            return (b, passed, res, rej, num, prand, ints, bh, context) => {
+                try {
+                    console.log('chronJob.function', chronJob.function.toString())
+                    return chronJob.function(b, passed, res, rej, num, prand, ints, bh, context);
+                } catch (e) {
+                    console.error(`Error executing custom chron job ${chronJob.op}:`, e);
+                    // Chron jobs often need to resolve/reject, handle error appropriately
+                    rej(e); // Example: reject the promise on error
+                }
+            };
+        })(customChronJob);
     }
     return true;
 }

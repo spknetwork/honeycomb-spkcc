@@ -8148,8 +8148,12 @@ const CustomChron = [
                   data: stats
                 });
                 if (contract?.s) ops.push({ type: "del", path: ['ben', b.to, contract?.s.split(',')[0]] });
-                ops.push({ type: "del", path: ['proffer', b.to, b.from, b.c] });
-                ops.push({ type: "del", path: ['partial_update', b.c.split(":")[2]] })
+                if (b.c) {
+                  ops.push({ type: "del", path: ['proffer', b.to, b.from, b.c] });
+                }
+                if (b.c && typeof b.c === 'string') {
+                  ops.push({ type: "del", path: ['partial_update', b.c.split(":")[2]] })
+                }
                 ops.push({ type: "del", path: ['contract', b.to, contract.i] });
                 if (contract.s) ops.push({ type: "del", path: ['ben', b.to, contract.s.split(',')[0]] });
                 ops.push({
@@ -8172,8 +8176,8 @@ const CustomChron = [
             });
         });
       }
-      let Pproffer = getPathObj(['proffer', b.to, b.from, b.c]),
-        Ptemplate = getPathObj(["template", b.c]),
+      let Pproffer = b.c ? getPathObj(['proffer', b.to, b.from, b.c]) : Promise.resolve({}),
+        Ptemplate = b.c ? getPathObj(["template", b.c]) : Promise.resolve({}),
         Pstats = getPathObj(["stats"]),
         Pbroca = getPathObj(["broca", b.from]),
         Ppow = getPathObj(["bpow", b.from]);
