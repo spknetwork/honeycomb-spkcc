@@ -389,7 +389,7 @@ const CodeShare = {
       })
     },
     getRange(prand, account, val, stats, context) {
-      const { CodeShare, Base58 } = context
+      const { CodeShare, Base58, config } = context
       const cutoff = stats.val_threshold || 1
       var total = 0
       var n = Object.keys(val)
