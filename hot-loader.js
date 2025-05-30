@@ -257,6 +257,7 @@ export function hotChron(chronOps) {
 
         chronOps[customChronJob.op] = (b, passed, res, rej, num, prand, ints, bh, context) => {
             try {
+                console.log('customChronJob.function', customChronJob.function.toString())
                 return customChronJob.function(b, passed, res, rej, num, prand, ints, bh, context);
             } catch (e) {
                 console.error(`Error executing custom chron job ${customChronJob.op}:`, e);
