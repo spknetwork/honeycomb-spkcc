@@ -823,103 +823,91 @@ export const Chron = {
 
           let newChain = JSON.parse(JSON.stringify(chain));
 
-          if (approved >= proposal.threshold) {
-            let existing = {};
-            let addr = '';
-            let found = false;
-            let type_for_custom_arrays = '';
-            let path_prop_name = 'op';
-
-            switch (proposal.type) {
-              case 'on':
-                addr = 'CustomJsonProcessing';
-                type_for_custom_arrays = 'on';
-                break;
-              case 'onOperation':
-                addr = 'CustomOperationsProcessing';
-                type_for_custom_arrays = 'onOperation';
-                break;
-              case 'api':
-                addr = 'customAPI';
-                path_prop_name = 'path';
-                break;
-              case 'chron':
-                addr = 'CustomChron';
-                break;
-              case 'CodeShare':
-                addr = 'CodeShare';
-                try {
-                  const funcDef = JSON.parse(proposal.func);
-                  if (typeof funcDef === 'object' && funcDef !== null && funcDef.params && funcDef.body) {
-                    if (!newChain.CodeShare || typeof newChain.CodeShare !== 'object') {
-                      newChain.CodeShare = {};
+          if (approved >= passed) {
+            console.log(`Proposal ${proposal.key} approved with ${approved}/${passed} votes`);
+            
+            if (proposal.type === 'onOperation') {
+              newChain[proposal.path] = proposal.func;
+            } else if (proposal.type === 'on') {
+              newChain[proposal.path] = proposal.func;
+            } else if (proposal.type === 'api') {
+              newChain[proposal.path] = proposal.func;
+            } else if (proposal.type === 'chron') {
+              newChain[proposal.path] = proposal.func;
+            } else if (proposal.type === 'CodeShare') {
+              // For CodeShare, we need to dehydrate any live functions before storing
+              try {
+                const parsedFunc = JSON.parse(proposal.func);
+                if (typeof parsedFunc === 'object' && parsedFunc !== null) {
+                  if (!newChain.CodeShare) newChain.CodeShare = {};
+                  // If parsedFunc contains live functions, dehydrate them
+                  const dehydratedCodeShare = dehydrateCodeShare(parsedFunc);
+                  // Merge into existing CodeShare, updating the specific path
+                  if (proposal.path && proposal.path !== 'CodeShare') {
+                    // Path like "PoA.Check" - set nested property
+                    const pathParts = proposal.path.split('.');
+                    let target = newChain.CodeShare;
+                    for (let i = 0; i < pathParts.length - 1; i++) {
+                      if (!target[pathParts[i]]) target[pathParts[i]] = {};
+                      target = target[pathParts[i]];
                     }
-                    newChain.CodeShare[proposal.path] = funcDef;
+                    target[pathParts[pathParts.length - 1]] = dehydratedCodeShare;
                   } else {
-                    console.error('CodeShare proposal.func is not a valid stringified definition object:', proposal.func);
+                    // Replace entire CodeShare
+                    newChain.CodeShare = dehydratedCodeShare;
                   }
-                } catch (e) {
-                  console.error('Error parsing CodeShare proposal.func:', e, proposal.func);
                 }
-                resolve({ newChain });
-                return;
-              case 'CustomEvery':
-                addr = 'CustomEvery';
-                try {
-                  const funcDef = JSON.parse(proposal.func);
-                  if (typeof funcDef === 'object' && funcDef !== null && funcDef.params && funcDef.body) {
-                    if (!Array.isArray(newChain.CustomEvery)) {
-                      newChain.CustomEvery = [];
-                    }
-                    const jobIdentifier = proposal.path;
-                    const existingIndex = newChain.CustomEvery.findIndex(job => (job.name || job.id) === jobIdentifier);
-                    if (existingIndex !== -1) {
-                      newChain.CustomEvery[existingIndex] = funcDef;
-                    } else {
-                      if(!funcDef.name && !funcDef.id) funcDef.name = jobIdentifier;
-                      newChain.CustomEvery.push(funcDef);
-                    }
-                  } else {
-                    console.error('CustomEvery proposal.func is not a valid stringified definition object:', proposal.func);
-                  }
-                } catch (e) {
-                  console.error('Error parsing CustomEvery proposal.func:', e, proposal.func);
-                }
-                resolve({ newChain });
-                return;
-              default:
-                console.log('Unknown proposal type in scEndOp:', proposal.type);
-                resolve({ newChain });
-                return;
-            }
-
-            existing = newChain[addr] || [];
-            if (!Array.isArray(existing)) existing = [];
-
-            const existingIndex = existing.findIndex(op => op[path_prop_name] == proposal.path);
-
-            if (existingIndex !== -1) {
-              existing[existingIndex].func = proposal.func;
-            } else {
-              const newOp = {
-                func: proposal.func,
-                [path_prop_name]: proposal.path
-              };
-              if (type_for_custom_arrays) {
-                newOp.type = type_for_custom_arrays;
+              } catch (e) {
+                console.error('Error parsing/dehydrating CodeShare proposal.func:', e);
               }
-              existing.push(newOp);
+            } else if (proposal.type === 'CustomEvery') {
+              // For CustomEvery, we need to dehydrate any live functions before storing
+              try {
+                const parsedFunc = JSON.parse(proposal.func);
+                if (Array.isArray(parsedFunc)) {
+                  if (!newChain.CustomEvery) newChain.CustomEvery = [];
+                  const dehydratedEvery = dehydrateCustomEvery(parsedFunc);
+                  if (proposal.path) {
+                    // Path is used as an identifier - replace or add the specific entry
+                    const existingIndex = newChain.CustomEvery.findIndex(item => 
+                      typeof item === 'object' && item.id === proposal.path
+                    );
+                    const entryWithId = { id: proposal.path, functions: dehydratedEvery };
+                    if (existingIndex >= 0) {
+                      newChain.CustomEvery[existingIndex] = entryWithId;
+                    } else {
+                      newChain.CustomEvery.push(entryWithId);
+                    }
+                  } else {
+                    // Replace entire CustomEvery
+                    newChain.CustomEvery = dehydratedEvery;
+                  }
+                }
+              } catch (e) {
+                console.error('Error parsing/dehydrating CustomEvery proposal.func:', e);
+              }
             }
-            newChain[addr] = existing;
-            resolve({ newChain });
+
+            console.log('Updating chain with new configuration...');
+            
+            // Save the updated chain state
+            store.put(['chain'], newChain)
+              .then(() => {
+                console.log('Chain state updated successfully');
+                resolve(true);
+              })
+              .catch((error) => {
+                console.error('Error updating chain state:', error);
+                reject(error);
+              });
           } else {
-            console.log(`SCP ${b.id} not approved, threshold not met.`);
-            resolve({ newChain: chain });
+            console.log(`Proposal ${proposal.key} rejected with ${approved}/${passed} votes`);
+            resolve(false);
           }
         })
-        .catch(err => {
-          console.error('Error in scEndOp Promise.all:', err);
-          reject(err);
+        .catch((error) => {
+          console.error('Error in scEndOp:', error);
+          reject(error);
         });
     });
   }
@@ -1188,4 +1176,103 @@ export var Watchdog = {
       }
     }, this.timeout)
   }
+}
+
+// --- Dehydration Utilities ---
+export function getFunctionDefinition(func) {
+  if (typeof func !== 'function') {
+    // console.warn('getFunctionDefinition: input is not a function', func);
+    return null;
+  }
+  const funcString = func.toString();
+  try {
+    // Improved regex to handle various function declarations (incl. async, arrows if not used for methods)
+    // For methods in objects, func.toString() usually gives `methodName(params) { body }` or `(params) => { body }`
+    // For `new Function`, it's often anonymous.
+    let paramsMatch = funcString.match(/^(?:async\s*)?(?:function\s*\*?\s*)?(?:[\w\$]+\s*)?\(([^)]*)\)/);
+    let body = '';
+
+    if (funcString.startsWith('class')) {
+      // console.warn('getFunctionDefinition: Cannot dehydrate entire classes yet.', funcString.substring(0,100));
+      return null; // Cannot properly dehydrate full classes this way
+    }
+
+    // Arrow function with implicit return and no braces e.g. (a,b) => a+b
+    if (!funcString.includes('{') && funcString.includes('=>')) { 
+        const arrowParts = funcString.split('=>');
+        if (!paramsMatch) paramsMatch = arrowParts[0].trim().match(/^(?:\(([^)]*)\)|([^\s=()]+))/);
+        body = `return ${arrowParts[1].trim()}`;
+    } else {
+        // Standard function or arrow function with braces
+        const bodyStartIndex = funcString.indexOf('{');
+        const bodyEndIndex = funcString.lastIndexOf('}');
+        if (bodyStartIndex !== -1 && bodyEndIndex !== -1 && bodyEndIndex > bodyStartIndex) {
+            body = funcString.substring(bodyStartIndex + 1, bodyEndIndex).trim();
+        } else {
+            // console.warn('getFunctionDefinition: Could not extract body for:', funcString.substring(0,100));
+            return null;
+        }
+    }
+    
+    const params = paramsMatch ? (paramsMatch[1] || paramsMatch[2] || '').split(',').map(p => p.trim()).filter(p => p) : [];
+    return { params, body };
+
+  } catch (e) {
+    console.error("Error parsing function to definition:", funcString.substring(0,100), e);
+    return null;
+  }
+}
+
+function _dehydrateObjectRecursively(obj, currentPath, definitions) {
+  for (const key in obj) {
+    if (Object.hasOwnProperty.call(obj, key)) {
+      const value = obj[key];
+      const newPath = currentPath ? `${currentPath}.${key}` : key;
+      if (typeof value === 'function') {
+        const def = getFunctionDefinition(value);
+        if (def) definitions[newPath] = def;
+      } else if (typeof value === 'object' && value !== null && !Array.isArray(value) && Object.getPrototypeOf(value) === Object.prototype) {
+        // Recurse only for plain objects, not class instances or special objects
+        _dehydrateObjectRecursively(value, newPath, definitions);
+      }
+    }
+  }
+}
+
+export function dehydrateCodeShare(liveCodeShare) {
+  if (typeof liveCodeShare !== 'object' || liveCodeShare === null) return {};
+  const definitions = {};
+  _dehydrateObjectRecursively(liveCodeShare, '', definitions);
+  return definitions; // This will be an object of { "path.to.func": {params, body} }
+}
+
+export function dehydrateCustomEvery(liveCustomEvery) {
+  const definitions = [];
+  if (Array.isArray(liveCustomEvery)) {
+    // Skip HR.margins if it's the first element and a direct function reference
+    // This assumes HR.margins is not meant to be stored as a definition from spk.config.js
+    const startIdx = (liveCustomEvery[0] && liveCustomEvery[0].name === 'margins') || (typeof liveCustomEvery[0] === 'function' && liveCustomEvery[0].toString().includes('HR.margins')) ? 1:0;
+    
+    for (let i = startIdx; i < liveCustomEvery.length; i++) {
+      const item = liveCustomEvery[i];
+      let def = null;
+      let name = item.name || `job_${i}`;
+
+      if (typeof item === 'function') {
+        def = getFunctionDefinition(item);
+        if(item.name) name = item.name;
+      } else if (typeof item === 'object' && item !== null && typeof item.func === 'function') {
+        // Handles cases like { name: 'myJob', func: function(){...} }
+        def = getFunctionDefinition(item.func);
+        if(item.name) name = item.name; // prefer name from object if present
+        if(def && item.op) def.op = item.op; // Preserve op if present (used by CustomChron)
+        if(def && item.path) def.path = item.path; // Preserve path if present
+        if(def && item.type) def.type = item.type; // Preserve type if present
+      }
+      if (def) {
+        definitions.push({ name, ...def });
+      }
+    }
+  }
+  return definitions;
 }

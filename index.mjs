@@ -151,7 +151,8 @@ import {
   hotCustom, 
   hotOps, 
   hotChron, 
-  customInit, 
+  customInit,
+  hotConfig,
   runtimeContext,
   CodeShare,
   Every 
@@ -280,12 +281,31 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
       if (err) { }
       if (res) plasma.id = res.id
     })
-    for (var i in state.chain) {
-      config[i] = state.chain[i]
-    }
+    
+    // Initialize context first
     initializeContext(null, store, status, VERSION)
     processor = hiveState(client, startingBlock, runtimeContext);
     initializeContext(processor, store, status, VERSION)
+    
+    // Process chain configuration through hotConfig if available
+    if (state.chain) {
+      console.log('Processing chain configuration through hotConfig...');
+      hotConfig(state.chain, state, api, chronOps, processor);
+    } else {
+      // Fallback: update config directly and call customInit
+      for (var i in state.chain || {}) {
+        config[i] = state.chain[i]
+      }
+      console.log('No chain configuration found, using fallback initialization...');
+      customInit(api, chronOps, processor, undefined, undefined)
+        .then(() => {
+          console.log('Fallback customInit completed');
+        })
+        .catch((err) => {
+          console.error('Error in fallback customInit:', err);
+        });
+    }
+    
     processor.on('send', HR.send);
     processor.on('claim', HR.claim);
     processor.on('node_add', HR.node_add);
