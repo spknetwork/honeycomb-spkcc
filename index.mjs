@@ -157,7 +157,7 @@ function initializeContext() {
   CodeShare = config.CodeShare || {}
   if(config?.CustomEvery?.length)Every = [HR.margins, ...config.CustomEvery]
   else Every = [HR.margins]
-  runtimeContext = { store, config: configCopy, fetch, WebSocket, API, VERSION, getPathObj, getPathNum, getPathSome, RAM, burn, forceCancel, add, addc, addMT, addCol, addGov, deletePointer, credit, nodeUpdate, penalty, chronAssign, hashThis, isEmpty, postToDiscord, Base64, Base58, Base38, stringify, NFT, Chron, stringify, DEX, naizer, status, verifySig, CodeShare }
+  runtimeContext = { store, config: configCopy, fetch, WebSocket, API, VERSION, getPathObj, getPathNum, getPathSome, RAM, burn, forceCancel, add, addc, addMT, addCol, addGov, deletePointer, credit, nodeUpdate, penalty, chronAssign, hashThis, isEmpty, postToDiscord, Base64, Base58, Base38, stringify, NFT, Chron, stringify, DEX, naizer, status, verifySig, CodeShare, processor }
 }
 initializeContext()
 function hotAPI(api) {
@@ -378,10 +378,19 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
 
   //HIVE API CODE
 
-  //Start Program Options
-  var dyn = false   
-  dynStart()
-  //startWith("QmfMP4YZ32S1dH2xK9fPbNSo6VTjShJTBr3B5D3dxKHnzo", true, true);
+  // Parse command line arguments
+  const args = process.argv.slice(2);
+  const swIndex = args.indexOf('-sw');
+  
+  if (swIndex !== -1 && swIndex + 1 < args.length) {
+    // -sw flag found with a hash argument
+    const hash = args[swIndex + 1];
+    console.log(`Starting with specified hash: ${hash}`);
+    startWith(hash, true, true);
+  } else {
+    // No -sw flag, use dynamic start
+    dynStart();
+  }
 
   // API defs
   api.use((req, res, next) => {
@@ -845,7 +854,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                   var ops = [],
                     cjbool = false,
                     votebool = false
-                  signerloop: for (i = 0; i < NodeOps.length; i++) {
+                  signerloop: for (const i = 0; i < NodeOps.length; i++) {
                     if (NodeOps[i][0][1] == 0 && NodeOps[i][0][0] <= 100) {
                       if (NodeOps[i][1][0] == 'custom_json' && JSON.parse(NodeOps[i][1][1].json).sig_block && num - 100 > JSON.parse(NodeOps[i][1][1].json).sig_block) {
                         NodeOps.splice(i, 1)
@@ -873,7 +882,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                       NodeOps[i][0][0] = 0
                     }
                   }
-                  for (i = 0; i < NodeOps.length; i++) {
+                  for (const i = 0; i < NodeOps.length; i++) {
                     if (NodeOps[i][0][2] == true) {
                       NodeOps.splice(i, 1)
                     }
@@ -886,7 +895,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                     }, [config.active], (err, result) => {
                       if (err) {
                         console.log(err) //push ops back in.
-                        for (q = 0; q < ops.length; q++) {
+                        for (const q = 0; q < ops.length; q++) {
                           if (NodeOps[q][0][1] == 1) {
                             NodeOps[q][0][1] = 3
                           }
@@ -921,7 +930,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
     return new Promise((resolve, reject) => {
       Promise.all(promises_array)
         .then(r => {
-          for (i = 0; i < r.length; i++) {
+          for (const i = 0; i < r.length; i++) {
             if (r[i].consensus) {
               plasma.consensus = r[1].consensus
             }
@@ -955,7 +964,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
       }
       Promise.all(consensus_init.reports).then((r) => {
         //console.log(r);
-        for (i = 0; i < r.length; i++) {
+        for (const i = 0; i < r.length; i++) {
           if (r[i]) {
             if (r[i][1] > consensus_init.last) {
               consensus_init.last = r[i][1]
@@ -1168,7 +1177,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                       }
                       var tally = 0,
                         winner = null;
-                      for (hash in votes) {
+                      for (const hash in votes) {
                         if (
                           votes[hash] >= tally &&
                           blocks[values[acc].hash] == newest

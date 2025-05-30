@@ -11,7 +11,7 @@ import { cjv } from './cjv.js'
 import { nomention } from './nomention.js'
 import { q4d } from './q4d.js'
 import { node_add, node_delete } from './nodes.js'
-import { dex_sell, dex_clear, transfer, margins } from './dex.js'
+import { dex_sell, dex_clear, transfer, margins } from './dex.mjs'
 import { comment, comment_options } from './comment.js'
 import { report } from './report.js'
 import { 

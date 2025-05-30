@@ -248,8 +248,7 @@ export function hiveState (
                 Blocks[i].transaction_ids[j];
               Blocks[i].transactions[j].transaction_num = j;
               var ops = [];
-              for (
-                var k = 0;
+              for (var k = 0;
                 k < Blocks[i].transactions[j].operations.length;
                 k++
               ) {
@@ -483,6 +482,30 @@ export function hiveState (
 
     onNoPrefix: function (operationId, callback) {
       onCustomJsonOperation[operationId] = callback;
+    },
+
+    doOn: function (operationId, ...args) {
+      const callback = onCustomJsonOperation[prefix + operationId];
+      if (callback && typeof callback === 'function') {
+        return callback(...args);
+      }
+      throw new Error(`No callback registered for operation: ${prefix + operationId}`);
+    },
+
+    doOnOp: function (type, ...args) {
+      const callback = onOperation[type];
+      if (callback && typeof callback === 'function') {
+        return callback(...args);
+      }
+      throw new Error(`No callback registered for operation type: ${type}`);
+    },
+
+    doNoPre: function (operationId, ...args) {
+      const callback = onCustomJsonOperation[operationId];
+      if (callback && typeof callback === 'function') {
+        return callback(...args);
+      }
+      throw new Error(`No callback registered for operation: ${operationId}`);
     },
 
     /*

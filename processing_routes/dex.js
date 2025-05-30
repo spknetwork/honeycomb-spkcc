@@ -1,19 +1,15 @@
-import { store, GetNodeOps, Config } from "../index.mjs"
+import { store, Config } from "../index.mjs"
 
-import { Base64, NFT, DEX } from "./../helpers.js"
-import { getPathObj, getPathNum } from "./../getPathObj.js"
+import { Base64, NFT, DEX } from "../helpers.js"
+import { getPathObj, getPathNum } from "../getPathObj.js"
 import {
   add,
-  //addCol,
-  addGov,
-  deletePointer,
-  credit,
   chronAssign,
   hashThis,
   isEmpty,
   addMT,
-} from "./../lil_ops.js"
-import { postToDiscord } from "./../discord.js"
+} from "../lil_ops.js"
+import { postToDiscord } from "../discord.js"
 import stringify from "json-stable-stringify"
 
 export const dex_sell = (json, from, active, pc) => {
@@ -1687,7 +1683,7 @@ export const dex_clear = (json, from, active, pc) => {
     // else {
     //     q = json.txid
     // } //book string collision
-    for (i = 0; i < q.length; i++) {
+    for (var i = 0; i < q.length; i++) {
       store.get(["contracts", from, q[i]], function (e, a) {
         if (!e) {
           var b = a;

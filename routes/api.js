@@ -125,7 +125,7 @@ const tickers = (req, res, next) => {
                     ask: 999999999
                 }
             }
-            for (item in v[0].hive.his){
+            for (var item in v[0].hive.his){
                 if (v[0].hive.his[item].block > v[1].lastIBlock - 28800){
                     // if (v[0].hive.his[item].block < hive.open){
                     //     hive.open = v[0].hive.his[item].block
@@ -143,7 +143,7 @@ const tickers = (req, res, next) => {
                     info.hive.bv += parseFloat(parseFloat(v[0].hive.his[item].amount) * parseFloat(v[0].hive.his[item].rate)).toFixed(3)
                 }
             }
-            for (item in v[0].hbd.his){
+            for (var item in v[0].hbd.his){
                 if (v[0].hbd.his[item].block > v[1].lastIBlock - 28800){
                     if(v[0].hbd.his[item].rate < info.hbd.low){
                         info.hbd.low = v[0].hbd.his[item].rate
@@ -155,22 +155,22 @@ const tickers = (req, res, next) => {
                     info.hbd.bv += parseFloat(parseFloat(v[0].hbd.his[item].amount) * parseFloat(v[0].hbd.his[item].rate)).toFixed(3)
                 }
             }
-            for (item in v[0].hbd.sellOrders){
+            for (var item in v[0].hbd.sellOrders){
                 if (parseFloat(v[0].hbd.sellOrders[item].rate) < info.hbd.ask){
                     info.hbd.ask = v[0].hbd.sellOrders[item].rate
                 }
             }
-            for (item in v[0].hbd.buyOrders){
+            for (var item in v[0].hbd.buyOrders){
                 if (parseFloat(v[0].hbd.buyOrders[item].rate) > info.hbd.bid){
                     info.hbd.bid = v[0].hbd.buyOrders[item].rate
                 }
             }
-            for (item in v[0].hive.sellOrders){
+            for (var item in v[0].hive.sellOrders){
                 if (parseFloat(v[0].hive.sellOrders[item].rate) < info.hive.ask){
                     info.hive.ask = v[0].hive.sellOrders[item].rate
                 }
             }
-            for (item in v[0].hive.buyOrders){
+            for (var item in v[0].hive.buyOrders){
                 if (parseFloat(v[0].hive.buyOrders[item].rate) > info.hive.bid){
                     info.hive.bid = v[0].hive.buyOrders[item].rate
                 }
@@ -242,12 +242,12 @@ const orderbook = (req, res, next) => {
     Promise.all(promises)
         .then(function(v) {
             var count1 = 0, count2 = 0
-            for (item in v[0][type].sellOrders){
+            for (var item in v[0][type].sellOrders){
                 orderbook.asks.push([v[0][type].sellOrders[item].rate,parseFloat(v[0][type].sellOrders[item].amount / 1000).toFixed(3)])
                 count1++
                 if(count1 == get)break;
             }
-            for (item in v[0][type].buyOrders){
+            for (var item in v[0][type].buyOrders){
                 orderbook.bids.push([v[0][type].buyOrders[item].rate,parseFloat(v[0][type].buyOrders[item].amount / 1000).toFixed(3)])
                 count2++
                 if(count2 == get)break;
@@ -309,7 +309,7 @@ const chart = (req, res, next) => {
         .then(function(v) {
             var his = [],
                 count = 0
-            if(v[0][pair]?.his)for(var item in v[0][pair].his){
+            if(v[0][pair]?.his)for (var item in v[0][pair].his){
                 const record = {        
                     "trade_id":v[0][pair].his[item].id,
                     "price":v[0][pair].his[item].price,
@@ -391,7 +391,7 @@ const historical_trades = (req, res, next) => {
                 sell = [],
                 countb = 0
                 counts = 0
-            if(v[0][pair].his)for(var item in v[0][pair].his){
+            if(v[0][pair].his)for (var item in v[0][pair].his){
                 const record = {        
                     "trade_id":v[0][pair].his[item].id,
                     "price":v[0][pair].his[item].price,
@@ -479,7 +479,7 @@ const dex = (req, res, next) => {
                   "token": "DLUX"
                }
             })
-            for(var item in v[0].hive.sellOrders){
+            for (var item in v[0].hive.sellOrders){
                 markets.hive.sellOrders[item].key = item
                 var order = {}
                 for (let key in markets.hive.sellOrders[item]) {
@@ -507,7 +507,7 @@ const dex = (req, res, next) => {
                 }
                 markets.hive.sells.push(order)
             }
-            for(item in v[0].hive.buyOrders){
+            for (var item in v[0].hive.buyOrders){
                 markets.hive.buyOrders[item].key = item
                 var order = {}
                 for (let key in markets.hive.buyOrders[item]) {
@@ -535,7 +535,7 @@ const dex = (req, res, next) => {
                 }
                 markets.hive.buys.push(order)
             }
-            for(item in v[0].hbd.sellOrders){
+            for (var item in v[0].hbd.sellOrders){
                 markets.hbd.sellOrders[item].key = item
                 var order = {}
                 for (let key in markets.hbd.sellOrders[item]) {
@@ -563,7 +563,7 @@ const dex = (req, res, next) => {
                 }
                 markets.hbd.sells.push(order)
             }
-            for(item in v[0].hbd.buyOrders){
+            for (var item in v[0].hbd.buyOrders){
                 markets.hbd.buyOrders[item].key = item
                 var order = {}
                 for (let key in markets.hbd.buyOrders[item]) {
@@ -710,7 +710,7 @@ const mirrors = (req, res, next) => {
     Promise.all([nodes, queue])
         .then(function(v) {
             var apis = []
-            for (node in v[1]){
+            for (var node in v[1]){
                 apis.push({api_url:v[0][node].domain, node})
             }
             res.send(JSON.stringify({
@@ -882,7 +882,7 @@ const nfts = (req, res, next) => {
     Promise.all([userItems, sets, mintItems])
     .then(mem => {
         var result = []
-        for (item in mem[0]){
+        for (var item in mem[0]){
             const set = item.split(':')[0]
             result.push({
                 uid: item.split(':')[1],
@@ -894,7 +894,7 @@ const nfts = (req, res, next) => {
             })
         }
         var mint_tokens = []
-        for (item in mem[2]){
+        for (var item in mem[2]){
             if(mem[2][item][user]){
                 const set = item
                 console.log({item})
@@ -926,7 +926,7 @@ const sets = (req, res, next) => {
     Promise.all([sets, divs])
     .then(mem => {
         let result = []
-        for (set in mem[0]){
+        for (var set in mem[0]){
             result.push({
                 set,
                 link: `${mem[0][set].a}/${mem[0][set].p}`,
@@ -985,7 +985,7 @@ const auctions = (req, res, next) => {
     Promise.all([ahp, setp, ahhp])
     .then(mem => {
         let result = []
-        for(item in mem[0]){
+        for (var item in mem[0]){
             if(!from || item.split(':')[0] == from){
                 let auctionTimer = {},
                 now = new Date()
@@ -1016,7 +1016,7 @@ const auctions = (req, res, next) => {
                         })
             }
         }
-        for(item in mem[2]){
+        for (var item in mem[2]){
             if(!from || item.split(':')[0] == from){
                 let auctionTimer = {},
                 now = new Date()
@@ -1105,7 +1105,7 @@ const limbo = (req, res, next) => {
     .then(mem => {
         let trades = mem[0],
             result = []
-        for(item in trades){
+        for (var item in trades){
             const str = trades[item].t.split('_')
             if (str[0] == user || str[1] == user){
                 result.push({
@@ -1145,7 +1145,7 @@ const mint_auctions = (req, res, next) => {
     Promise.all([ahp, setp])
     .then(mem => {
         let result = []
-        for(item in mem[0]){
+        for (var item in mem[0]){
             if(!from || item.split(':')[0] == from){
                 let auctionTimer = {},
                 now = new Date()
@@ -1198,7 +1198,7 @@ const mint_supply = (req, res, next) => {
         let result = []
         let sets = {}
         let hivesells = mem[3]
-        for(item in mem[0]){
+        for (var item in mem[0]){
             if(!from || item.split(':')[0] == from){
                 if(sets[item.split(':')[0]] == undefined){
                     sets[item.split(':')[0]] = {
@@ -1244,7 +1244,7 @@ const mint_supply = (req, res, next) => {
                         })
                     }
         }
-        for (item in mem[2]){
+        for (var item in mem[2]){
             if(!from || item.split(':')[0] == from){
                 if(sets[item.split(':')[0]] == undefined){
                     sets[item.split(':')[0]] = {
@@ -1276,7 +1276,7 @@ const mint_supply = (req, res, next) => {
                 sets[item.split(':')[0]].sales.push(listing)
             }
         }
-        for (item in hivesells){
+        for (var item in hivesells){
             if(!from || item.split(':')[0] == from){
                 if(sets[item.split(':')[0]] == undefined){
                     sets[item.split(':')[0]] = {
@@ -1315,7 +1315,7 @@ const mint_supply = (req, res, next) => {
                 sets[item.split(':')[0]].sales.push(listing)
             }
         }
-        for (item in sets){
+        for (var item in sets){
             result.push(sets[item])
         }
         res.setHeader('Content-Type', 'application/json')
@@ -1337,7 +1337,7 @@ const sales = (req, res, next) => {
     Promise.all([lsp, mlsp, setp])
     .then(mem => {
         let result = []
-        for (item in mem[0]){
+        for (var item in mem[0]){
             if(!from || from == item.split(':')[0]){
                 const listing = {
                     uid: item.split(':')[1],
@@ -1374,7 +1374,7 @@ const mint_sales = (req, res, next) => {
         let result = [],
             mint = [],
             sets = {}
-        for (item in mem[0]){
+        for (var item in mem[0]){
             if (!from || from == item.split(':')[0]){
                 const listing = {
                     uid: item.split(':')[1],
@@ -1685,20 +1685,20 @@ const wrapGetPost = (req, res, next) => {
 const coincheck = (state) => {
         supply = 0
         lbal = 0
-        for (bal in state.balances) {
+        for (var bal in state.balances) {
             supply += state.balances[bal]
             lbal += state.balances[bal]
         }
         cbal = 0
-        for (bal in state.cbalances) {
+        for (var bal in state.cbalances) {
             supply += state.cbalances[bal]
             cbal += state.cbalances[bal]
         }
         var gov = 0,
             govt = 0
         var con = 0
-        for (user in state.contracts) {
-            for (contract in state.contracts[user]) {
+        for (var user in state.contracts) {
+            for (var contract in state.contracts[user]) {
                 if (state.contracts[user][contract].amount && !state.contracts[user][contract].buyer && (state.contracts[user][contract].type == 'hive:sell' || state.contracts[user][contract].type == 'hbd:sell')) {
                     supply += state.contracts[user][contract].amount
                     con += state.contracts[user][contract].amount
@@ -1706,17 +1706,17 @@ const coincheck = (state) => {
             }
         }
         let coll = 0
-        for (user in state.col) {
+        for (var user in state.col) {
             supply += state.col[user]
             coll += state.col[user]
         }
         let div = 0
-        for (user in state.div) {
+        for (var user in state.div) {
             supply += state.div[user].b
             div += state.div[user].b
         }
         try { govt = state.gov.t - coll } catch (e) {}
-        for (bal in state.gov) {
+        for (var bal in state.gov) {
             if (bal != 't') {
                 supply += state.gov[bal]
                 gov += state.gov[bal]
@@ -1725,24 +1725,24 @@ const coincheck = (state) => {
         console.log(Object.keys(state))
         var pow = 0,
             powt = state.pow.t
-        for (bal in state.pow) {
+        for (var bal in state.pow) {
             if (bal != 't') {
                 supply += state.pow[bal]
                 pow += state.pow[bal]
             }
         }
         var ah = 0
-        for (item in state.ah){
+        for (var item in state.ah){
             ah += state.ah[item].b || 0
             supply += state.ah[item].b || 0
         }
         var am = 0
-        for (item in state.am){
+        for (var item in state.am){
             am += state.am[item].b || 0
             supply += state.am[item].b || 0
         }
         var bond = 0
-        for (item in state.sets){
+        for (var item in state.sets){
             const it = (state.sets[item].b * (Base64.toNumber(state.sets[item].m) - Base64.toNumber(state.sets[item].o) - (state.sets[item].d || 0) + 1))
             bond += it
             supply += it
@@ -1893,7 +1893,7 @@ const blog = (req, res, next) => {
         lte: unn
     }, function(e, a) {
         let obj = {}
-        for (p in a) {
+        for (var p in a) {
             obj[a] = p[a]
         }
         res.send(JSON.stringify({
@@ -1949,7 +1949,7 @@ const hive_api = (req, res, next) => {
     let method = `${req.params.api_type}.${req.params.api_call}` || 'condenser_api.get_discussions_by_blog';
     let params = {};
     let array = false;
-    for (param in req.query) {
+    for (var param in req.query) {
         if (param == "0") {
             array = true;
             break;
@@ -1958,7 +1958,7 @@ const hive_api = (req, res, next) => {
     }
     if (array) {
         params = [];
-        for (param in req.query) {
+        for (var param in req.query) {
             params.push(req.query[param]);
         }
         params = [params];
@@ -2119,7 +2119,7 @@ const getblog = (req, res, next) => {
         .then(j => j.json())
         .then(r => {
             var out = { items: [] };
-            for (i in r.result) {
+            for (var i in r.result) {
                 r.result[i].media = { m: "https://a.ipfs.dlux.io/images/400X200.gif" };
             }
             out.id = r.id;

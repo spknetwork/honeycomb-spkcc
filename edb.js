@@ -284,7 +284,7 @@ export function updatePost(post) {
         voters: post.voters || '',
         voters_paid: post.voters_paid || '',
     }
-    for (v in post.votes) {
+    for (var v in post.votes) {
         record.voters += v + ','
         record.voters_paid += post.votes[v].p + ','
     }
@@ -322,7 +322,7 @@ export function updatePostVotes(post) { //live votes
         let votes = Object.keys(post.votes).length,
             voteweight = 0,
             voters = ''
-        for (v in post.votes) {
+        for (var v in post.votes) {
             voteweight += post.votes[v].v
             voters += v + ','
         }

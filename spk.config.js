@@ -146,30 +146,30 @@ const CodeShare = {
         // regex to match m but not ms
         var minuteD = timer.split(/m(?![s])/g)
         if (minuteD.length > 1) {
-            var minutes = minuteD[0]
-            timer = minuteD[1]
-            const dotSplit = minutes.split(".")
-            if (dotSplit.length > 1) {
-                ms += parseInt(dotSplit[0]) * 60000
-                ms = parseInt(dotSplit[1] * 60) * 1000
-            } else {
-                ms += parseInt(dotSplit[0]) * 60000
-            }
+          var minutes = minuteD[0]
+          timer = minuteD[1]
+          const dotSplit = minutes.split(".")
+          if (dotSplit.length > 1) {
+            ms += parseInt(dotSplit[0]) * 60000
+            ms = parseInt(dotSplit[1] * 60) * 1000
+          } else {
+            ms += parseInt(dotSplit[0]) * 60000
+          }
         }
         // regex to match s but not ms
         var secondD = timer.split(/(?<![m])s/g)
         if (secondD.length > 1) {
-            var seconds = secondD[0]
-            timer = secondD[1]
-            ms += parseInt(parseFloat(seconds) * 1000)
+          var seconds = secondD[0]
+          timer = secondD[1]
+          ms += parseInt(parseFloat(seconds) * 1000)
         }
         // regex to match ms
         var millisecondD = timer.split(/ms/g)
         if (millisecondD.length > 1) {
-            ms += parseInt(millisecondD[0])
+          ms += parseInt(millisecondD[0])
         }
         return ms
-    }
+      }
       const offset = plas.hashBlock % 200 > 100 ? 0 : 100
       for (var i = 0; i < 100; i++) {
         for (var CID in proofs[`${i + offset}`]) {
@@ -303,7 +303,7 @@ const CodeShare = {
     BlackListed: function (reversedCID, context) {
       const { config, fetch } = context
       return new Promise((resolve, reject) => {
-        if(!config.BlackListURL)return resolve(false)
+        if (!config.BlackListURL) return resolve(false)
         const CID = reversedCID.split("").reverse().join("")
         fetch(`${config.BlackListURL}/flag-qry/${CID}`).then(r => r.json()).then(json => {
           if (json.flag) resolve(true)
@@ -399,7 +399,7 @@ const CodeShare = {
       }
       const gte = CodeShare.PoA.getPrand58(account, prand, context)
       const range = parseInt(((val[account] >= cutoff ? cutoff * 2 : val[account] || 1) / total) * (stats.total_files * parseInt(stats.vals_target) * 100 / 288) * 7427658739)
-      
+
       var lte = Base58.fromNumber(Base58.toNumber(gte) + range)
       if (lte.length > 9) lte = 'zzzzzzzzz'
       if (gte.length != lte.length) {
@@ -447,66 +447,66 @@ const CodeShare = {
         peerid = firstPeerId
       }
       if (config.mode == 'verbose') console.log("PA: ", Name, CID, peerid, SALT, bn)
-      
+
       // Add initial connection attempt logging
       if (config.mode == 'verbose') console.log("Attempting WebSocket connection to:", `${config.poav_address}/validate`)
       try {
-      var socket = new WebSocket(`${config.poav_address}/validate`);
-      socket.on('open', (connection) => {
-        if (config.mode == 'verbose') console.log("WebSocket connected successfully")
-        setTimeout(() => {
-          socket.close()
-          if (config.mode == 'verbose') console.log("Timeout:", CID)
-        }, 240000)
-        socket.send(JSON.stringify({ Name, CID, peerid: peerid, SALT }));
-        socket.on('message', (event) => {
-          const data = event instanceof Buffer ? JSON.parse(event.toString('utf8')) : (event.utf8Data ? JSON.parse(event.utf8Data) : {})
-          //const stepText = document.querySelectorAll('.step-text');
-          if (data.Status === 'Connecting') {
-            if (config.mode == 'verbose') console.log('Connecting to Peer')
-          } else if (data.Status === 'Connected') {
-            if (config.mode == 'verbose') console.log('Connected to Peer')
-          } else if (data.Status === 'FoundHiveAccount') {
-            //socket.close()
-            if (config.mode == 'verbose') console.log('Found Hive Account')
-          } else if (data.Status === 'IpfsPeerIDError') {
+        var socket = new WebSocket(`${config.poav_address}/validate`);
+        socket.on('open', (connection) => {
+          if (config.mode == 'verbose') console.log("WebSocket connected successfully")
+          setTimeout(() => {
             socket.close()
-            if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
-          } else if (data.Status === 'IpfsPeerIDError') {
-            socket.close()
-            if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
-          } else if (data.Status === 'RequestingProof') {
-            if (config.mode == 'verbose') console.log('RequestingProof')
-          } else if (data.Status === 'Connection Error') {
-            socket.close()
-            if (config.mode == 'verbose') console.log('Error: Connection Error')
-          } else if (data.Status === 'ProofReceived') {
-            if (config.mode == 'verbose') console.log('ProofReceived', { data })
-          } else if (data.Status === 'Waiting Proof') {
-            if (config.mode == 'verbose') console.log('Waiting Proof', { data })
-          } else if (data.Status === "Validating") {
-            if (config.mode == 'verbose') console.log('Validating', { data })
-          } else if (data.Status === "Validated") {
-            if (config.mode == 'verbose') console.log('Validated', { data })
-          } else if (data.Status === "Validating Proof") {
-            if (config.mode == 'verbose') console.log('Validating Proof', { data })
-          } else if (data.Status === "Valid") {
-            if (RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name] && !RAM.Pending[`${bn % 200}`][CID].npid[Name].Message) RAM.Pending[`${bn % 200}`][CID].npid[Name] = data
-            if (config.mode == 'verbose') console.log('Proof Valid', { data })
+            if (config.mode == 'verbose') console.log("Timeout:", CID)
+          }, 240000)
+          socket.send(JSON.stringify({ Name, CID, peerid: peerid, SALT }));
+          socket.on('message', (event) => {
+            const data = event instanceof Buffer ? JSON.parse(event.toString('utf8')) : (event.utf8Data ? JSON.parse(event.utf8Data) : {})
+            //const stepText = document.querySelectorAll('.step-text');
+            if (data.Status === 'Connecting') {
+              if (config.mode == 'verbose') console.log('Connecting to Peer')
+            } else if (data.Status === 'Connected') {
+              if (config.mode == 'verbose') console.log('Connected to Peer')
+            } else if (data.Status === 'FoundHiveAccount') {
+              //socket.close()
+              if (config.mode == 'verbose') console.log('Found Hive Account')
+            } else if (data.Status === 'IpfsPeerIDError') {
               socket.close()
-          } else if (data.Status === "Invalid") {
-            if (config.mode == 'verbose') console.log('Proof Invalid', { data })
+              if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
+            } else if (data.Status === 'IpfsPeerIDError') {
               socket.close()
-          } else {
-            if (config.mode == 'verbose') console.log('Unknown Status:', data)
-          }
+              if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
+            } else if (data.Status === 'RequestingProof') {
+              if (config.mode == 'verbose') console.log('RequestingProof')
+            } else if (data.Status === 'Connection Error') {
+              socket.close()
+              if (config.mode == 'verbose') console.log('Error: Connection Error')
+            } else if (data.Status === 'ProofReceived') {
+              if (config.mode == 'verbose') console.log('ProofReceived', { data })
+            } else if (data.Status === 'Waiting Proof') {
+              if (config.mode == 'verbose') console.log('Waiting Proof', { data })
+            } else if (data.Status === "Validating") {
+              if (config.mode == 'verbose') console.log('Validating', { data })
+            } else if (data.Status === "Validated") {
+              if (config.mode == 'verbose') console.log('Validated', { data })
+            } else if (data.Status === "Validating Proof") {
+              if (config.mode == 'verbose') console.log('Validating Proof', { data })
+            } else if (data.Status === "Valid") {
+              if (RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name] && !RAM.Pending[`${bn % 200}`][CID].npid[Name].Message) RAM.Pending[`${bn % 200}`][CID].npid[Name] = data
+              if (config.mode == 'verbose') console.log('Proof Valid', { data })
+              socket.close()
+            } else if (data.Status === "Invalid") {
+              if (config.mode == 'verbose') console.log('Proof Invalid', { data })
+              socket.close()
+            } else {
+              if (config.mode == 'verbose') console.log('Unknown Status:', data)
+            }
+          })
         })
-      })
-      socket.onerror = (error) => {
-        if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
-      };
+        socket.onerror = (error) => {
+          if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
+        };
 
-      if (config.mode == 'verbose') console.log("WebSocket connection initiated")
+        if (config.mode == 'verbose') console.log("WebSocket connection initiated")
       } catch (error) {
         if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
       }
@@ -2474,7 +2474,7 @@ const CustomJsonProcessing = [
     type: "on",
     op: "extend",
     func: function (json, from, active, pc, context) {
-      const { store, getPathObj, Base64, postToDiscord, config, getPathNum, chronAssign } = context
+      const { store, getPathObj, Base64, postToDiscord, config, getPathNum, chronAssign, processor } = context
       const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
         if (typeof last != "string") last = '0,0'
         const last_calc = Base64.toNumber(last.split(',')[1])
@@ -2515,7 +2515,7 @@ const CustomJsonProcessing = [
             }
             let deletePromise = new Promise((resolve, reject) => {
               if (cidsFlaggedForDeletion.length) {
-                exports.delete_files({ cids: cidsFlaggedForDeletion, block_num: json.block_num, transaction_id: json.transaction_id }, contract.t, true, [resolve, reject, 0])
+                processor.doOn( 'delete_files', { cids: cidsFlaggedForDeletion, block_num: json.block_num, transaction_id: json.transaction_id }, contract.t, true, [resolve, reject, 0])
               } else {
                 resolve([])
               }

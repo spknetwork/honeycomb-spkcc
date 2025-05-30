@@ -13,10 +13,10 @@ export const voter = () => {
                         let posts = v[0],
                             totalWeight = 0,
                             ops = []
-                        for (post in posts) {
+                        for (const post in posts) {
                             totalWeight += posts[post].v
                         }
-                        for (post in posts) {
+                        for (const post in posts) {
                             let b = {
                                 author: post.split('/')[0],
                                 permlink: post.split('/')[1]

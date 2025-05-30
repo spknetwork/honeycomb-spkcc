@@ -38,7 +38,7 @@ export const Hive = {
               (tx) => tx[1].op[1].id === `${Config("prefix")}report`
             ),
             recents = [];
-          for (i = ebus.length - 1; i >= 0; i--) {
+          for (const i = ebus.length - 1; i >= 0; i--) {
             if (
               JSON.parse(ebus[i][1].op[1].json).hash &&
               parseInt(JSON.parse(ebus[i][1].op[1].json).block) >

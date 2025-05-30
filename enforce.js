@@ -20,7 +20,7 @@ export function enforce(agent, txid, pointer, block_num) {
                     getPathObj(['contracts', point_to_contract.for, point_to_contract.contract])
                         .then(c => {
                             var i = 0;
-                            for (item in c) {
+                            for (var item in c) {
                                 i++;
                             }
                             var lil_ops = [];
@@ -234,7 +234,7 @@ function waitfor(promises_array) {
     return new Promise((resolve, reject) => {
         Promise.all(promises_array)
             .then(r => {
-                for (i = 0; i < r.length; i++) {
+                for (const i = 0; i < r.length; i++) {
                     console.log(r[i])
                     if (r[i].consensus) {
                         plasma.consensus = r[1].consensus

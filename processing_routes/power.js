@@ -200,7 +200,7 @@ export const power_down = (json, from, active, pc) => {
                 Promise.all(assigns)
                     .then(a => {
                         var newdowns = {};
-                        for (d in a) {
+                        for (var d in a) {
                             newdowns[a[d]] = a[d];
                         }
                         ops.push({
@@ -208,7 +208,7 @@ export const power_down = (json, from, active, pc) => {
                           path: ["powd", from],
                         });
                         ops.push({ type: 'put', path: ['powd', from], data: newdowns });
-                        for (i in downs) {
+                        for (var i in downs) {
                             ops.push({ type: 'del', path: ['chrono', i] });
                         }
                         const msg = `@${from}| Powered down ${parseFloat(amount / 1000).toFixed(3)} ${Config("TOKEN")}`
@@ -217,7 +217,7 @@ export const power_down = (json, from, active, pc) => {
                         store.batch(ops, pc);
                     });
             } else if (typeof amount == 'number' && amount == 0 && active) {
-                for (i in downs) {
+                for (var i in downs) {
                     ops.push({ type: 'del', path: ['chrono', downs[i]] });
                 }
                 const msg = `@${from}| Canceled Power Down`

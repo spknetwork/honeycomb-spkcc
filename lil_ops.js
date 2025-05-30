@@ -228,7 +228,7 @@ export const forceCancel = (rate, type, block_num, dex = 'dex', ltoken = "balanc
         Promise.all([Ps, Pb])
             .then(s => {
                 let gone = 0
-                for (o in s[0]) {
+                for (const o in s[0]) {
                     if (parseFloat(o.split(":")[0]) < (price * .6)) {
                         gone++
                         release(o.from, o.split(":")[1], block_num, dex, ltoken)
@@ -237,7 +237,7 @@ export const forceCancel = (rate, type, block_num, dex = 'dex', ltoken = "balanc
                         release(o.from, o.split(":")[1], block_num, dex, ltoken)
                     }
                 }
-                for (o in s[1]) {
+                for (const o in s[1]) {
                     if (parseFloat(o.split(":")[0]) < (price * .6)) {
                         gone++
                         release(o.from, o.split(":")[1], block_num, dex, ltoken)
@@ -331,7 +331,7 @@ export const deletePointer = (escrowID, user) => {
             if (!e) {
                 var found = false
                 const users = Object.keys(a)
-                for (i = 0; i < users.length; i++) {
+                for (const i = 0; i < users.length; i++) {
                     if (user = users[i]) {
                         found = true
                         break
