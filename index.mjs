@@ -134,7 +134,7 @@ import { ChainTypes, makeBitMaskFilter } from './hive-js-auth.js';
 
 import { API, RAM } from './routes/api.js'
 import { HR } from './processing_routes/index.mjs'
-import { NFT, Chron, Watchdog, Log } from './helpers.js'
+import { NFT, Chron, Watchdog, Log, dehydrateCodeShare, dehydrateCustomEvery } from './helpers.js'
 import { enforce } from "./enforce.js"
 import { tally } from "./tally.js"
 import { voter } from "./voter.js"
@@ -881,8 +881,8 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                         CustomJsonProcessing: config.CustomJsonProcessing,
                         CustomOperationsProcessing: config.CustomOperationsProcessing,
                         CustomChron: config.CustomChron,
-                        CustomEvery: config.CustomEvery,
-                        CodeShare: config.CodeShare
+                        CustomEvery: dehydrateCustomEvery(config.CustomEvery),
+                        CodeShare: dehydrateCodeShare(config.CodeShare)
                       }
 
                       store.put([], cleanState, function (err) {
