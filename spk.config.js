@@ -881,7 +881,7 @@ const CustomJsonProcessing = [
     func: function (json, from, active, pc, context) {
       const { store, config, getPathObj, getPathNum, postToDiscord, Base64 } = context
       const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string") last = '0,0'
+        if (typeof last != "string" || last === undefined || last === null) last = '0,0'
         const last_calc = Base64.toNumber(last.split(',')[1])
         const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
         var total = parseInt(last.split(',')[0]) + accured + add
@@ -1326,7 +1326,7 @@ const CustomJsonProcessing = [
       console.log("channel_open", json)
       const { store, config, getPathObj, getPathNum, postToDiscord, chronAssign, Base64 } = context
       const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string") last = '0,0'
+        if (typeof last != "string" || last === undefined || last === null) last = '0,0'
         const last_calc = Base64.toNumber(last.split(',')[1])
         const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
         var total = parseInt(last.split(',')[0]) + accured + add
@@ -1438,7 +1438,7 @@ const CustomJsonProcessing = [
     func: function (json, from, active, pc, context) {
       const { store, config, getPathObj, getPathNum, postToDiscord, chronAssign, Base64, Base58, stringify, verifySig } = context
       const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string") last = '0,0'
+        if (typeof last != "string" || last === undefined || last === null) last = '0,0'
         const last_calc = Base64.toNumber(last.split(',')[1])
         const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
         var total = parseInt(last.split(',')[0]) + accured + add
@@ -1832,7 +1832,7 @@ const CustomJsonProcessing = [
     func: function (json, from, active, pc, context) {
       const { store, config, getPathObj, postToDiscord, Base64 } = context
       const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string") last = '0,0'
+        if (typeof last != "string" || last === undefined || last === null) last = '0,0'
         const last_calc = Base64.toNumber(last.split(',')[1])
         const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
         var total = parseInt(last.split(',')[0]) + accured + add
@@ -2247,7 +2247,7 @@ const CustomJsonProcessing = [
     func: function (json, from, active, pc, context) {
       const { store, getPathObj, Base64 } = context
       const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string") last = '0,0'
+        if (typeof last != "string" || last === undefined || last === null) last = '0,0'
         const last_calc = Base64.toNumber(last.split(',')[1])
         const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
         var total = parseInt(last.split(',')[0]) + accured + add
@@ -2476,7 +2476,7 @@ const CustomJsonProcessing = [
     func: function (json, from, active, pc, context) {
       const { store, getPathObj, Base64, postToDiscord, config, getPathNum, chronAssign, processor } = context
       const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string") last = '0,0'
+        if (typeof last != "string" || last === undefined || last === null) last = '0,0'
         const last_calc = Base64.toNumber(last.split(',')[1])
         const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
         var total = parseInt(last.split(',')[0]) + accured + add
@@ -8038,7 +8038,7 @@ const CustomChron = [
       console.log('This block')
       const { store, getPathObj, getPathNum, Base64, processor } = context;
       const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string") last = '0,0'
+        if (typeof last != "string" || last === undefined || last === null) last = '0,0'
         const last_calc = Base64.toNumber(last.split(',')[1])
         const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
         var total = parseInt(last.split(',')[0]) + accured + add
@@ -8116,7 +8116,7 @@ const CustomChron = [
     func: function (b, passed, res, rej, num, prand, ints, bh, context) {
       const { store, getPathObj, Base64 } = context;
       const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string") last = '0,0'
+        if (typeof last != "string" || last === undefined || last === null) last = '0,0'
         const last_calc = Base64.toNumber(last.split(',')[1])
         const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
         var total = parseInt(last.split(',')[0]) + accured + add
