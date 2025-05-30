@@ -1356,7 +1356,7 @@ const CustomJsonProcessing = [
             ops = [],
             err = '' //no log no broca?
           if (typeof broca != "string") broca = '0,0'
-          let brocaString = broca_calc(broca, pow, stats, json.block_num),
+          let brocaString = broca_calc(broca, pow, stats, json.block_num)
             broca = parseInt(broca.split(',')[0])
           if (typeof template.i != "string") err += `Contract doesn't exist.`
           if (typeof authF != 'string') err += `@${from} hasn't registered a public key. `
