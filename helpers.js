@@ -105,7 +105,7 @@ export const primes = [
   8219, 8221, 8231, 8233, 8237, 8243, 8263, 8269, 8273, 8287, 8291, 8293, 8297,
   8311, 8317, 8329, 8353, 8363, 8369, 8377, 8387, 8389, 8419, 8423, 8429, 8431,
   8443, 8447, 8461, 8467, 8501, 8513, 8521, 8527, 8537, 8539, 8543, 8563, 8573,
-  8581, 8597, 8599, 8609, 8623, 8627, 8629, 8641, 8647, 8663, 8669, 8677, 8681,
+  8597, 8599, 8609, 8623, 8627, 8629, 8641, 8647, 8663, 8669, 8677, 8681,
   8689, 8693, 8699, 8707, 8713, 8719, 8731, 8737, 8741, 8747, 8753, 8761, 8779,
   8783, 8803, 8807, 8819, 8821, 8831, 8837, 8839, 8849, 8861, 8863, 8867, 8887,
   8893, 8923, 8929, 8933, 8941, 8951, 8963, 8969, 8971, 8999, 9001, 9007, 9011,
@@ -1186,35 +1186,59 @@ export function getFunctionDefinition(func) {
   }
   const funcString = func.toString();
   try {
-    // Improved regex to handle various function declarations (incl. async, arrows if not used for methods)
-    // For methods in objects, func.toString() usually gives `methodName(params) { body }` or `(params) => { body }`
-    // For `new Function`, it's often anonymous.
-    let paramsMatch = funcString.match(/^(?:async\s*)?(?:function\s*\*?\s*)?(?:[\w\$]+\s*)?\(([^)]*)\)/);
-    let body = '';
+    // For object methods and regular functions, funcString format can vary:
+    // 1. "function methodName(params) { body }"
+    // 2. "methodName(params) { body }" (object method shorthand)
+    // 3. "(params) => { body }" (arrow function)
+    // 4. "function(params) { body }" (anonymous function)
 
     if (funcString.startsWith('class')) {
       // console.warn('getFunctionDefinition: Cannot dehydrate entire classes yet.', funcString.substring(0,100));
       return null; // Cannot properly dehydrate full classes this way
     }
 
-    // Arrow function with implicit return and no braces e.g. (a,b) => a+b
-    if (!funcString.includes('{') && funcString.includes('=>')) { 
-        const arrowParts = funcString.split('=>');
-        if (!paramsMatch) paramsMatch = arrowParts[0].trim().match(/^(?:\(([^)]*)\)|([^\s=()]+))/);
-        body = `return ${arrowParts[1].trim()}`;
+    let params = [];
+    let body = '';
+
+    // Handle arrow functions with implicit return and no braces e.g. (a,b) => a+b
+    if (!funcString.includes('{') && funcString.includes('=>')) {
+      const arrowParts = funcString.split('=>');
+      const paramsPart = arrowParts[0].trim();
+      body = `return ${arrowParts[1].trim()}`;
+      
+      // Extract parameters
+      const paramsMatch = paramsPart.match(/^(?:\(([^)]*)\)|([^\s=()]+))$/);
+      if (paramsMatch) {
+        const paramString = paramsMatch[1] || paramsMatch[2] || '';
+        params = paramString.split(',').map(p => p.trim()).filter(p => p);
+      }
     } else {
-        // Standard function or arrow function with braces
-        const bodyStartIndex = funcString.indexOf('{');
-        const bodyEndIndex = funcString.lastIndexOf('}');
-        if (bodyStartIndex !== -1 && bodyEndIndex !== -1 && bodyEndIndex > bodyStartIndex) {
-            body = funcString.substring(bodyStartIndex + 1, bodyEndIndex).trim();
-        } else {
-            // console.warn('getFunctionDefinition: Could not extract body for:', funcString.substring(0,100));
-            return null;
+      // Standard function or arrow function with braces
+      // Find the opening and closing braces of the function body
+      const firstBraceIndex = funcString.indexOf('{');
+      const lastBraceIndex = funcString.lastIndexOf('}');
+      
+      if (firstBraceIndex === -1 || lastBraceIndex === -1 || lastBraceIndex <= firstBraceIndex) {
+        console.warn('getFunctionDefinition: Could not extract body for:', funcString.substring(0,100));
+        return null;
+      }
+
+      // Extract the body (everything between the first { and last })
+      body = funcString.substring(firstBraceIndex + 1, lastBraceIndex).trim();
+
+      // Extract parameters - look for the parentheses before the first {
+      const beforeBrace = funcString.substring(0, firstBraceIndex);
+      
+      // Find the last set of parentheses before the opening brace
+      const parenMatch = beforeBrace.match(/\(([^)]*)\)\s*$/);
+      if (parenMatch) {
+        const paramString = parenMatch[1].trim();
+        if (paramString) {
+          params = paramString.split(',').map(p => p.trim()).filter(p => p);
         }
+      }
     }
     
-    const params = paramsMatch ? (paramsMatch[1] || paramsMatch[2] || '').split(',').map(p => p.trim()).filter(p => p) : [];
     return { params, body };
 
   } catch (e) {
