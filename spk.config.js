@@ -1352,8 +1352,8 @@ const CustomJsonProcessing = [
             authB = mem[5],
             template = mem[6],
             pow = mem[7],
-            broker = mem[8]
-          ops = [],
+            broker = mem[8],
+            ops = [],
             err = '' //no log no broca?
           if (typeof broca != "string") broca = '0,0'
           brocaString = broca_calc(broca, pow, stats, json.block_num),
