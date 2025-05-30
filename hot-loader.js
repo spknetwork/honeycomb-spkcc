@@ -10,18 +10,17 @@ import WebSocket from 'ws';
 import stringify from 'json-stable-stringify';
 
 export var runtimeContext;
-export var CodeShare = {};
-export var Every = [HR.margins];
+export var CodeShare = config.CodeShare || {};
+export var Every = [HR.margins, ...(config.CustomEvery || [])];
 
 export function initializeContext(processor, store, status, VERSION) {
-  // make a copy of config and leave out any private keys
+  // Make a copy of config for runtimeContext.config, excluding sensitive keys.
   const configCopy = { ...config };
   delete configCopy.active;
   delete configCopy.msowner;
-  CodeShare = config.CodeShare || {}
-  if(config?.CustomEvery?.length)Every = [HR.margins, ...config.CustomEvery]
-  else Every = [HR.margins]
-  runtimeContext = { store, config: configCopy, fetch, WebSocket, API, VERSION, getPathObj, getPathNum, getPathSome, RAM, burn, forceCancel, add, addc, addMT, addCol, addGov, deletePointer, credit, nodeUpdate, penalty, chronAssign, hashThis, isEmpty, postToDiscord, Base64, Base58, Base38, stringify, NFT, Chron, stringify, DEX, naizer, status, verifySig, CodeShare, processor }
+  // runtimeContext will use the module-level CodeShare and Every, 
+  // which are managed either by initial load or by customInit.
+  runtimeContext = { store, config: configCopy, fetch, WebSocket, API, VERSION, getPathObj, getPathNum, getPathSome, RAM, burn, forceCancel, add, addc, addMT, addCol, addGov, deletePointer, credit, nodeUpdate, penalty, chronAssign, hashThis, isEmpty, postToDiscord, Base64, Base58, Base38, stringify, NFT, Chron, stringify, DEX, naizer, status, verifySig, CodeShare, Every, processor };
 }
 
 export function hotAPI(api) {
@@ -207,90 +206,115 @@ export function hotChron(chronOps) {
     return true;
 }
 
-export function customInit(api, chron, processor, CS, E) {
+export function customInit(api, chron, processor, codeShareDefs, everyDefs) {
   return new Promise((resolve, reject) => {
-    console.log('customInit called with new CodeShare and Every')
-    // Update module-level CodeShare and Every with the evaluated versions
-    if (CS && typeof CS === 'object') {
-      CodeShare = CS;
-    } else {
-      CodeShare = {}; // Default to empty object if CS is invalid
+    console.log('customInit called to rebuild CodeShare and Every from definitions');
+
+    const newCodeShare = {};
+    if (codeShareDefs && typeof codeShareDefs === 'object') {
+      for (const path in codeShareDefs) {
+        if (Object.hasOwnProperty.call(codeShareDefs, path)) {
+          const def = codeShareDefs[path];
+          if (def && typeof def.body === 'string' && Array.isArray(def.params)) {
+            try {
+              const func = new Function(...def.params, def.body);
+              // Handle nested paths like "PoA.Check"
+              const parts = path.split('.');
+              let current = newCodeShare;
+              for (let i = 0; i < parts.length - 1; i++) {
+                current[parts[i]] = current[parts[i]] || {};
+                current = current[parts[i]];
+              }
+              current[parts[parts.length - 1]] = func;
+            } catch (e) {
+              console.error(`Error creating function for CodeShare path ${path}:`, e);
+            }
+          }
+        }
+      }
     }
-    if (E && Array.isArray(E)) {
-      Every = [HR.margins, ...E]; // Always include HR.margins, then add from E
+    CodeShare = newCodeShare; // Replace module-level CodeShare
+
+    const newEvery = [HR.margins]; // Always start with HR.margins
+    if (Array.isArray(everyDefs)) {
+      for (const def of everyDefs) {
+        if (def && typeof def.body === 'string' && Array.isArray(def.params)) {
+          try {
+            const func = new Function(...def.params, def.body);
+            newEvery.push(func);
+          } catch (e) {
+            console.error(`Error creating function for CustomEvery definition:`, def.name || 'unnamed', e);
+          }
+        }
+      }
+    }
+    Every = newEvery; // Replace module-level Every
+
+    // Re-initialize context so it picks up the newly built CodeShare and Every
+    if (runtimeContext && runtimeContext.store && runtimeContext.status && runtimeContext.VERSION !== undefined && runtimeContext.processor !== undefined) {
+        initializeContext(runtimeContext.processor, runtimeContext.store, runtimeContext.status, runtimeContext.VERSION);
     } else {
-      Every = [HR.margins]; // Default if E is invalid
+        console.warn('runtimeContext or its key properties not fully available for re-initialization in customInit. Attempting re-init with current processor from args.');
+        // This fallback may be needed if customInit is called before runtimeContext is fully populated from an initial start.
+        // It assumes processor passed to customInit is the correct one to use.
+        // The store, status, VERSION might be missing initially here, leading to partial context if this path is hit early.
+        initializeContext(processor, runtimeContext?.store, runtimeContext?.status, runtimeContext?.VERSION);
     }
 
-    // Re-initialize context so it picks up the new CodeShare and Every
-    if (runtimeContext && runtimeContext.store && runtimeContext.status && runtimeContext.VERSION) {
-        initializeContext(processor, runtimeContext.store, runtimeContext.status, runtimeContext.VERSION);
-    } else {
-        // Fallback or initial setup if runtimeContext or its properties are not fully there
-        // This might need adjustment based on when customInit can be called relative to initial initializeContext
-        console.warn('runtimeContext or its properties not fully available for re-initialization in customInit. Full context re-init might be needed elsewhere or first.');
-        // Attempt a basic re-init. THIS IS A GUESS and might need specific store, status, VERSION values if this path is hit.
-        // initializeContext(processor, undefined, undefined, undefined); // Or some defaults
-    }
-
-    hotAPI(api)
-    hotChron(chron)
-    hotCustom(processor) //hotCustom uses runtimeContext, which should now be updated
-    hotOps(processor)    //hotOps uses runtimeContext, which should now be updated
-    resolve()
-  })
+    hotAPI(api);       // Uses config, which is updated directly in hotConfig
+    hotChron(chron);   // Uses config
+    hotCustom(processor); // Uses runtimeContext (now rebuilt with new CodeShare/Every)
+    hotOps(processor);    // Uses runtimeContext (now rebuilt with new CodeShare/Every)
+    resolve();
+  });
 }
 
 export function hotConfig(newConfig, cleanState, api, chronOps, processor) {
-  if (!cleanState || !cleanState.stats) return
-  if (!newConfig) newConfig = cleanState.chain
+  if (!cleanState || !cleanState.stats) return;
+  if (!newConfig) newConfig = cleanState.chain;
   for (var n in newConfig) {
-    config[n] = newConfig[n]
+    config[n] = newConfig[n];
   }
 
-  // Handle CodeShare: if it's a string, eval it. Ensure it's an object.
-  if (newConfig.CodeShare) { // Check if CodeShare was part of the update an needs processing
-    if (typeof config.CodeShare === 'string' && config.CodeShare.length) {
-      try {
-        console.log('Attempting to eval config.CodeShare from string');
-        config.CodeShare = eval('(' + config.CodeShare + ')');
-      } catch (e) { 
-        console.error('Error eval-ing config.CodeShare:', e); 
-        // If eval fails, retain the string if it was one, or initialize if it became something else
-        if (typeof config.CodeShare !== 'object') config.CodeShare = {}; 
-      }
+  let codeShareDefs = {};
+  let everyDefs = [];
+
+  // Handle CodeShare from chain: expect a JSON string of definitions
+  if (newConfig.CodeShare && typeof newConfig.CodeShare === 'string' && newConfig.CodeShare.length) {
+    try {
+      console.log('Attempting to JSON.parse config.CodeShare definitions from string');
+      codeShareDefs = JSON.parse(newConfig.CodeShare);
+      if (typeof codeShareDefs !== 'object' || codeShareDefs === null) codeShareDefs = {}; // Ensure it's an object
+    } catch (e) { 
+      console.error('Error JSON.parsing config.CodeShare definitions:', e);
+      codeShareDefs = {}; 
     }
-  }
-  // Ensure config.CodeShare is an object, defaulting to empty if not properly set or not an object.
-  if (!config.CodeShare || typeof config.CodeShare !== 'object') {
-    config.CodeShare = {};
+  } else if (newConfig.CodeShare && typeof newConfig.CodeShare === 'object') {
+    // If it's already an object (e.g. from initial config load not through chain), use it as definitions
+    // This path might be less common if chain always provides strings
+    codeShareDefs = newConfig.CodeShare;
   }
 
-  // Handle CustomEvery: if it's a string, eval it. Ensure it's an array.
-  if (newConfig.CustomEvery) { // Check if CustomEvery was part of the update and needs processing
-    if (typeof config.CustomEvery === 'string' && config.CustomEvery.length) {
-      try {
-        console.log('Attempting to eval config.CustomEvery from string');
-        config.CustomEvery = eval('(' + config.CustomEvery + ')');
-      } catch (e) { 
-        console.error('Error eval-ing config.CustomEvery:', e);
-        // If eval fails, retain the string if it was one, or initialize if it became something else
-        if (!Array.isArray(config.CustomEvery)) config.CustomEvery = [];
-      }
+  // Handle CustomEvery from chain: expect a JSON string of an array of definitions
+  if (newConfig.CustomEvery && typeof newConfig.CustomEvery === 'string' && newConfig.CustomEvery.length) {
+    try {
+      console.log('Attempting to JSON.parse config.CustomEvery definitions from string');
+      everyDefs = JSON.parse(newConfig.CustomEvery);
+      if (!Array.isArray(everyDefs)) everyDefs = []; // Ensure it's an array
+    } catch (e) { 
+      console.error('Error JSON.parsing config.CustomEvery definitions:', e);
+      everyDefs = [];
     }
-  }
-  // Ensure config.CustomEvery is an array, defaulting to empty if not properly set or not an array.
-  if (!Array.isArray(config.CustomEvery)) {
-    config.CustomEvery = [];
+  } else if (Array.isArray(newConfig.CustomEvery)) {
+    // If it's already an array, use as definitions
+    everyDefs = newConfig.CustomEvery;
   }
 
-  // Parse other custom configurations if they are strings (these expect func bodies as strings)
-  if (typeof config.customAPI === 'string') config.customAPI = config.customAPI.length ? JSON.parse(config.customAPI) : "NA"
-  if (typeof config.CustomJsonProcessing === 'string') config.CustomJsonProcessing = config.CustomJsonProcessing.length ? JSON.parse(config.CustomJsonProcessing) : "NA"
-  if (typeof config.CustomOperationsProcessing === 'string') config.CustomOperationsProcessing = config.CustomOperationsProcessing.length ? JSON.parse(config.CustomOperationsProcessing) : "NA"
-  if (typeof config.CustomChron === 'string') config.CustomChron = config.CustomChron.length ? JSON.parse(config.CustomChron) : "NA"
-  // Note: CustomEvery was handled above with eval, so no JSON.parse here for it.
-  // Note: CodeShare was handled above with eval, so no JSON.parse here for it.
+  // Parse other custom configurations that expect string function bodies
+  if (typeof config.CustomAPI === 'string') config.CustomAPI = config.CustomAPI.length ? JSON.parse(config.CustomAPI) : "NA";
+  if (typeof config.CustomJsonProcessing === 'string') config.CustomJsonProcessing = config.CustomJsonProcessing.length ? JSON.parse(config.CustomJsonProcessing) : "NA";
+  if (typeof config.CustomOperationsProcessing === 'string') config.CustomOperationsProcessing = config.CustomOperationsProcessing.length ? JSON.parse(config.CustomOperationsProcessing) : "NA";
+  if (typeof config.CustomChron === 'string') config.CustomChron = config.CustomChron.length ? JSON.parse(config.CustomChron) : "NA";
   
-  customInit(api, chronOps, processor, config.CodeShare, config.CustomEvery);
+  customInit(api, chronOps, processor, codeShareDefs, everyDefs);
 } 

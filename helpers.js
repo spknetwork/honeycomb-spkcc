@@ -812,87 +812,117 @@ export const Chron = {
     return new Promise((resolve, reject) => {
       Promise.all(promies)
         .then((mem) => {
-          const proposal = mem[0]
-          const chain = mem[1]
-          const stats = mem[2]
-          let approved = 0
+          const proposal = mem[0];
+          const chain = mem[1];
+          let approved = 0;
           for (let app in proposal.approvals) {
             if (proposal.approvals[app] === 1) {
-              approved++
+              approved++;
             }
           }
+
+          let newChain = JSON.parse(JSON.stringify(chain));
+
           if (approved >= proposal.threshold) {
-            let newChain = chain,
-              existing = {},
-              addr = '',
-              found = false,
-              type = ''
+            let existing = {};
+            let addr = '';
+            let found = false;
+            let type_for_custom_arrays = '';
+            let path_prop_name = 'op';
+
             switch (proposal.type) {
               case 'on':
-                existing = chain.CustomJsonProcessing
-                addr = 'CustomJsonProcessing'
-                type = 'on'
-                break
+                addr = 'CustomJsonProcessing';
+                type_for_custom_arrays = 'on';
+                break;
               case 'onOperation':
-                existing = chain.CustomOperationsProcessing
-                addr = 'CustomOperationsProcessing'
-                type = 'onOperation'
-                break
+                addr = 'CustomOperationsProcessing';
+                type_for_custom_arrays = 'onOperation';
+                break;
               case 'api':
-                existing = chain.customAPI
-                addr = 'customAPI'
-                break
+                addr = 'customAPI';
+                path_prop_name = 'path';
+                break;
               case 'chron':
-                existing = chain.CustomChron
-                addr = 'CustomChron	'
-                break
+                addr = 'CustomChron';
+                break;
+              case 'CodeShare':
+                addr = 'CodeShare';
+                try {
+                  const funcDef = JSON.parse(proposal.func);
+                  if (typeof funcDef === 'object' && funcDef !== null && funcDef.params && funcDef.body) {
+                    if (!newChain.CodeShare || typeof newChain.CodeShare !== 'object') {
+                      newChain.CodeShare = {};
+                    }
+                    newChain.CodeShare[proposal.path] = funcDef;
+                  } else {
+                    console.error('CodeShare proposal.func is not a valid stringified definition object:', proposal.func);
+                  }
+                } catch (e) {
+                  console.error('Error parsing CodeShare proposal.func:', e, proposal.func);
+                }
+                resolve({ newChain });
+                return;
+              case 'CustomEvery':
+                addr = 'CustomEvery';
+                try {
+                  const funcDef = JSON.parse(proposal.func);
+                  if (typeof funcDef === 'object' && funcDef !== null && funcDef.params && funcDef.body) {
+                    if (!Array.isArray(newChain.CustomEvery)) {
+                      newChain.CustomEvery = [];
+                    }
+                    const jobIdentifier = proposal.path;
+                    const existingIndex = newChain.CustomEvery.findIndex(job => (job.name || job.id) === jobIdentifier);
+                    if (existingIndex !== -1) {
+                      newChain.CustomEvery[existingIndex] = funcDef;
+                    } else {
+                      if(!funcDef.name && !funcDef.id) funcDef.name = jobIdentifier;
+                      newChain.CustomEvery.push(funcDef);
+                    }
+                  } else {
+                    console.error('CustomEvery proposal.func is not a valid stringified definition object:', proposal.func);
+                  }
+                } catch (e) {
+                  console.error('Error parsing CustomEvery proposal.func:', e, proposal.func);
+                }
+                resolve({ newChain });
+                return;
               default:
-                resolve({ newChain })
-                return
+                console.log('Unknown proposal type in scEndOp:', proposal.type);
+                resolve({ newChain });
+                return;
             }
-            let path = 'op'
-            if (addr == 'customAPI') path = path
-            for (let op in existing) {
-              if (existing[op][path] == proposal.path) {
-                found = op
-                break
-              }
-            }
-            if (found >= 0) {
-              existing[found] = {
-                func: proposal.func,
-                [path]: proposal.path
-              }
-              if (type) {
-                existing[found].type = type
-              }
-              newChain[addr] = existing
+
+            existing = newChain[addr] || [];
+            if (!Array.isArray(existing)) existing = [];
+
+            const existingIndex = existing.findIndex(op => op[path_prop_name] == proposal.path);
+
+            if (existingIndex !== -1) {
+              existing[existingIndex].func = proposal.func;
             } else {
               const newOp = {
                 func: proposal.func,
-                [path]: proposal.path
+                [path_prop_name]: proposal.path
+              };
+              if (type_for_custom_arrays) {
+                newOp.type = type_for_custom_arrays;
               }
-              if (type) {
-                newOp.type = type
-              }
-              existing.push(newOp)
-              newChain[addr] = existing
+              existing.push(newOp);
             }
-            resolve({ newChain })
+            newChain[addr] = existing;
+            resolve({ newChain });
           } else {
-            resolve({ newChain: chain })
+            console.log(`SCP ${b.id} not approved, threshold not met.`);
+            resolve({ newChain: chain });
           }
         })
-    })
+        .catch(err => {
+          console.error('Error in scEndOp Promise.all:', err);
+          reject(err);
+        });
+    });
   }
-  // const PpendSC = getPathObj(['scp', b.op])
-  //       const Pchain = getPathObj(['chain'])
-  //       Chron.scEndOp([PpendSC, Pchain],b, passed, res, rej, num, prand, ints)
-  //         .then((x) => {
-  //           if (x.newConfig) configSet(x.newConfig, null, api, chronOps, processor)
-  //           res(x)
-  //         });
-
 };
 
 export const Base58 = {
@@ -958,7 +988,6 @@ export const Base64 = {
   },
 
   fromFlags: function (flags) {
-    // array [1,0,1,1,0,0,1]
     var result = 0;
     var last = 1;
     for (var i = 0; i < flags.length; i++) {

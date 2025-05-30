@@ -4,7 +4,8 @@ import { chronAssign } from '../lil_ops.js'
 
 export const scp_add = (json, from, active, pc) => {
     //json type 1-4 onOperation, on, api, chron
-    if (active && typeof json.func == 'string' && typeof json.path == 'string' && json.type >= 1 && json.type <= 4) {
+    //json type 5 CodeShare, 6 CustomEvery
+    if (active && typeof json.func == 'string' && typeof json.path == 'string' && json.type >= 1 && json.type <= 6) {
         let Pchain = getPathObj(['chain'])
         let Pstats = getPathObj(['stats'])
         Promise.all([Pchain, Pstats])
@@ -26,13 +27,23 @@ export const scp_add = (json, from, active, pc) => {
                     case 4:
                         proposal.type = 'chron'
                         break
+                    case 5:
+                        proposal.type = 'CodeShare' // For CodeShare updates
+                        // json.path is the function path e.g., "PoA.Check"
+                        // json.func is the stringified definition e.g., "{ params: [...], body: '...' }"
+                        break
+                    case 6:
+                        proposal.type = 'CustomEvery' // For CustomEvery updates
+                        // json.path could be an ID or index for the CustomEvery array element
+                        // json.func is the stringified definition e.g., "{ name: 'job', params: [...], body: '...' }"
+                        break
                     default:
                         pc[0](pc[2])
                         return
                 }
                 proposal.id = json.transaction_id
                 proposal.path = json.path
-                proposal.func = json.func
+                proposal.func = json.func // This will be the stringified definition for types 5 and 6
                 proposal.from = from
                 proposal.approvals = {}
                 proposal.threshold = stats.ms.active_threshold
@@ -54,7 +65,7 @@ export const scp_add = (json, from, active, pc) => {
                     ops.push({
                         type: 'put',
                         path: ['feed', `${json.block_num}:${json.transaction_id}`],
-                        data: `@${from}| Proposed ${json.func}`
+                        data: `@${from}| Proposed ${proposal.type} update for ${json.path}`
                     })
                     store.batch(ops, pc)
                 })
