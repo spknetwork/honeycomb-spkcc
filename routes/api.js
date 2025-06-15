@@ -874,6 +874,78 @@ const tx_status = (req, res, next) => {
         }, null, 3))
 }
 
+// Helper function to parse NFT state data
+const parseNFTState = (stateString, nftType) => {
+    if (!stateString) return null;
+    
+    const parts = stateString.split('@');
+    const result = {
+        lastModified: Base64.toNumber(parts[0]),
+        lastModifiedBlock: Base64.toNumber(parts[0])
+    };
+    
+    switch (nftType) {
+        case 1: // Basic NFT - just lastModified
+            result.type = 'basic';
+            result.description = 'Static NFT with IPFS content reference';
+            break;
+            
+        case 2: // Executable NFT - lastModified@executableCode
+            result.type = 'executable';
+            result.executableCode = parts[1] || '';
+            result.description = 'Dynamic NFT with executable JavaScript code';
+            break;
+            
+        case 3: // Optional Content NFT - lastModified@optionalContent  
+            result.type = 'optional';
+            result.optionalContent = parts[1] || '';
+            result.description = 'NFT with additional metadata content';
+            break;
+            
+        case 4: // Full Dynamic NFT - lastModified@executableCode@optionalContent
+            result.type = 'dynamic';
+            result.executableCode = parts[1] || '';
+            result.optionalContent = parts[2] || '';
+            result.description = 'Full dynamic NFT with executable code and optional content';
+            break;
+            
+        default:
+            result.type = 'unknown';
+            result.description = 'Unknown NFT type';
+    }
+    
+    return result;
+};
+
+// Helper function to enhance NFT data with parsed state
+const enhanceNFTData = (nft, setData) => {
+    const enhanced = { ...nft };
+    
+    if (nft.info || nft.s) {
+        const stateString = nft.info || nft.s;
+        const parsedState = parseNFTState(stateString, setData.type || setData.t);
+        
+        enhanced.state = parsedState;
+        enhanced.lastModified = parsedState?.lastModified;
+        enhanced.lastModifiedBlock = parsedState?.lastModifiedBlock;
+        
+        // Add type-specific parsed data
+        if (parsedState) {
+            enhanced.nftType = parsedState.type;
+            enhanced.typeDescription = parsedState.description;
+            
+            if (parsedState.executableCode !== undefined) {
+                enhanced.executableCode = parsedState.executableCode;
+            }
+            if (parsedState.optionalContent !== undefined) {
+                enhanced.optionalContent = parsedState.optionalContent;
+            }
+        }
+    }
+    
+    return enhanced;
+};
+
 const nfts = (req, res, next) => {
     let user = req.params.user,
         userItems = getPathObj(['nfts', user]),
@@ -884,14 +956,19 @@ const nfts = (req, res, next) => {
         var result = []
         for (var item in mem[0]){
             const set = item.split(':')[0]
-            result.push({
+            const setData = mem[1][set]
+            const baseNFT = {
                 uid: item.split(':')[1],
                 info: mem[0][item].s,
                 set,
-                script: mem[1][set].s,
-                type: mem[1][set].t,
-                encoding: mem[1][set].e
-            })
+                script: setData.s,
+                type: setData.t,
+                encoding: setData.e
+            }
+            
+            // Enhance with parsed state data
+            const enhancedNFT = enhanceNFTData(baseNFT, setData)
+            result.push(enhancedNFT)
         }
         var mint_tokens = []
         for (var item in mem[2]){
@@ -992,7 +1069,9 @@ const auctions = (req, res, next) => {
                 auctionTimer.expiryIn = now.setSeconds(now.getSeconds() + ((mem[0][item].e - TXID.getBlockNum())*3));
                 auctionTimer.expiryUTC = new Date(auctionTimer.expiryIn);
                 auctionTimer.expiryString = auctionTimer.expiryUTC.toISOString();
-                result.push({
+                
+                const setData = mem[1][item.split(':')[0]]
+                const baseAuction = {
                             uid: item.split(':')[1],
                             set: item.split(':')[0],
                             price: {
@@ -1009,11 +1088,19 @@ const auctions = (req, res, next) => {
                             by:mem[0][item].o,
                             bids: mem[0][item].c || 0,
                             bidder: mem[0][item].f || '',
-                            script: mem[1][item.split(':')[0]].s,
-                            name_long: mem[1][item.split(':')[0]].nl,
+                            script: setData.s,
+                            name_long: setData.nl,
                             days: mem[0][item].t,
                             buy: mem[0][item].n || ''
-                        })
+                        }
+                
+                // Enhance with NFT state data if available
+                if (mem[0][item].nft) {
+                    const enhancedNFT = enhanceNFTData(mem[0][item].nft, setData)
+                    baseAuction.nft = enhancedNFT
+                }
+                
+                result.push(baseAuction)
             }
         }
         for (var item in mem[2]){
@@ -1023,7 +1110,9 @@ const auctions = (req, res, next) => {
                 auctionTimer.expiryIn = now.setSeconds(now.getSeconds() + ((mem[2][item].e - TXID.getBlockNum())*3));
                 auctionTimer.expiryUTC = new Date(auctionTimer.expiryIn);
                 auctionTimer.expiryString = auctionTimer.expiryUTC.toISOString();
-                result.push({
+                
+                const setData = mem[1][item.split(':')[0]]
+                const baseAuction = {
                             uid: item.split(':')[1],
                             set: item.split(':')[0],
                             price: {
@@ -1040,11 +1129,19 @@ const auctions = (req, res, next) => {
                             by:mem[2][item].o,
                             bids: mem[2][item].c || 0,
                             bidder: mem[2][item].f || '',
-                            script: mem[1][item.split(':')[0]].s,
-                            name_long: mem[1][item.split(':')[0]].nl,
+                            script: setData.s,
+                            name_long: setData.nl,
                             days: mem[2][item].t,
                             buy: mem[2][item].n || ''
-                        })
+                        }
+                
+                // Enhance with NFT state data if available
+                if (mem[2][item].nft) {
+                    const enhancedNFT = enhanceNFTData(mem[2][item].nft, setData)
+                    baseAuction.nft = enhancedNFT
+                }
+                
+                result.push(baseAuction)
             }
         }
         res.setHeader('Content-Type', 'application/json')
@@ -1339,7 +1436,8 @@ const sales = (req, res, next) => {
         let result = []
         for (var item in mem[0]){
             if(!from || from == item.split(':')[0]){
-                const listing = {
+                const setData = mem[2][item.split(':')[0]]
+                const baseListing = {
                     uid: item.split(':')[1],
                     set: item.split(':')[0],
                     price: {
@@ -1348,10 +1446,17 @@ const sales = (req, res, next) => {
                         token: mem[0][item].h ? mem[0][item].h :Config("TOKEN")
                     },
                     by:mem[0][item].o,
-                    script: mem[2][item.split(':')[0]].s,
-                    name_long: mem[2][item.split(':')[0]].nl
+                    script: setData.s,
+                    name_long: setData.nl
                 }
-                result.push(listing)
+                
+                // Enhance with NFT state data if available
+                if (mem[0][item].nft) {
+                    const enhancedNFT = enhanceNFTData(mem[0][item].nft, setData)
+                    baseListing.nft = enhancedNFT
+                }
+                
+                result.push(baseListing)
             }
         }
         res.setHeader('Content-Type', 'application/json')
@@ -1487,40 +1592,46 @@ const item = (req, res, next) => {
         }
         store.get(['nfts', owner, `${setname}:${itemname}`], function(err, obj) {
             if (obj.s){
+                const setData = mem[0]
+                const baseItem = {
+                    uid: itemname,
+                    set: setname,
+                    last_modified: Base64.toNumber(obj.s.split('@')[0]),
+                    info: obj.s || '',
+                    type: setData.t,
+                    owner,
+                    lien: obj.l || 'No Lien',
+                }
+                
+                // Enhance with parsed state data
+                const enhancedItem = enhanceNFTData(baseItem, setData)
+                
                 res.setHeader('Content-Type', 'application/json')
                 res.send(JSON.stringify({
-                    item: {
-                        uid: itemname,
-                        set: setname,
-                        last_modified: Base64.toNumber(obj.s.split(',')[0]),
-                        info: obj.s || '',
-                        type: mem[0].t,
-                        owner,
-                        lien: obj.l || 'No Lien',
-                    },
+                    item: enhancedItem,
                     set: {
                         set: setname,
-                        link: `${mem[0].a}/${mem[0].p}`,
+                        link: `${setData.a}/${setData.p}`,
                         fee: {
-                            amount:mem[0].f,
+                            amount:setData.f,
                             precision: Config("precision"),
                             token: Config("TOKEN")
                         },
                         bond: {
-                            amount:mem[0].b,
+                            amount:setData.b,
                             precision: Config("precision"),
                             token: Config("TOKEN")
                         },
-                        permlink: mem[0].p,
-                        author: mem[0].a,
-                        script: mem[0].s,
-                        name_long: mem[0].nl,
-                        encoding: mem[0].e,
-                        type: mem[0].t,
-                        royalty: mem[0].r,
-                        name: mem[0].n,
-                        minted: mem[0].i,
-                        max: Base64.toNumber(mem[0].m) - Base64.toNumber(mem[0].o)
+                        permlink: setData.p,
+                        author: setData.a,
+                        script: setData.s,
+                        name_long: setData.nl,
+                        encoding: setData.e,
+                        type: setData.t,
+                        royalty: setData.r,
+                        name: setData.n,
+                        minted: setData.i,
+                        max: Base64.toNumber(setData.m) - Base64.toNumber(setData.o)
                     },
                     node: Config("username"),
                     behind: RAM.behind,

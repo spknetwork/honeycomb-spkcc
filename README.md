@@ -153,11 +153,76 @@ Then alter the `state.js` with balances and other starting information
 
 # Fungible Token and Non-Fungible Token (NFT) Operations 
 
-DLUX offers a decentralized protocol for minting and trading NFT's. These tokens can be minted, auctioned, transferred, sold, bought, held in escrow, bid on, or deleted. 
+DLUX offers a decentralized protocol for minting and trading NFT's. These tokens can be minted, auctioned, transferred, sold, bought, held in escrow, bid on, or deleted.
+
+## NFT Types and Execution Context
+
+The HoneyComb NFT system supports 4 different NFT types with varying capabilities:
+
+### Type 1: Basic NFT
+- Standard static NFT with no additional functionality  
+- Script field contains an IPFS CID pointing to static content (HTML, SVG, image, etc.)
+- State contains only `lastModified` timestamp
+- Most common type for simple collectibles and artwork
+
+### Type 2: Executable NFT  
+- Includes executable code that can be updated by the NFT owner
+- Has an `exe_size` limit defined during set creation
+- Executable content is stored in the NFT's `s` (state) field as comma-separated values: `lastModified,executableCode`
+- The executable code can be JavaScript or any other code that the rendering environment supports
+
+### Type 3: Optional Content NFT
+- Includes additional optional metadata that can be updated by the NFT owner  
+- Has an `opt_size` limit defined during set creation
+- Optional content is stored as: `lastModified,optionalContent`
+- Useful for dynamic metadata, descriptions, or other mutable properties
+
+### Type 4: Executable + Optional NFT
+- Combines both executable and optional content capabilities
+- Has both `exe_size` and `opt_size` limits
+- State format: `lastModified,executableCode,optionalContent`
+- Most flexible NFT type supporting both dynamic code and metadata
+
+### Execution Context
+
+When NFTs are rendered or executed:
+
+1. **Script Field**: The main `script` field in the NFT set definition contains the base rendering code (often HTML/JavaScript)
+2. **Executable Content**: For types 2 & 4, the executable content from the NFT's state can modify behavior, add interactivity, or change presentation
+3. **Optional Content**: For types 3 & 4, provides dynamic metadata that can be displayed or used by the rendering script
+4. **Security Model**: 
+   - Code execution happens in the client/browser environment
+   - No server-side execution or access to blockchain state
+   - Sandboxed execution depending on implementation
+   - Size limits prevent excessive content storage
+
+### Use Cases
+
+- **Type 2**: Interactive games, dynamic art, programmable behavior
+- **Type 3**: NFTs with evolving descriptions, attributes that change over time  
+- **Type 4**: Full dynamic NFTs like virtual pets, evolving artwork, or complex interactive experiences
+
+The executable and optional content can only be modified by the current NFT owner using the `nft_update_exe` and `nft_update_opt` functions respectively.
 
 # Actions Available
 
 ## NFT (non-fungible token) Actions
+
+### NFT Set Profile Picture (id: dlux_nft_pfp)
+
+This action sets an NFT as the user's profile picture.
+
+#### params:
+* set = string representing the name of the NFT set
+* uid = string representing the unique ID of the NFT
+
+#### example:
+```json
+{
+    "set": "dlux",
+    "uid": "aa"
+}
+```
 
 ### NFT Transfer (id: dlux_nft_transfer)
 
@@ -170,108 +235,123 @@ This action transfers an NFT from one wallet to another.
 
 #### example:
 
-`json:{
-    set: 'dlux',
-    uid: 'aa',
-    to: 'somebody'
-}`
-
+```json
+{
+    "set": "dlux",
+    "uid": "aa",
+    "to": "somebody"
+}
+```
 
 ### NFT Reserve Transfer (id: dlux_nft_reserve_transfer)
 
 This action builds a token escrow contract with payment price and expiration. Seller uses this action to create a contract for specific wallet to pay for and receive the NFT. As opposed to listing it publicly on the market which would allow any buyer to buy the token.
 
-
 #### params:
 * set = string representing the name of the NFT set
 * uid = string representing the unique ID of the NFT to be transferred
 * to = string representing the wallet to receive the transfer
-* price = integer representing price to complete the contract, with 3 precision. 
+* price = integer representing price to complete the contract, with 3 precision
+* type = string (optional) - 'HIVE', 'HBD', or defaults to 'TOKEN'
 
 #### example:
-`json:{
-    set: 'dlux',
-    uid: 'aa',
-    to: 'somebody',
-    price: 1000 // 1.000 DLUX 
-}`
+```json
+{
+    "set": "dlux",
+    "uid": "aa",
+    "to": "somebody",
+    "price": 1000,
+    "type": "HIVE"
+}
+```
 
 ### NFT Reserve Complete (id: dlux_nft_reserve_complete)
 
-This action fulfills an NFT escrow transfer via complete payment. Recipient of NFT uses this action to complete the contract and receive the NFT. If successfully, the price defined in the contract will be deducted from the wallet.
+This action fulfills an NFT escrow transfer via complete payment. Recipient of NFT uses this action to complete the contract and receive the NFT. If successful, the price defined in the contract will be deducted from the wallet. Currently only supports 'TOKEN' type payments.
 
 #### params:
-* set = string representing the name of the NFT set
+* set = string representing the name of the NFT set  
 * uid = string representing the unique ID of the NFT to be transferred
 
 #### example:
-`json:{
-    set: 'dlux',
-    uid: 'aa'
-}`
-
+```json
+{
+    "set": "dlux",
+    "uid": "aa"
+}
+```
 
 ### NFT Transfer Cancel (id: dlux_nft_transfer_cancel)
 
-This action cancels an NFT transfer escrow contract.
+This action cancels an NFT transfer escrow contract by either the sender or recipient.
 
 #### params:
 * set = string representing the name of the NFT set
 * uid = string representing the unique ID of the NFT to be transferred
 
 #### example:
-`json:{
-    set: 'dlux',
-    uid: 'AA'
-}`
-
+```json
+{
+    "set": "dlux",
+    "uid": "AA"
+}
+```
 
 ### NFT Delete (id: dlux_nft_delete)
 
-This action will permanently delete an NFT. Cannot be undone. Changes NFT's owner to D.
+This action will permanently delete an NFT. Cannot be undone. Changes NFT's owner to 'D' and returns the bond value to the owner.
 
 #### params:
 * set = string representing the name of the NFT set
-* uid = string representing the unique ID of the NFT to be transferred
+* uid = string representing the unique ID of the NFT to be deleted
 
 #### example:
-`json:{
-    set: 'dlux',
-    uid: 'AA'
-}`
+```json
+{
+    "set": "dlux",
+    "uid": "AA"
+}
+```
 
 ### NFT Define (id: dlux_nft_define)
 
-This action defines a new NFT set.
+This action defines a new NFT set. Supports 4 different types with varying capabilities.
 
 #### params:
-* name = string
-* type = integer
-* script = string. see below example.
-* permlink = string representing Hive content permlink pointing to NFT set announcement post
-* start =  string. Base-64 encoded, controls how many editions can be minted for this set
-* end = string. Base-64 encoded, controls how many editions can be minted for this set. 
-* royalty = integer
-* handling = string
-* max_fee = integer
-* bond = integer representing a burn value that can be preloaded into the contract
+* name = string - Name of the NFT set
+* type = integer - NFT type (1: basic, 2: executable, 3: additional options, 4: executable + options)
+* script = string - IPFS hash or inline HTML/script for NFT rendering
+* permlink = string - Hive content permlink pointing to NFT set announcement post
+* start = string - Base-64 encoded starting ID for minting range
+* end = string - Base-64 encoded ending ID for minting range
+* total = integer (optional) - Maximum number of NFTs to mint (cannot exceed range)
+* royalty = integer - Royalty percentage (default: 0)
+* handling = string - Content type ('svg', 'html', etc.)
+* max_fee = integer - Maximum fee willing to pay for set creation
+* bond = integer - Burn value preloaded into each NFT (default: 0)
+* long_name = string (optional) - Extended name for the set
+* exe_size = integer - Size limit for executable content (types 2,4)
+* opt_size = integer - Size limit for optional content (types 3,4)
 
 #### example:
-`json: {
-"name":"dlux",
-"type": 1,
-"script": "QmPsxgySUZibuojuUWCMQJpT2uZhijY4Cf7tuJKR8gpZqq", // see example below
-"permlink": "disregardfiat/nft-announcement",
-"start": "00",
-"end": "==", // 4,096 unique mints for this set
-"royalty": 100,
-"handling": "svg",
-"max_fee": 10000000,
-"bond": 1000, //A burn value that can be preloaded into the contract
-}`
+```json
+{
+    "name": "dlux",
+    "type": 1,
+    "script": "QmPsxgySUZibuojuUWCMQJpT2uZhijY4Cf7tuJKR8gpZqq",
+    "permlink": "disregardfiat/nft-announcement",
+    "start": "00",
+    "end": "==",
+    "royalty": 100,
+    "handling": "svg",
+    "max_fee": 10000000,
+    "bond": 1000
+}
+```
 
-#### script example:
-```<!DOCTYPE html>
+#### Original Script Example (Color-based SVG):
+```html
+<!DOCTYPE html>
 //<html><head><script>
 function compile (message, display) {
 const colors = ['#000000', '#AA0000', '#00AA00', '#AA5500', '#0000AA', '#AA00AA', '#00AAAA', '#AAAAAA', '#555555', '#FF5555', '#55FF55', '#FFFF55', '#5555FF', '#FF55FF', '#55FFFF', '#FFFFFF']
@@ -347,227 +427,683 @@ function onLoad(id){
 ```
 
 The script should return:
-`{HTML:SVG, attributes:[{name:'Color 1', value: uColors[0]},{name:'Color 2', value: uColors[1]},{name:'Color 3', value: uColors[2]}], sealed:''} HTML, which may include Base64 Imgs, GTLF, etc... plus an array of attributes, and optionally a sealed picture`
+`{HTML:SVG, attributes:[{name:'Color 1', value: uColors[0]},{name:'Color 2', value: uColors[1]},{name:'Color 3', value: uColors[2]}], sealed:''}` 
 
+HTML, which may include Base64 Imgs, GLTF, etc... plus an array of attributes, and optionally a sealed picture.
+
+#### Advanced Example: Time-of-Day NFT (Type 2 - Executable)
+
+This example shows a Type 2 Executable NFT that renders differently based on the current time of day. The base script provides the framework, and the executable code (updated via `nft_update_exe`) changes the scene:
+
+**Base Script (stored in NFT set definition):**
+```html
+<!DOCTYPE html>
+//<html><head><script>
+function compile(message, display) {
+    // Base landscape elements
+    const landscapes = {
+        dawn: {
+            sky: '#FFB6C1',
+            ground: '#90EE90', 
+            sun: '#FFA500',
+            title: 'Dawn Awakening',
+            atmosphere: 'The world awakens with gentle pink hues'
+        },
+        day: {
+            sky: '#87CEEB',
+            ground: '#32CD32',
+            sun: '#FFD700', 
+            title: 'Bright Day',
+            atmosphere: 'Full energy under the bright blue sky'
+        },
+        dusk: {
+            sky: '#FF6347',
+            ground: '#8B4513',
+            sun: '#FF4500',
+            title: 'Golden Dusk', 
+            atmosphere: 'The day fades into warm golden tones'
+        },
+        night: {
+            sky: '#191970',
+            ground: '#2F4F4F',
+            sun: '#F0F8FF',
+            title: 'Starlit Night',
+            atmosphere: 'Stars twinkle in the deep blue night'
+        }
+    };
+
+    // Determine time period
+    const hour = new Date().getHours();
+    let period = 'day';
+    if (hour >= 5 && hour < 8) period = 'dawn';
+    else if (hour >= 8 && hour < 18) period = 'day';
+    else if (hour >= 18 && hour < 21) period = 'dusk';
+    else period = 'night';
+
+    const scene = landscapes[period];
+    
+    // Execute custom code if available (from executable content)
+    let customEffects = '';
+    let customAttributes = [];
+    if (typeof window.customTimeEffects === 'function') {
+        try {
+            const custom = window.customTimeEffects(period, scene, message);
+            if (custom.effects) customEffects = custom.effects;
+            if (custom.attributes) customAttributes = custom.attributes;
+        } catch(e) {
+            console.log('Custom effects error:', e);
+        }
+    }
+
+    const SVG = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 300">
+        <defs>
+            <linearGradient id="skyGradient" x1="0%" y1="0%" x2="0%" y2="100%">
+                <stop offset="0%" style="stop-color:${scene.sky};stop-opacity:1" />
+                <stop offset="100%" style="stop-color:${scene.ground};stop-opacity:0.3" />
+            </linearGradient>
+            ${customEffects}
+        </defs>
+        
+        <!-- Sky -->
+        <rect width="400" height="200" fill="url(#skyGradient)"/>
+        
+        <!-- Ground -->
+        <rect y="200" width="400" height="100" fill="${scene.ground}"/>
+        
+        <!-- Sun/Moon -->
+        <circle cx="320" cy="80" r="30" fill="${scene.sun}" opacity="${period === 'night' ? '0.8' : '1'}"/>
+        
+        <!-- Mountains -->
+        <polygon points="0,200 100,120 200,200" fill="#8B4513" opacity="0.7"/>
+        <polygon points="150,200 250,100 350,200" fill="#A0522D" opacity="0.6"/>
+        
+        <!-- Trees (change with time) -->
+        <rect x="50" y="160" width="8" height="40" fill="#8B4513"/>
+        <circle cx="54" cy="150" r="15" fill="${period === 'night' ? '#2F4F4F' : '#228B22'}"/>
+        
+        <rect x="150" y="170" width="6" height="30" fill="#8B4513"/>
+        <circle cx="153" cy="160" r="12" fill="${period === 'night' ? '#2F4F4F' : '#228B22'}"/>
+        
+        <!-- Time-based effects -->
+        ${period === 'night' ? '<circle cx="100" cy="50" r="2" fill="white"/><circle cx="200" cy="40" r="1.5" fill="white"/><circle cx="300" cy="60" r="1" fill="white"/>' : ''}
+        ${period === 'dawn' ? '<rect x="0" y="0" width="400" height="300" fill="pink" opacity="0.1"/>' : ''}
+        
+        <!-- Title -->
+        <text x="200" y="280" text-anchor="middle" font-family="Arial" font-size="16" fill="white" stroke="black" stroke-width="1">${scene.title}</text>
+    </svg>`;
+
+    const baseAttributes = [
+        {name: 'Time Period', value: period},
+        {name: 'Scene', value: scene.title},
+        {name: 'Atmosphere', value: scene.atmosphere},
+        {name: 'Viewed At', value: new Date().toLocaleTimeString()}
+    ];
+
+    if(display){
+        document.getElementById('body').innerHTML = SVG;
+    } else {
+        return {
+            HTML: SVG, 
+            attributes: [...baseAttributes, ...customAttributes], 
+            sealed: ''
+        };
+    }
+}
+
+// Iframe/message handling for sandboxed execution
+if (window.addEventListener) {
+    window.addEventListener("message", onMessage, false);
+} else if (window.attachEvent) {
+    window.attachEvent("onmessage", onMessage, false);
+}
+
+function onMessage(event) {
+    var data = event.data;
+    if (typeof(window[data.func]) == "function") {
+        const got = window[data.func].call(null, data.message);
+        window.parent.postMessage({
+            'func': 'compiled',
+            'message': got
+        }, "*");
+    }
+}
+
+function onLoad(id){
+    window.parent.postMessage({
+        'func': 'loaded', 
+        'message': id
+    }, "*");
+}
+//</script></head>
+//<body id="body">
+<script>
+const uid = location.href.split('?')[1]; 
+if(uid){
+    compile(uid, true);
+} else {
+    onLoad(uid);
+}
+</script>
+</body></html>
+```
+
+**Example Executable Code (updated via nft_update_exe):**
+
+💡 **SYSTEM IMPROVEMENT SUGGESTION**: 
+The current system uses commas (`,`) as state delimiters, which restricts executable code. A better approach would be to change the system delimiter to `@` which would allow natural JavaScript syntax:
+
+**Updated State Format (@-delimited):**
+- Type 1: `lastModified` (Basic NFT - script is IPFS CID only)
+- Type 2: `lastModified@executableCode` (Executable NFT)
+- Type 3: `lastModified@optionalContent` (Additional options NFT)
+- Type 4: `lastModified@executableCode@optionalContent` (Full dynamic NFT)
+
+**✅ Code Changes Implemented:**
+1. **helpers.js**: 
+   - Updated `NFT.last()` function: `string.split(",")[0]` → `string.split("@")[0]`
+   - Updated initial NFT state creation for all types (1,2,3,4)
+   - Updated auction expiry functions to parse @ delimited state
+2. **processing_routes/nft.js**: Updated all state parsing:
+   - `nft.s.split(',')[0]` → `nft.s.split('@')[0]` (all occurrences)
+   - `!json.exe.split(',')[1]` → `!json.exe.split('@')[1]` (validation)
+   - State building: `${lastModified},${code}` → `${lastModified}@${code}`
+3. **routes/api.js**: Updated API parsing:
+   - `obj.s.split(',')[0]` → `obj.s.split('@')[0]` for last_modified extraction
+
+**Benefits:**
+- ✅ Natural JavaScript syntax in executable code
+- ✅ Support for objects, arrays, function parameters
+- ✅ No syntax restrictions for developers
+- ✅ `@` symbol is safe (not a JS operator)
+
+**With @ delimiters, natural JavaScript would work:**
+```javascript
+window.customTimeEffects = function(period, scene, nftId) {
+    const effects = {
+        dawn: '<filter id="glow"><feGaussianBlur stdDeviation="3" result="coloredBlur"/><feMerge><feMergeNode in="coloredBlur"/><feMergeNode in="SourceGraphic"/></feMerge></filter>',
+        day: '<filter id="bright"><feColorMatrix values="1.2 0 0 0 0  0 1.2 0 0 0  0 0 1.2 0 0  0 0 0 1 0"/></filter>',
+        dusk: '<filter id="warm"><feColorMatrix values="1.1 0.1 0 0 0  0 0.9 0.1 0 0  0 0 0.8 0 0  0 0 0 1 0"/></filter>',
+        night: '<filter id="cool"><feColorMatrix values="0.7 0 0.2 0 0  0 0.7 0.3 0 0  0.1 0.1 1 0 0  0 0 0 1 0"/></filter>'
+    };
+    
+    const customAttrs = [
+        {name: 'Enhancement', value: 'Dynamic Time Effects Active'},
+        {name: 'Filter Applied', value: period.charAt(0).toUpperCase() + period.slice(1)},
+        {name: 'NFT ID Hash', value: nftId}
+    ];
+    
+    return {
+        effects: effects[period] || '',
+        attributes: customAttrs
+    };
+};
+```
+
+**How to create this NFT:**
+
+1. **Define the NFT Set (Type 2):**
+```json
+{
+    "name": "timescape",
+    "type": 2,
+    "script": "[IPFS CID of BASE_SCRIPT_ABOVE]",
+    "permlink": "creator/timescape-announcement", 
+    "start": "00",
+    "end": "ZZ",
+    "exe_size": 2048,
+    "handling": "html",
+    "max_fee": 5000000,
+    "bond": 500
+}
+```
+
+2. **Mint an NFT:**
+```json
+{
+    "set": "timescape"
+}
+```
+
+3. **Add Custom Effects (optional):**
+```json
+{
+    "set": "timescape",
+    "uid": "AA", 
+    "exe": "window.customTimeEffects=function(period,scene,nftId){const effects={dawn:'...',day:'...'}; return {effects:effects[period],attributes:[]}; }"
+}
+```
+
+**Note**: With `@` delimiters, full JavaScript syntax including commas, objects, and arrays would work naturally!
+
+**Execution Contexts:**
+- **Browser**: Full rendering with real-time updates
+- **Node.js**: Server-side rendering for static snapshots  
+- **Iframe**: Sandboxed execution for security in marketplaces
+
+This NFT will show different scenes based on when it's viewed (dawn/day/dusk/night) and owners can enhance it with custom effects through the executable code!
+
+### NFT Define Delete (id: dlux_nft_define_delete)
+
+This action deletes an NFT set definition. Only works if no NFTs have been minted from the set (i.e., issued counter is still "0"). Refunds the set creation fee.
+
+#### params:
+* set = string representing the name of the NFT set to delete
+
+#### example:
+```json
+{
+    "set": "dlux"
+}
+```
 
 ### NFT Mint (id: dlux_nft_mint)
 
-This action mints a new NFT 
+This action redeems a mint token to create a new NFT from a set. Uses chronological assignment for fair distribution.
 
 #### params:
 * set = string representing the name of the NFT set
 
 #### example:
-`json:{
-    set: "dlux"
-}`
-
+```json
+{
+    "set": "dlux"
+}
+```
 
 ### NFT Auction (id: dlux_nft_auction)
 
-This action lists an NFT for auction on the market. Temporarily changes owner to 'ah'.
+This action lists an NFT for auction on the market. Temporarily changes owner to 'ah'. Creates a countdown timer for auction expiration.
 
 #### params:
 * set = string representing the name of the NFT set
-* uid = string representing the unique ID of the NFT to be transferred
-* price = integer with 3 precision represent the starting price
-* now = integer representing 'buy it now' price. Not implemented.
-* time = integer representing the number of days before auction is closed
+* uid = string representing the unique ID of the NFT
+* price = integer with 3 precision representing the starting price (default: 1000)
+* now = integer representing 'buy it now' price (not implemented)
+* time = integer representing the number of days before auction closes (1-30 days, default: 7)
 
 #### example:
-`json:{
-    set: 'dlux',
-    uid: 'AA',
-    price: 1000, // 1.000 DLUX
-    now: 10000, // not implemented
-    time: 7 //integer days
-}`
+```json
+{
+    "set": "dlux",
+    "uid": "AA",
+    "price": 1000,
+    "now": 10000,
+    "time": 7
+}
+```
 
+### NFT HIVE/HBD Auction (id: dlux_nft_hauction)
 
-### NFT Auction bidding (id: dlux_nft_bid)
-
-This action makes a bid for an active NFT action
+This action lists an NFT for auction accepting HIVE or HBD payments. Similar to regular auction but with cryptocurrency payments.
 
 #### params:
 * set = string representing the name of the NFT set
-* uid = string representing the unique ID of the NFT to be transferred
-* bid_amount = integer representing amount to bid, with 3 precision. i.e. to bid 10.000 tokens, use 10000.
+* uid = string representing the unique ID of the NFT
+* price = integer representing starting price in milliunits
+* type = string - 'HIVE' or 'HBD' (defaults to 'HIVE')
+* now = integer representing 'buy it now' price (not implemented)
+* time = integer representing days before auction closes (1-7 days, default: 7)
 
 #### example:
-`json:{
-    set: 'dlux',
-    uid: 'AA',
-    bid_amount: 1000
-}`
+```json
+{
+    "set": "dlux",
+    "uid": "AA",
+    "price": 1000,
+    "type": "HIVE",
+    "time": 7
+}
+```
+
+### NFT Auction Bidding (id: dlux_nft_bid)
+
+This action makes a bid for an active NFT auction. Automatically refunds previous high bidder.
+
+#### params:
+* set = string representing the name of the NFT set
+* uid = string representing the unique ID of the NFT
+* bid_amount = integer representing amount to bid, with 3 precision
+
+#### example:
+```json
+{
+    "set": "dlux",
+    "uid": "AA",
+    "bid_amount": 1000
+}
+```
 
 ### NFT Sell (id: dlux_nft_sell)
 
-This lists an NFT for sale on the market.
+This lists an NFT for direct sale on the market. Supports TOKEN, HIVE, or HBD pricing.
 
 #### params:
 * set = string representing the name of the NFT set
-* uid = string representing the unique ID of the NFT to be transferred
-* price = integer representing amount to sell the NFT for, with 3 precision. i.e. to list for 10.000 tokens, use 10000. Default value = 1000.
+* uid = string representing the unique ID of the NFT
+* price = integer representing sale price with 3 precision (default: 1000)
+* type = string (optional) - 'HIVE', 'HBD', or defaults to TOKEN
 
 #### example:
-`json:{
-    set: 'dlux',
-    uid: 'AA',
-    price: 1000 // 1.000 DLUX
-}`
+```json
+{
+    "set": "dlux",
+    "uid": "AA",
+    "price": 1000,
+    "type": "HIVE"
+}
+```
 
 ### NFT Market Buy (id: dlux_nft_buy)
 
+This action purchases an NFT from the direct sale market. Only works for TOKEN-priced listings, not HIVE/HBD listings.
+
 #### params:
 * set = string representing the name of the NFT set
-* uid = string representing the unique ID of the NFT to be transferred
-* price = integer representing amount to sell the NFT for, with 3 precision. i.e. to list for 10.000 tokens, use 10000. 
+* uid = string representing the unique ID of the NFT
 
 #### example:
-`json:{
-    set: 'dlux',
-    uid: 'AA',
-    price: 1000 // 1.000 DLUX
-}`
-
+```json
+{
+    "set": "dlux",
+    "uid": "AA"
+}
+```
 
 ### NFT Sell Cancel (id: dlux_nft_sell_cancel)
 
-This action cancels an NFT market sale listing
+This action cancels an NFT market sale listing and returns the NFT to the owner.
 
 #### params:
 * set = string representing the name of the NFT set
-* uid = string representing the unique ID of the NFT to be transferred
+* uid = string representing the unique ID of the NFT
 
 #### example:
-`json:{
-    set: 'dlux',
-    uid: 'AA'
-}`
+```json
+{
+    "set": "dlux",
+    "uid": "AA"
+}
+```
 
-## FT (fungible token) Actions
+### NFT Dividend Setup (id: dlux_nft_div)
 
-Similar to NFTs, DLUX offers a decentralized protocol for creating and trading NFT's. These tokens can be airdropped, auctioned, transferred, sold, bought, held in escrow, or bid on.
+This action establishes a dividend system for an NFT set. Only the set creator can establish dividends.
+
+#### params:
+* set = string representing the name of the NFT set
+* period = integer representing time in blocks for dividend period (28800-864000 blocks)
+
+#### example:
+```json
+{
+    "set": "dlux",
+    "period": 28800
+}
+```
+
+### NFT Update Executable (id: dlux_nft_update_exe)
+
+This action updates the executable content of an NFT (types 2 and 4 only). Size must be within limits set during NFT set creation.
+
+#### params:
+* set = string representing the name of the NFT set
+* uid = string representing the unique ID of the NFT
+* exe = string representing the executable content (must not contain commas)
+
+#### example:
+```json
+{
+    "set": "dlux",
+    "uid": "AA",
+    "exe": "console.log('Hello World')"
+}
+```
+
+### NFT Update Options (id: dlux_nft_update_opt)
+
+This action updates the optional content of an NFT (types 3 and 4 only). Size must be within limits set during NFT set creation.
+
+#### params:
+* set = string representing the name of the NFT set
+* uid = string representing the unique ID of the NFT
+* opt = string representing the optional content (must not contain commas)
+
+#### example:
+```json
+{
+    "set": "dlux",
+    "uid": "AA",
+    "opt": "additional metadata"
+}
+```
+
+### NFT Add Royalties (id: dlux_nft_add_roy)
+
+This action modifies the royalty distribution for an NFT set. Only available to set creators or existing royalty recipients.
+
+#### params:
+* set = string representing the name of the NFT set
+* distro = string representing distribution in format 'account1_percentage,account2_percentage' (must total 10000)
+
+#### example:
+```json
+{
+    "set": "dlux",
+    "distro": "account1_5000,account2_5000"
+}
+```
+
+## FT (fungible token / mint token) Actions
+
+These actions manage fungible tokens (FTs) which represent mint tokens for NFT sets.
 
 ### FT Transfer (id: dlux_ft_transfer)
 
-This action transfers a FT from wallet to wallet.
+This action transfers mint tokens from one wallet to another.
 
 #### params:
 * set = string representing the name of the NFT set
-* to = string representing wallet to transfer to
-
+* to = string representing the destination wallet
+* qty = integer representing quantity to transfer (default: 1)
 
 #### example:
-`json:{
-    set: 'dlux',
-    to: 'somebody'
-}`
+```json
+{
+    "set": "dlux",
+    "to": "somebody",
+    "qty": 5
+}
+```
 
 ### FT Airdrop (id: dlux_ft_airdrop)
 
-This action airdrops tokens to a list of wallets.
+This action airdrops mint tokens to multiple wallets simultaneously. Automatically deduplicates recipient list.
 
 #### params:
 * set = string representing the name of the NFT set
-* to = List of string representing wallet to airdrop to
+* to = array of strings representing wallets to airdrop to
 
 #### example:
-`json:{
-    set: 'dlux',
-    to: ['somebody','someother']
-}`
+```json
+{
+    "set": "dlux",
+    "to": ["somebody", "someother", "another"]
+}
+```
 
 ### FT Escrow (id: dlux_ft_escrow)
 
-This action creates escrow contract for a token.
+This action creates an escrow contract for a mint token sale.
 
 #### params:
 * set = string representing the name of the NFT set
+* to = string representing the buyer
+* price = integer representing the price with 3 precision
 
 #### example:
-Not implemented
-
+```json
+{
+    "set": "dlux",
+    "to": "buyer",
+    "price": 1000
+}
+```
 
 ### FT Escrow Complete (id: dlux_ft_escrow_complete)
 
-This action completes escrow for a token.
-
+This action completes an escrow mint token purchase.
 
 #### params:
 * set = string representing the name of the NFT set
+* uid = string representing the contract ID
 
 #### example:
-Not implemented
-
+```json
+{
+    "set": "dlux",
+    "uid": "contract123"
+}
+```
 
 ### FT Escrow Cancel (id: dlux_ft_escrow_cancel)
 
-This action cancels escrow for a token.
+This action cancels a mint token escrow contract.
 
 #### params:
 * set = string representing the name of the NFT set
+* uid = string representing the contract ID
 
 #### example:
-Not implemented
-
+```json
+{
+    "set": "dlux",
+    "uid": "contract123"
+}
+```
 
 ### FT Sell (id: dlux_ft_sell)
 
-This action lists a token for sale on the market.
+This action lists a mint token for direct sale.
 
 #### params:
 * set = string representing the name of the NFT set
+* price = integer representing sale price (default: 1000)
 
 #### example:
-Not implemented
+```json
+{
+    "set": "dlux",
+    "price": 1500
+}
+```
 
+### FTs Sell for HIVE/HBD (id: dlux_fts_sell_h)
+
+This action lists multiple mint tokens for sale accepting HIVE or HBD payments with custom distribution.
+
+#### params:
+* set = string representing the name of the NFT set
+* quantity = integer representing number of mint tokens to sell
+* hive = integer representing price in millihive (mutually exclusive with hbd)
+* hbd = integer representing price in millihbd (mutually exclusive with hive)
+* distro = string representing payout distribution 'account1_percentage,account2_percentage' (must total 10000)
+* enforce = boolean representing whether to enforce exact payment
+
+#### example:
+```json
+{
+    "set": "dlux",
+    "hive": 1000,
+    "quantity": 100,
+    "distro": "seller_8000,platform_2000"
+}
+```
+
+### FTs Sell HIVE/HBD Cancel (id: dlux_fts_sell_hcancel)
+
+This action cancels a HIVE/HBD mint token sale, refunding pending purchases.
+
+#### params:
+* set = string representing the name of the NFT set
+* uid = string representing the contract ID
+
+#### example:
+```json
+{
+    "set": "dlux",
+    "uid": "contract123"
+}
+```
 
 ### FT Buy (id: dlux_ft_buy)
 
-This action places a buy order for token on the market.
+This action purchases a mint token from the direct sale market.
 
 #### params:
 * set = string representing the name of the NFT set
+* uid = string representing the listing ID
 
-#### examples:
-Not implemented
-
+#### example:
+```json
+{
+    "set": "dlux",
+    "uid": "listing123"
+}
+```
 
 ### FT Sell Cancel (id: dlux_ft_sell_cancel)
 
-This action cancels the sale for a token on the market.
+This action cancels a mint token sale listing.
 
 #### params:
 * set = string representing the name of the NFT set
+* uid = string representing the listing ID
 
-#### examples:
-Not implemented
-
+#### example:
+```json
+{
+    "set": "dlux",
+    "uid": "listing123"
+}
+```
 
 ### FT Auction (id: dlux_ft_auction)
 
-This action lists a token up for action.
+This action lists a mint token for auction.
 
 #### params:
 * set = string representing the name of the NFT set
+* price = integer representing starting price (default: 1000)
+* time = integer representing auction duration in days (1-30, default: 7)
+* now = integer representing buy-it-now price
 
 #### example:
-
-Not implemented
-
+```json
+{
+    "set": "dlux",
+    "price": 1000,
+    "time": 7,
+    "now": 5000
+}
+```
 
 ### FT Bid (id: dlux_ft_bid)
 
-This action enters an auction bid for a token.
+This action places a bid on a mint token auction.
 
 #### params:
 * set = string representing the name of the NFT set
+* uid = string representing the auction ID
+* bid_amount = integer representing bid amount with 3 precision
 
 #### example:
-
-Not implemented
-
+```json
+{
+    "set": "dlux",
+    "uid": "auction123",
+    "bid_amount": 1500
+}
+```
 
 ---
 
@@ -787,5 +1323,73 @@ Inspect spk.config.js for examples of all types of contracts and how they are wr
 
   store.batch will perform memory actions (deletes first) then puts, and pass the block information to the next operation via pc (the promise chain)
 
-  All together you can store new state, provide API to have users interact with that state, and define new virtual operations via the chron to perform time based actions like expiration on that state. 
+  All together you can store new state, provide API to have users interact with that state, and define new virtual operations via the chron to perform time based actions like expiration on that state.
+
+## NFT Types and State Format
+
+The HoneyComb NFT system supports 4 different NFT types (Types 1-4), each with different capabilities and state formats. **Note: There is no Type 0 NFT** - all NFTs require minting through mint tokens.
+
+### Type 1: Basic NFT (Static Content)
+- **Purpose**: Simple static NFTs with IPFS content reference
+- **State Format**: `lastModified`
+- **Script Field**: Contains IPFS CID pointing to static content
+- **Minting**: Requires mint tokens
+- **Use Cases**: Traditional collectibles, static art, certificates
+
+### Type 2: Executable NFT (Dynamic Content)
+- **Purpose**: NFTs with updatable JavaScript code
+- **State Format**: `lastModified@executableCode`
+- **Script Field**: Contains IPFS CID for base template/framework
+- **Minting**: Requires mint tokens
+- **Use Cases**: Interactive NFTs, games, dynamic visualizations
+
+### Type 3: Optional Content NFT (Extended Metadata)
+- **Purpose**: NFTs with additional metadata content
+- **State Format**: `lastModified@optionalContent`
+- **Script Field**: Contains IPFS CID for base content
+- **Minting**: Requires mint tokens
+- **Use Cases**: NFTs with evolving descriptions, community content
+
+### Type 4: Full Dynamic NFT (Executable + Optional)
+- **Purpose**: Complete dynamic NFTs with both executable code and optional content
+- **State Format**: `lastModified@executableCode@optionalContent`
+- **Script Field**: Contains IPFS CID for base framework
+- **Minting**: Requires mint tokens
+- **Use Cases**: Complex interactive applications, evolving games
+
+## API Enhancements for NFT State Parsing
+
+The API now includes helper functions that automatically parse NFT state data for easier consumption:
+
+### Enhanced NFT Data Structure
+```json
+{
+  "uid": "AA",
+  "set": "dlux",
+  "info": "Qm...@console.log('Hello World')@{\"description\":\"Dynamic NFT\"}",
+  "state": {
+    "lastModified": 12345678,
+    "lastModifiedBlock": 12345678,
+    "type": "dynamic",
+    "description": "Full dynamic NFT with executable code and optional content",
+    "executableCode": "console.log('Hello World')",
+    "optionalContent": "{\"description\":\"Dynamic NFT\"}"
+  },
+  "nftType": "dynamic",
+  "typeDescription": "Full dynamic NFT with executable code and optional content",
+  "executableCode": "console.log('Hello World')",
+  "optionalContent": "{\"description\":\"Dynamic NFT\"}",
+  "lastModified": 12345678,
+  "lastModifiedBlock": 12345678
+}
+```
+
+### Affected API Endpoints
+- `/nfts/:user` - User's NFT collection with parsed state
+- `/auctions/:set?` - Auction listings with enhanced NFT data
+- `/sales/:set?` - Sale listings with enhanced NFT data  
+- `/item/:set/:item` - Individual NFT details with parsed state
+
+### State Delimiter System
+The system uses `@` as the delimiter for NFT state data, allowing natural JavaScript syntax in executable code while maintaining proper state separation. 
 

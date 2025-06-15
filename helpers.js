@@ -218,7 +218,7 @@ export const NFT = {
     }
   },
   last: function (number, string) {
-    const last = string.split(",")[0];
+    const last = string.split("@")[0];
     return string.replace(last, Base64.fromNumber(number));
   },
   mintOp: function (promies, delkey, num, b, rand) {
@@ -258,12 +258,22 @@ export const NFT = {
         switch (set.t) {
           case 4:
             nft = {
-              s: `${Base64.fromNumber(num - 1)},,`,
+              s: `${Base64.fromNumber(num - 1)}@@`,
+            };
+            break;
+          case 3:
+            nft = {
+              s: `${Base64.fromNumber(num - 1)}@`,
+            };
+            break;
+          case 2:
+            nft = {
+              s: `${Base64.fromNumber(num - 1)}@`,
             };
             break;
           default:
             nft = {
-              s: `${Base64.fromNumber(num - 1)},`,
+              s: `${Base64.fromNumber(num - 1)}`,
             };
         }
         set.i = Base64.fromNumber(Base64.toNumber(set.i) + 1);
@@ -300,7 +310,7 @@ export const NFT = {
             promises = [];
           // const fee = parseInt(listing.b /100); add('n', fee); listingb = listing.b - fee;
           nft = listing.nft;
-          const last_modified = nft.s.split(",")[0];
+          const last_modified = nft.s.split("@")[0];
           nft.s.replace(last_modified, Base64.fromNumber(num)); //update last modified
           if (listing.b) {
             //winner
@@ -394,7 +404,7 @@ export const NFT = {
             promises = [],
             // const fee = parseInt(listing.b /100); add('n', fee); listingb = listing.b - fee;
             nft = listing.nft;
-          const last_modified = nft.s.split(",")[0];
+          const last_modified = nft.s.split("@")[0];
           nft.s.replace(last_modified, Base64.fromNumber(num)); //update last modified
           if (listing.b) {
             //winner

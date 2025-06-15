@@ -21,7 +21,7 @@ export const nft_pfp = function(json, from, active, pc) {
             ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
             store.batch(ops, pc)
         } else {
-            if (Config("hookurl")) postToDiscord(`@${from} doesn't own NFT: ${json.uid}`)
+            if (Config("hookurl")) postToDiscord(`@${from} doesn't own NFT: ${json.set}:${json.uid}`)
             pc[0](pc[2])
         }
     })
@@ -56,7 +56,7 @@ export const nft_transfer = function(json, from, active, pc) {
             ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
             store.batch(ops, pc)
         } else {
-            if (Config("hookurl")) postToDiscord(`@${from} doesn't own NFT: ${json.nft_id}`)
+            if (Config("hookurl")) postToDiscord(`@${from} doesn't own NFT: ${json.set}:${json.uid}`)
             pc[0](pc[2])
         }
     })
@@ -95,7 +95,7 @@ export const nft_reserve_transfer = function(json, from, active, pc) {
             ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
             store.batch(ops, pc)
         } else {
-            if (Config("hookurl")) postToDiscord(`@${json.to} doesn't own NFT: ${json.set}:${json.uid}`)
+            if (Config("hookurl")) postToDiscord(`@${from} doesn't own NFT: ${json.set}:${json.uid}`)
             pc[0](pc[2])
         }
     })
@@ -569,12 +569,12 @@ export const nft_auction = function(json, from, active, pc) {
         .then(mem => {
             if (mem[0].s && !mem[0].l && active){
                 var ah = mem[1], nft = mem[0], set = mem[2], div = mem[3]
-                var p = json.price || 1000,
-                    n = json.now || '',
-                    t = json.time || 7
-                    if(typeof t != "number" || t > 30 || t < 1 )t = 7
-                    if(typeof p != "number" || p < 1)p = 1000
-                    if(typeof n != "number" || n <= p) n = ''
+                var p = parseInt(json.price) || 1000,
+                    n = parseInt(json.now) || '',
+                    t = parseInt(json.time) || 7
+                    if(isNaN(t) || t > 30 || t < 1 )t = 7
+                    if(isNaN(p) || p < 1)p = 1000
+                    if(isNaN(n) || n <= p) n = ''
                 const e = json.block_num + (t * 1200 * 24),
                     ep = chronAssign(e, {op:"ahe", item:`${json.set}:${json.uid}`, block: e}) //auction house expire vop
                 ep.then(exp => {
@@ -590,7 +590,7 @@ export const nft_auction = function(json, from, active, pc) {
                         }
                     if(json.uid.split(':')[0] != 'Qm') set.u = NFT.move(json.uid, 'ah', set.u)//update set
                     else set.u = 'ah'
-                    var last_modified = nft.s.split(',')[0], ops = []  //last modified is the first item in the string
+                    var last_modified = nft.s.split('@')[0], ops = []  //last modified is the first item in the string
                     nft.s.replace(last_modified, Base64.fromNumber(json.block_num)) //update the modified block
                     listing.nft = nft //place the nft in the listing
                     ah[`${json.set}:${json.uid}`] = listing //place the listing in the AH
@@ -636,13 +636,13 @@ export const nft_hauction = function(json, from, active, pc) {
         .then(mem => {
             if (mem[0].s && !mem[0].l && active){
                 var ah = mem[1], nft = mem[0], set = mem[2], div = mem[3]
-                var p = json.price || 1000,
-                    n = json.now || '',
-                    t = json.time || 7
-                    h = json.type.toUpperCase() == 'HBD' ? 'HBD' : 'HIVE'
-                    if(typeof t != "number" || t > 7 || t < 1 )t = 7
-                    if(typeof p != "number" || p < 1)p = 1000
-                    if(typeof n != "number" || n <= p) n = ''
+                var p = parseInt(json.price) || 1000,
+                    n = parseInt(json.now) || '',
+                    t = parseInt(json.time) || 7
+                    h = json.type && json.type.toUpperCase() == 'HBD' ? 'HBD' : 'HIVE'
+                    if(isNaN(t) || t > 7 || t < 1 )t = 7
+                    if(isNaN(p) || p < 1)p = 1000
+                    if(isNaN(n) || n <= p) n = ''
                 const e = json.block_num + (t * 1200 * 24),
                     ep = chronAssign(e, {op:"ahhe", item:`${json.set}:${json.uid}`, block: e}) //auction house expire vop
                 ep.then(exp => {
@@ -659,7 +659,7 @@ export const nft_hauction = function(json, from, active, pc) {
                         }
                     if(json.uid.split(':')[0] != 'Qm') set.u = NFT.move(json.uid, 'hh', set.u)//update set
                     else set.u = 'hh'
-                    var last_modified = nft.s.split(',')[0], ops = []  //last modified is the first item in the string
+                    var last_modified = nft.s.split('@')[0], ops = []  //last modified is the first item in the string
                     nft.s.replace(last_modified, Base64.fromNumber(json.block_num)) //update the modified block
                     listing.nft = nft //place the nft in the listing
                     ah[`${json.set}:${json.uid}`] = listing //place the listing in the AH
@@ -771,7 +771,7 @@ export const nft_sell = function(json, from, active, pc) {
                         }
                     if(json.uid.split(':')[0] != 'Qm') set.u = NFT.move(json.uid, 'ls', set.u)//update set
                     else set.u = 'ls'
-                    var last_modified = nft.s.split(',')[0], ops = []  //last modified is the first item in the string
+                    var last_modified = nft.s.split('@')[0], ops = []  //last modified is the first item in the string
                     nft.s.replace(last_modified, Base64.fromNumber(json.block_num)) //update the modified block
                     listing.nft = nft //place the nft in the listing
                     ls[`${json.set}:${json.uid}`] = listing //place the listing in the AH
@@ -807,7 +807,7 @@ export const nft_buy = function(json, from, active, pc) {
         let listing = mem[1]
         if(mem[1].p <= mem[0] && listing?.h != 'HIVE' && listing?.h != 'HBD' && active && from != listing.o){
             let nft = mem[1].nft, set = mem[2], listing = mem[1]
-            var last_modified = nft.s.split(',')[0], ops = []  //last modified is the first item in the string
+            var last_modified = nft.s.split('@')[0], ops = []  //last modified is the first item in the string
             nft.s.replace(last_modified, Base64.fromNumber(json.block_num)) //update the modified block
             if(json.uid.split(':')[0] != 'Qm') set.u = NFT.move(json.uid, from, set.u)//update set
             else set.u = from
@@ -837,7 +837,7 @@ export const nft_sell_cancel = function(json, from, active, pc) {
     .then(mem => {
         if(active && from == mem[0].o){
             let nft = mem[0].nft, set = mem[1], listing = mem[0]
-            var last_modified = nft.s.split(',')[0], ops = []  //last modified is the first item in the string
+            var last_modified = nft.s.split('@')[0], ops = []  //last modified is the first item in the string
             nft.s.replace(last_modified, Base64.fromNumber(json.block_num)) //update the modified block
             if(json.uid.split(':')[0] != 'Qm') set.u = NFT.move(json.uid, from, set.u)//update set
             else set.u = from
@@ -962,11 +962,11 @@ export const nft_update_exe = function(json, from, active, pc) {
         let set = mem[0], 
             nft = mem[1],
             allowed = false
-        if (json.exe && !json.exe.split(',')[1] && set.t == 2 && nft.s && json.exe.length <= set.x){
-            nft.s = `${nft.s.split(',')[0]},${json.exe}`
+        if (json.exe && !json.exe.split('@')[1] && set.t == 2 && nft.s && json.exe.length <= set.x){
+            nft.s = `${nft.s.split('@')[0]}@${json.exe}`
             allowed = true
-        } else if (json.exe && !json.exe.split(',')[1] && set.t == 4 && nft.s && json.exe.length <= set.x){
-            nft.s = `${nft.s.split(',')[0]},${json.exe},${nft.s.split(',')[2]}`
+        } else if (json.exe && !json.exe.split('@')[1] && set.t == 4 && nft.s && json.exe.length <= set.x){
+            nft.s = `${nft.s.split('@')[0]}@${json.exe}@${nft.s.split('@')[2]}`
             allowed = true
         }
         if (allowed && active){
@@ -992,11 +992,11 @@ export const nft_update_opt = function(json, from, active, pc) {
         let set = mem[0], 
             nft = mem[1],
             allowed = false
-        if (json.opt && !json.opt.split(',')[1] && set.t == 3 && nft.s && json.opt.length <= set.y){
-            nft.s = `${nft.s.split(',')[0]},${json.opt}`
+        if (json.opt && !json.opt.split('@')[1] && set.t == 3 && nft.s && json.opt.length <= set.y){
+            nft.s = `${nft.s.split('@')[0]}@${json.opt}`
             allowed = true
-        } else if (json.opt && !json.opt.split(',')[1] && set.t == 4 && nft.s && json.opt.length <= set.y){
-            nft.s = `${nft.s.split(',')[0]},${nft.s.split(',')[1]},${json.opt}`
+        } else if (json.opt && !json.opt.split('@')[1] && set.t == 4 && nft.s && json.opt.length <= set.y){
+            nft.s = `${nft.s.split('@')[0]}@${nft.s.split('@')[1]}@${json.opt}`
             allowed = true
         }
         if (allowed && active){
@@ -1374,12 +1374,12 @@ export const ft_auction = function(json, from, active, pc) {
         .then(mem => {
             if (mem[0] && active){
                 var ah = mem[1], nft = mem[0], hash = hashThis(`${from}:${json.set}:${json.block_num}`)
-                var p = json.price || 1000,
-                    n = json.now || '',
-                    t = json.time || 7
-                    if(typeof t != "number" || t > 30 || t < 1 )t = 7
-                    if(typeof p != "number" || p < 1)p = 1000
-                    if(typeof n != "number" || n <= p) n = ''
+                var p = parseInt(json.price) || 1000,
+                    n = parseInt(json.now) || '',
+                    t = parseInt(json.time) || 7
+                    if(isNaN(t) || t > 30 || t < 1 )t = 7
+                    if(isNaN(p) || p < 1)p = 1000
+                    if(isNaN(n) || n <= p) n = ''
                 const e = json.block_num + (t * 1200 * 24),
                     ep = chronAssign(e, {op:"ame", item:`${json.set}:${hash}`, block: e}) //auction house expire vop
                 ep.then(exp => {

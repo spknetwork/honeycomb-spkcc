@@ -4,6 +4,10 @@ import { isEmpty, addMT } from './lil_ops.js'
 import { sortBuyArray } from './helpers.js'
 import stringify from 'json-stable-stringify'
 
+const MAX_PRICE_MULTIPLIER = 10; // Max 10x price increase
+const MIN_ICO_PRICE = 1000;
+const MAX_ICO_PRICE = 1000000;
+
 //the daily post, the inflation point for tokennomics
 export function dao(num) {
     return new Promise((resolve, reject) => {
@@ -249,7 +253,9 @@ export function dao(num) {
                             if (ago !== num) {
                                 bals.rl = parseInt(ago / 30240 * 50000000);
                                 bals.ri = 100000000 - parseInt(ago / 30240 * 50000000);
-                                stats.icoPrice = stats.icoPrice * (1 + (ago / 30240) / 2);
+                                const newPrice = stats.icoPrice * (1 + (ago / 30240) / 2);
+                                stats.icoPrice = Math.min(MAX_ICO_PRICE, 
+                                                     Math.max(MIN_ICO_PRICE, newPrice));
                             }
                             if (ago > 20) {
                                 dil = ' minutes';
@@ -279,22 +285,22 @@ export function dao(num) {
                     if (bals.rl) {
                         var dailyICODistrobution = bals.rl,
                             y = 0;
-                        for (i = 0; i < ico.length; i++) {
-                            for (var node in ico[i]) {
-                                y += ico[i][node];
+                        for (let roundIndex = 0; roundIndex < ico.length; roundIndex++) {
+                            for (const participantNode in ico[roundIndex]) {
+                                y += ico[roundIndex][participantNode];
                             }
                         }
                         post = post + `### ICO Over Auction Results:\n${parseFloat(bals.rl / 1000).toFixed(3)} ${Config("TOKEN")} was set aside from today's ICO to divide between people who didn't get a chance at fixed price tokens and donated ${parseFloat(y / 1000).toFixed(3)} HIVE today.\n`;
-                        for (i = 0; i < ico.length; i++) {
-                            for (var node in ico[i]) {
-                                cbals[node] ? cbals[node] += parseInt(ico[i][node] / y * bals.rl) : cbals[node] = parseInt(ico[i][node] / y * bals.rl);
-                                dailyICODistrobution -= parseInt(ico[i][node] / y * bals.rl);
-                                post = post + `* @${node} awarded  ${parseFloat(parseInt(ico[i][node] / y * bals.rl) / 1000).toFixed(3)} ${Config("TOKEN")} for ICO auction\n`;
-                                console.log(num + `:${node} awarded  ${parseInt(ico[i][node] / y * bals.rl)} ${Config("TOKEN")} for ICO auction`);
-                                if (i == ico.length - 1) {
-                                    cbals[node] ? cbals[node] += dailyICODistrobution : cbals[node] = dailyICODistrobution
-                                    post = post + `* @${node} awarded  ${parseFloat(parseInt(dailyICODistrobution) / 1000).toFixed(3)} ${Config("TOKEN")} for ICO auction\n`;
-                                    console.log(num + `:${node} given  ${dailyICODistrobution} remainder`);
+                        for (let roundIndex = 0; roundIndex < ico.length; roundIndex++) {
+                            for (const participantNode in ico[roundIndex]) {
+                                cbals[participantNode] ? cbals[participantNode] += parseInt(ico[roundIndex][participantNode] / y * bals.rl) : cbals[participantNode] = parseInt(ico[roundIndex][participantNode] / y * bals.rl);
+                                dailyICODistrobution -= parseInt(ico[roundIndex][participantNode] / y * bals.rl);
+                                post = post + `* @${participantNode} awarded  ${parseFloat(parseInt(ico[roundIndex][participantNode] / y * bals.rl) / 1000).toFixed(3)} ${Config("TOKEN")} for ICO auction\n`;
+                                console.log(num + `:${participantNode} awarded  ${parseInt(ico[roundIndex][participantNode] / y * bals.rl)} ${Config("TOKEN")} for ICO auction`);
+                                if (roundIndex == ico.length - 1) {
+                                    cbals[participantNode] ? cbals[participantNode] += dailyICODistrobution : cbals[participantNode] = dailyICODistrobution
+                                    post = post + `* @${participantNode} awarded  ${parseFloat(parseInt(dailyICODistrobution) / 1000).toFixed(3)} ${Config("TOKEN")} for ICO auction\n`;
+                                    console.log(num + `:${participantNode} given  ${dailyICODistrobution} remainder`);
                                 }
                             }
                         }
