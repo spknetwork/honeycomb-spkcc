@@ -1909,7 +1909,7 @@ const user = (req, res, next) => {
       govdown = getPathObj(["govd", un]),
       pup = getPathObj(["up", un]),
       pdown = getPathObj(["down", un]),
-      chron = getPathObj(["chrono"]);
+      chron = getPathObj(["chrono"]),
       tick = getPathObj(["dex", "hive", "tick"]);
     res.setHeader('Content-Type', 'application/json');
     Promise.all([
