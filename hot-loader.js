@@ -85,6 +85,10 @@ export function hotAPI(api) {
     // Register the route with proper error handling
     api.get(customRoute.path, (req, res, next) => {
       try {
+        if (!runtimeContext) {
+          res.status(500).json({ error: 'Runtime context not initialized' });
+          return;
+        }
         func(req, res, next, runtimeContext);
       } catch (error) {
         console.error(`Error in custom route ${customRoute.path}:`, error);

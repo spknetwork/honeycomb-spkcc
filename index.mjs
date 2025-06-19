@@ -263,8 +263,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
     api.get('/coin', API.coin);
     api.get('/pending', API.pending); // The transaction signer now can sign multiple actions per block and this is nearly always empty, still good for troubleshooting
   }
-  hotAPI(api)
-
+  
   server.listen(config.port, '::', function () {
     console.log(`${config.TOKEN} token API listening on port ${config.port}`);
   });
@@ -286,6 +285,9 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
     initializeContext(null, store, status, VERSION)
     processor = hiveState(client, startingBlock, runtimeContext);
     initializeContext(processor, store, status, VERSION)
+    
+    // Now that context is initialized, set up custom API routes
+    hotAPI(api)
     
     // Process chain configuration through hotConfig if available
     if (state.chain) {
