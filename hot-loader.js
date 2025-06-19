@@ -26,7 +26,7 @@ export function initializeContext(processorToUse, storeToUse, statusToUse, versi
     VERSION: versionToUse, 
     getPathObj, getPathNum, getPathSome, RAM, 
     burn, forceCancel, add, addc, addMT, addCol, addGov, deletePointer, credit, nodeUpdate, penalty, chronAssign, hashThis, isEmpty, postToDiscord, 
-    Base64, Base58, Base38, stringify, NFT, Chron, stringify, DEX, naizer, 
+    Base64, Base58, Base38, stringify, NFT, Chron, stringify, DEX, naizer, release, 
     status: statusToUse, 
     verifySig, 
     CodeShare, // Uses the current module-level CodeShare
