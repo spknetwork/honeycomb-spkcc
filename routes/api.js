@@ -1901,7 +1901,7 @@ const user = (req, res, next) => {
       claims = getPathObj(["claims", un]),
       pb = getPathNum(["pow", un]),
       lp = getPathObj(["granted", un]),
-      lg = getPathOnj(["granting", un]),
+      lg = getPathObj(["granting", un]),
       contracts = getPathObj(["contracts", un]),
       incol = getPathNum(["col", un]), //collateral
       gp = getPathNum(["gov", un]),
