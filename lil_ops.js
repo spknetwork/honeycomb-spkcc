@@ -1,4 +1,5 @@
 import { store } from './index.mjs'
+import { Config } from './config.js'
 import { getPathObj, getPathNum } from './getPathObj.js'
 import { DEX } from './helpers.js'
 import { postToDiscord } from './discord.js'
@@ -74,7 +75,7 @@ export const release = (from, txid, bn, tx_id, dex = 'dex', ltoken = "balance") 
                           `${a.rate}:${a.txid}`,
                         ],
                       });
-                      if (tx_id && config.hookurl) {
+                      if (tx_id && Config('hookurl')) {
                         postToDiscord(
                           `@${from} has canceled ${txid}`,
                           `${bn}:${tx_id}`
@@ -110,7 +111,7 @@ export const release = (from, txid, bn, tx_id, dex = 'dex', ltoken = "balance") 
                         type: "del",
                         path: [dex, "hbd", "sellOrders", `${a.rate}:${a.txid}`],
                       });
-                      if (tx_id && config.hookurl) {
+                      if (tx_id && Config('hookurl')) {
                         postToDiscord(
                           `@${from} has canceled ${txid}`,
                           `${bn}:${tx_id}`
@@ -142,10 +143,10 @@ export const release = (from, txid, bn, tx_id, dex = 'dex', ltoken = "balance") 
                   const Transfer = [
                     "transfer",
                     {
-                      from: config.msaccount,
+                      from: Config('msaccount'),
                       to: a.from,
                       amount: parseFloat(a.hive / 1000).toFixed(3) + " HIVE",
-                      memo: `Canceled ${config.TOKEN} buy ${a.txid}`,
+                      memo: `Canceled ${Config('TOKEN')} buy ${a.txid}`,
                     },
                   ];
                   ops.push({
@@ -158,7 +159,7 @@ export const release = (from, txid, bn, tx_id, dex = 'dex', ltoken = "balance") 
                     type: "del",
                     path: [dex, "hive", "buyOrders", `${a.rate}:${a.txid}`],
                   });
-                  if (tx_id && config.hookurl) {
+                  if (tx_id && Config('hookurl')) {
                     postToDiscord(
                       `@${from} has canceled ${txid}`,
                       `${bn}:${tx_id}`
@@ -186,10 +187,10 @@ export const release = (from, txid, bn, tx_id, dex = 'dex', ltoken = "balance") 
                   const Transfer = [
                     "transfer",
                     {
-                      from: config.msaccount,
+                      from: Config('msaccount'),
                       to: a.from,
                       amount: parseFloat(a.hbd / 1000).toFixed(3) + " HBD",
-                      memo: `Canceled ${config.TOKEN} buy ${a.txid}`,
+                      memo: `Canceled ${Config('TOKEN')} buy ${a.txid}`,
                     },
                   ];
                   ops.push({
@@ -202,7 +203,7 @@ export const release = (from, txid, bn, tx_id, dex = 'dex', ltoken = "balance") 
                     type: "del",
                     path: [dex, "hbd", "buyOrders", `${a.rate}:${a.txid}`],
                   });
-                  if (tx_id && config.hookurl) {
+                  if (tx_id && Config('hookurl')) {
                     postToDiscord(
                       `@${from} has canceled ${txid}`,
                       `${bn}:${tx_id}`
