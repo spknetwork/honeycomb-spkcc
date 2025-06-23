@@ -1188,7 +1188,8 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
             block.chain[block.chain.length - 1].hash !=
             chain[block.chain.length - 1].hash)
         ) {
-          process.exit(block.chain[block.chain.length - 2].hash + "Chain Out Of Order");
+          console.error("Chain Out Of Order:", block.chain[block.chain.length - 2].hash);
+          process.exit(1);
         } else if (typeof i == "function") {
           console.log("Requesting Blocks from:", config.clientURL);
           store.get([], function (e, returns) {
@@ -1203,7 +1204,8 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
             issc(n, b, i, r + 1, a);
           }, 1000);
         } else {
-          process.exit(66 + plasma.hashLastIBlock);
+          console.error("IPFS Save failed after 10 retries:", plasma.hashLastIBlock);
+          process.exit(66);
         }
       });
   }
