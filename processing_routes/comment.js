@@ -23,8 +23,8 @@ export const comment = (json, pc) => {
                 console.log(e)
             }
         })
-    } else if (Config("features").pob && meta.arHash || meta.vrHash || meta.appHash || meta.audHash) {
-        Ppost = getPathObj(['posts', `${json.author}/${json.permlink}`])
+    } else if (Config("features").pob && (meta.arHash || meta.vrHash || meta.appHash || meta.audHash)) {
+        const Ppost = getPathObj(['posts', `${json.author}/${json.permlink}`])
         Promise.all([Ppost])
             .then(postarray => {
                 post = postarray[0]
