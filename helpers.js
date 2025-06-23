@@ -2,7 +2,7 @@ import { store, TXID, Config, processor } from "./index.mjs"
 import { renderNFTtoDiscord, postToDiscord } from "./discord.js"
 import { add, addMT, burn, chronAssign, hashThis } from "./lil_ops.js"
 import stringify from "json-stable-stringify"
-import { sha256 } from "hive-tx/helpers/crypto.js"
+import { sha256 } from "hive-tx/helpers.js"
 import hiveTx from "hive-tx"
 
 export const sortBuyArray = (array, key) =>
