@@ -454,7 +454,10 @@ const CodeShare = {
         var socket = new WebSocket(`${config.poav_address}/validate`);
         socket.on('open', (connection) => {
           if (config.mode == 'verbose') console.log("WebSocket connected successfully")
-          setTimeout(() => {
+          const timeoutId = setTimeout(() => {
+            if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name] && !RAM.Pending[`${bn % 200}`][CID].npid[Name].Status) {
+              RAM.Pending[`${bn % 200}`][CID].npid[Name] = { Status: 'Invalid', Message: 'Timeout' }
+            }
             socket.close()
             if (config.mode == 'verbose') console.log("Timeout:", CID)
           }, 240000)
@@ -470,14 +473,17 @@ const CodeShare = {
               //socket.close()
               if (config.mode == 'verbose') console.log('Found Hive Account')
             } else if (data.Status === 'IpfsPeerIDError') {
-              socket.close()
-              if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
-            } else if (data.Status === 'IpfsPeerIDError') {
+              if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
+                RAM.Pending[`${bn % 200}`][CID].npid[Name] = { Status: 'Invalid', Message: 'IpfsPeerIDError' }
+              }
               socket.close()
               if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
             } else if (data.Status === 'RequestingProof') {
               if (config.mode == 'verbose') console.log('RequestingProof')
             } else if (data.Status === 'Connection Error') {
+              if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
+                RAM.Pending[`${bn % 200}`][CID].npid[Name] = { Status: 'Invalid', Message: 'ConnectionError' }
+              }
               socket.close()
               if (config.mode == 'verbose') console.log('Error: Connection Error')
             } else if (data.Status === 'ProofReceived') {
@@ -491,10 +497,15 @@ const CodeShare = {
             } else if (data.Status === "Validating Proof") {
               if (config.mode == 'verbose') console.log('Validating Proof', { data })
             } else if (data.Status === "Valid") {
+              clearTimeout(timeoutId)
               if (RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name] && !RAM.Pending[`${bn % 200}`][CID].npid[Name].Message) RAM.Pending[`${bn % 200}`][CID].npid[Name] = data
               if (config.mode == 'verbose') console.log('Proof Valid', { data })
               socket.close()
             } else if (data.Status === "Invalid") {
+              clearTimeout(timeoutId)
+              if (RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
+                RAM.Pending[`${bn % 200}`][CID].npid[Name] = data
+              }
               if (config.mode == 'verbose') console.log('Proof Invalid', { data })
               socket.close()
             } else {
@@ -503,11 +514,18 @@ const CodeShare = {
           })
         })
         socket.onerror = (error) => {
+          clearTimeout(timeoutId)
+          if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
+            RAM.Pending[`${bn % 200}`][CID].npid[Name] = { Status: 'Invalid', Message: 'WebSocketError: ' + error.toString() }
+          }
           if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
         };
 
         if (config.mode == 'verbose') console.log("WebSocket connection initiated")
       } catch (error) {
+        if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
+          RAM.Pending[`${bn % 200}`][CID].npid[Name] = { Status: 'Invalid', Message: 'Exception: ' + error.toString() }
+        }
         if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
       }
     }
@@ -5376,7 +5394,7 @@ const CustomOperationsProcessing = [
                     ops.push({ type: "del", path: ["contracts", co, addr] });
                     ops.push({ type: "del", path: ["chrono", c.expire_path] });
                     if (json.from == config.username) {
-                      //delete plasma.pending[i + ':transfer']
+                      delete plasma.pending[addr + ':transfer']
                       let NodeOps = GetNodeOps();
                       for (var i = 0; i < NodeOps.length; i++) {
                         if (
