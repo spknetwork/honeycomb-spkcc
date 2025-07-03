@@ -891,20 +891,65 @@ const CodeShare = {
   },
   Validator: {
     addSPK: function (vals, valStr, add) {
-      var votes = CodeShare.Validator.valStr2Arr(valStr)
-      vals = CodeShare.Validator.addVote(vals, votes, add)
+      // Inline valStr2Arr logic
+      var a = valStr.split('')
+      var votes = []
+      for (var i = 0; i < valStr.length; i++) {
+        var b = `${a[i]}`; i++; b = `${b}${a[i]}`; votes.push(b)
+      }
+      votes = [...new Set(votes)]
+      
+      // Inline addVote logic
+      for (var i = 0; i < votes.length; i++) {
+        const weight = parseInt(add * (30 - i))
+        if (typeof vals[votes[i]] == "number") vals[votes[i]] += weight
+      }
       return vals
     },
     removeSpk: function (vals, valStr, minus) {
-      var votes = CodeShare.Validator.valStr2Arr(valStr)
-      vals = CodeShare.Validator.removeVote(vals, votes, minus)
+      // Inline valStr2Arr logic
+      var a = valStr.split('')
+      var votes = []
+      for (var i = 0; i < valStr.length; i++) {
+        var b = `${a[i]}`; i++; b = `${b}${a[i]}`; votes.push(b)
+      }
+      votes = [...new Set(votes)]
+      
+      // Inline removeVote logic
+      for (var i = 0; i < votes.length; i++) {
+        const weight = parseInt(minus * (30 - i))
+        if (typeof vals[votes[i]] == "number") vals[votes[i]] -= weight
+      }
       return vals
     },
     changeVote: function (vals, oldVotes, newVotes, spk) {
-      var votes = CodeShare.Validator.valStr2Arr(oldVotes)
-      vals = CodeShare.Validator.removeVote(vals, votes, spk)
-      votes = CodeShare.Validator.valStr2Arr(newVotes)
-      vals = CodeShare.Validator.addVote(vals, votes, spk)
+      // Remove old votes - inline valStr2Arr logic
+      var a = oldVotes.split('')
+      var votes = []
+      for (var i = 0; i < oldVotes.length; i++) {
+        var b = `${a[i]}`; i++; b = `${b}${a[i]}`; votes.push(b)
+      }
+      votes = [...new Set(votes)]
+      
+      // Inline removeVote logic
+      for (var i = 0; i < votes.length; i++) {
+        const weight = parseInt(spk * (30 - i))
+        if (typeof vals[votes[i]] == "number") vals[votes[i]] -= weight
+      }
+      
+      // Add new votes - inline valStr2Arr logic
+      a = newVotes.split('')
+      votes = []
+      for (var i = 0; i < newVotes.length; i++) {
+        var b = `${a[i]}`; i++; b = `${b}${a[i]}`; votes.push(b)
+      }
+      votes = [...new Set(votes)]
+      
+      // Inline addVote logic
+      for (var i = 0; i < votes.length; i++) {
+        const weight = parseInt(spk * (30 - i))
+        if (typeof vals[votes[i]] == "number") vals[votes[i]] += weight
+      }
       return vals
     },
     removeVote: function (vals, voteArr, spk) {
@@ -1138,7 +1183,7 @@ const CustomJsonProcessing = [
               else if (ago <= (stats.spk_cycle_length * 8)) lastVote = lastVote - parseInt(dif * ((stats.spk_cycle_length * 4) - ago))
               else lastVote = lastVote + parseInt(dif * stats.spk_cycle_length * 4)
               if (valStr) {
-                vals = CodeShare.Validator.addSPK(vals, valStr, amount)
+                vals = context.CodeShare.Validator.addSPK(vals, valStr, amount)
               }
               daostring = Base64.fromNumber(lastVote) + ',' + valStr
             } else {
@@ -1564,7 +1609,7 @@ const CustomJsonProcessing = [
             votes = votes.replace(/[^0-9A-Za-z+=]/g, '')
             if (votes.length > 60) votes = votes.substring(0, 59)
             if (spk_power) {
-              vals = CodeShare.Validator.changeVote(vals, daoStringArr[1], votes, spk_power)
+              vals = context.CodeShare.Validator.changeVote(vals, daoStringArr[1], votes, spk_power)
               const msg = `@${from}| VV:${json.votes}`;
               ops.push({
                 type: "put",
