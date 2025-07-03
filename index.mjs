@@ -293,11 +293,9 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
     if (state.chain) {
       console.log('Processing chain configuration through hotConfig...');
       hotConfig(state.chain, state, api, chronOps, processor);
+      // hotConfig will call customInit internally, so we don't need to call it again
     } else {
       // Fallback: update config directly and call customInit
-      for (var i in state.chain || {}) {
-        config[i] = state.chain[i]
-      }
       console.log('No chain configuration found, using fallback initialization...');
       customInit(api, chronOps, processor, undefined, undefined)
         .then(() => {

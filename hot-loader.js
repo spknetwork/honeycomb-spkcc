@@ -291,6 +291,7 @@ export function hotChron(chronOps) {
 }
 
 export function hotConfig(newConfig, cleanState, api, chronOps, processor) {
+  console.log('hotConfig called with newConfig:', newConfig ? Object.keys(newConfig) : 'null');
   if (!cleanState || !cleanState.stats) return;
   if (!newConfig) newConfig = cleanState.chain;
   
@@ -363,7 +364,7 @@ export function hotConfig(newConfig, cleanState, api, chronOps, processor) {
 export function customInit(api, chron, processor, codeShareDefsFromChain, everyDefsFromChain) {
   return new Promise((resolve, reject) => {
     console.log('customInit called to rebuild CodeShare and Every from definitions');
-    console.log('codeShareDefsFromChain:', codeShareDefsFromChain);
+    console.log('everyDefsFromChain:', everyDefsFromChain ? `Array with ${everyDefsFromChain.length} items` : 'undefined');
 
     const newCodeShare = {};
     
