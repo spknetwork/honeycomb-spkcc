@@ -11,7 +11,42 @@ import stringify from 'json-stable-stringify';
 
 export var runtimeContext;
 export var CodeShare = config.CodeShare || {};
-export var Every = [HR.margins, ...(config.CustomEvery || [])];
+
+// Handle CustomEvery whether it's an array or object with numeric keys
+let customEveryArray = [];
+if (config.CustomEvery) {
+  if (Array.isArray(config.CustomEvery)) {
+    customEveryArray = config.CustomEvery;
+  } else if (typeof config.CustomEvery === 'object') {
+    // Convert object with numeric keys to array of dehydrated functions
+    const keys = Object.keys(config.CustomEvery).sort((a, b) => parseInt(a) - parseInt(b));
+    for (const key of keys) {
+      if (!isNaN(parseInt(key))) {
+        const item = config.CustomEvery[key];
+        // Check if this is a dehydrated function definition
+        if (item && typeof item === 'object' && item.body && item.params) {
+          try {
+            // Convert params object to array
+            const paramsArray = [];
+            const paramKeys = Object.keys(item.params).sort((a, b) => parseInt(a) - parseInt(b));
+            for (const pKey of paramKeys) {
+              paramsArray.push(item.params[pKey]);
+            }
+            // Rehydrate the function
+            const func = new Function(...paramsArray, item.body);
+            customEveryArray.push(func);
+          } catch (e) {
+            console.error('Error rehydrating CustomEvery function:', e, item);
+          }
+        } else {
+          // If it's already a function or something else, just add it
+          customEveryArray.push(item);
+        }
+      }
+    }
+  }
+}
+export var Every = [HR.margins, ...customEveryArray];
 
 export function initializeContext(processorToUse, storeToUse, statusToUse, versionToUse) {
   // Make a copy of config for runtimeContext.config, excluding sensitive keys.
