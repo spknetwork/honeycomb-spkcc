@@ -824,7 +824,7 @@ const CodeShare = {
     },
   },
   broca_calc: function (last = '0,0', pow, stats, bn, add = 0) {
-    if (typeof last != "string" || last === undefined || last === null) last = '0,0'
+    if (typeof last != "string" || last === undefined || last === null || !last.includes(',')) last = '0,0'
     const last_calc = this.Base64.toNumber(last.split(',')[1])
     const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000)))
     var total = parseInt(last.split(',')[0]) + accured + add
