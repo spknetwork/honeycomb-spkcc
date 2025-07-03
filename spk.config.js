@@ -1547,7 +1547,7 @@ const CustomJsonProcessing = [
     type: "on",
     op: "spk_val_vote",
     func: function (json, from, active, pc, context) {
-      const { store, getPathObj, getPathNum } = context
+      const { store, getPathObj, getPathNum, CodeShare } = context
       var ops = []
       if (active) {
         var powp = getPathNum(["spow", from]),
