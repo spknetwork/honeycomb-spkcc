@@ -1,15 +1,17 @@
 import { config } from './config.js'
-import { plasma, VERSION, CodeShare } from './index.mjs'
+import { plasma, VERSION } from './index.mjs'
 import fetch from 'node-fetch'
+import { CodeShare } from './hot-loader.js'
 
 //tell the hive your state, this is asynchronous with IPFS return... 
 export function report(plas, con, additional = {}) {
     return new Promise((resolve, reject) => {
         con.then(r => {
-            var val = []
             const context = { config, fetch }
-            if(typeof CodeShare.reportFunction == 'function')CodeShare.reportFunction(val, plas, con, additional, context).then(r => {
+            console.log('CodeShare', CodeShare)
+            if(typeof CodeShare.reportFunction == 'function')CodeShare.reportFunction(plas, con, additional, context).then(r => {
                 console.log('reportFunction', r)
+                val = r
                 let report = {
                     hash: plas.hashLastIBlock,
                     block: plas.hashBlock,
@@ -17,7 +19,6 @@ export function report(plas, con, additional = {}) {
                     ipfs_id: plas.id,
                     version: VERSION
                 }
-                if (val.length) report.v = val
                 if (plas.hashBlock % 10000 == 1) {
                     report.hive_check = plas.hive_offset,
                         report.hbd_check = plas.hbd_offset
@@ -33,7 +34,7 @@ export function report(plas, con, additional = {}) {
                         report.oracle = plasma.oracle
                     }
                 } catch (e) { }
-
+                report = {...report, ...r}
                 var op = [
                     "custom_json",
                     {

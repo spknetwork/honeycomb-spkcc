@@ -297,8 +297,9 @@ const CodeShare = {
     return '';
   },
   
-  reportFunction: function (val, plas, con, proofs = {}, context = {}) {
+  reportFunction: function (plas, con, proofs = {}, context = {}) {
     return new Promise((resolve, reject) => {
+      var val = []
       const offset = plas.hashBlock % 200 > 100 ? 0 : 100
       for (var i = 0; i < 100; i++) {
         for (var CID in proofs[`${i + offset}`]) {
@@ -321,7 +322,7 @@ const CodeShare = {
         }
         if (JSON.stringify(val).length > 7800) break
       }
-      resolve(val)
+      resolve({v:val})
     })
   },
   PoA: {
