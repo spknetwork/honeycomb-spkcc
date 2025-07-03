@@ -888,6 +888,47 @@ const CodeShare = {
       }
       return true
     }
+  },
+  Validator: {
+    addSPK: function (vals, valStr, add) {
+      var votes = CodeShare.Validator.valStr2Arr(valStr)
+      vals = CodeShare.Validator.addVote(vals, votes, add)
+      return vals
+    },
+    removeSpk: function (vals, valStr, minus) {
+      var votes = CodeShare.Validator.valStr2Arr(valStr)
+      vals = CodeShare.Validator.removeVote(vals, votes, minus)
+      return vals
+    },
+    changeVote: function (vals, oldVotes, newVotes, spk) {
+      var votes = CodeShare.Validator.valStr2Arr(oldVotes)
+      vals = CodeShare.Validator.removeVote(vals, votes, spk)
+      votes = CodeShare.Validator.valStr2Arr(newVotes)
+      vals = CodeShare.Validator.addVote(vals, votes, spk)
+      return vals
+    },
+    removeVote: function (vals, voteArr, spk) {
+      for (var i = 0; i < voteArr.length; i++) {
+        const weight = parseInt(spk * (30 - i))
+        if (typeof vals[voteArr[i]] == "number") vals[voteArr[i]] -= weight
+      }
+      return vals
+    },
+    addVote: function (vals, voteArr, spk) {
+      for (var i = 0; i < voteArr.length; i++) {
+        const weight = parseInt(spk * (30 - i))
+        if (typeof vals[voteArr[i]] == "number") vals[voteArr[i]] += weight
+      }
+      return vals
+    },
+    valStr2Arr: function (valStr = "") {
+      var vals = []
+      var a = valStr.split('')
+      for (var i = 0; i < valStr.length; i++) {
+        var b = `${a[i]}`; i++; b = `${b}${a[i]}`; vals.push(b)
+      }
+      return [...new Set(vals)]
+    }
   }
 }
 
@@ -1068,30 +1109,7 @@ const CustomJsonProcessing = [
     type: "on",
     op: "spk_power_up",
     func: function (json, from, active, pc, context) {
-      const { store, config, getPathObj, getPathNum, postToDiscord, Base64 } = context
-      const Validator = {
-        addSPK: function (vals, valStr, add) {
-          var votes = this.valStr2Arr(valStr)
-          vals = this.addVote(vals, votes, add)
-          return vals
-        },
-        addVote: function (vals, voteArr, spk) {
-          for (var i = 0; i < voteArr.length; i++) {
-            const weight = parseInt(spk * (30 - i))
-            if (typeof vals[voteArr[i]] == "number") vals[voteArr[i]] += weight
-          }
-          return vals
-        },
-        valStr2Arr: function (valStr = "") {
-          var vals = []
-          var a = valStr.split('')
-          for (var i = 0; i < valStr.length; i++) {
-            var b = `${a[i]}`; i++; b = `${b}${a[i]}`; vals.push(b)
-          }
-          return [...new Set(vals)]
-        },
-
-      }
+      const { store, config, getPathObj, getPathNum, postToDiscord, Base64, CodeShare } = context
       var amount = parseInt(json.amount),
         lpp = getPathNum(["spk", from]),
         tpowp = getPathNum(["spow", "t"]),
@@ -1120,7 +1138,7 @@ const CustomJsonProcessing = [
               else if (ago <= (stats.spk_cycle_length * 8)) lastVote = lastVote - parseInt(dif * ((stats.spk_cycle_length * 4) - ago))
               else lastVote = lastVote + parseInt(dif * stats.spk_cycle_length * 4)
               if (valStr) {
-                vals = Validator.addSPK(vals, valStr, amount)
+                vals = CodeShare.Validator.addSPK(vals, valStr, amount)
               }
               daostring = Base64.fromNumber(lastVote) + ',' + valStr
             } else {
@@ -1546,7 +1564,7 @@ const CustomJsonProcessing = [
             votes = votes.replace(/[^0-9A-Za-z+=]/g, '')
             if (votes.length > 60) votes = votes.substring(0, 59)
             if (spk_power) {
-              vals = Validator.changeVote(vals, daoStringArr[1], votes, spk_power)
+              vals = CodeShare.Validator.changeVote(vals, daoStringArr[1], votes, spk_power)
               const msg = `@${from}| VV:${json.votes}`;
               ops.push({
                 type: "put",
