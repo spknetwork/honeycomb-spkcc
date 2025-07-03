@@ -414,8 +414,15 @@ export function customInit(api, chron, processor, codeShareDefsFromChain, everyD
         }
       }
     } else {
-      // Fall back to initial config.CustomEvery if available
-      if (config.CustomEvery && Array.isArray(config.CustomEvery)) {
+      // If no definitions from chain and Every already has more than just margins, preserve it
+      if (Every && Every.length > 1) {
+        console.log('Preserving existing Every array with', Every.length, 'functions');
+        // Copy existing functions except margins (first one)
+        for (let i = 1; i < Every.length; i++) {
+          newEvery.push(Every[i]);
+        }
+      } else if (config.CustomEvery && Array.isArray(config.CustomEvery)) {
+        // Fall back to initial config.CustomEvery if available
         console.log('Using initial config.CustomEvery as fallback...');
         rehydrateArrayOfFunctions(config.CustomEvery, newEvery);
       }
