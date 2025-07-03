@@ -792,53 +792,22 @@ const CodeShare = {
       return store.put(contractPath, contract)
     })
   },
-  Base64: {
-    glyphs64: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+=",
-    fromNumber: function (number) {
-      if (
-        isNaN(Number(number)) ||
-        number === null ||
-        number === Number.POSITIVE_INFINITY
-      )
-        throw "The input is not valid";
-      if (number < 0) throw "Can't represent negative numbers now";
-      var char;
-      var residual = Math.floor(number);
-      var result = "";
-      while (true) {
-        char = residual % 64;
-        result = this.glyphs64.charAt(char) + result;
-        residual = Math.floor(residual / 64);
-        if (residual == 0) break;
-      }
-      return result;
-    },
-
-    toNumber: function (chars) {
-      var result = 0;
-      chars = chars.split("");
-      for (var e = 0; e < chars.length; e++) {
-        result = result * 64 + this.glyphs64.indexOf(chars[e]);
-      }
-      return result;
-    },
-  },
-  broca_calc: function (last = '0,0', pow, stats, bn, add = 0) {
+  broca_calc: function (last = '0,0', pow, stats, bn, add = 0, Base64) {
     if (typeof last != "string" || last === undefined || last === null || !last.includes(',')) last = '0,0'
-    const last_calc = this.Base64.toNumber(last.split(',')[1])
+    const last_calc = Base64.toNumber(last.split(',')[1])
     const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000)))
     var total = parseInt(last.split(',')[0]) + accured + add
     if (total > (pow * 1000)) total = (pow * 1000)
-    return `${total},${this.Base64.fromNumber(bn)}`
+    return `${total},${Base64.fromNumber(bn)}`
   },
-  isValidMetadata: function (metadataString) {
+  isValidMetadata: function (metadataString, Base64) {
     let metaData = metadataString.split(',')
     const contractData = metaData[0]
     const metadata = metaData.splice(1)
     if (metadata.length % 4 !== 0) return false
     let firstChar = contractData.split('')[0]
     if (firstChar == '#' || firstChar == '|') firstChar = "1"
-    let simpleTest = this.Base64.toNumber(firstChar) + 1
+    let simpleTest = Base64.toNumber(firstChar) + 1
     if (typeof simpleTest !== 'number') return false
     let encryptionData = contractData.split('#')
     encryptionData[encryptionData.length - 1] = encryptionData[encryptionData.length - 1].split('|')[0]
@@ -1304,7 +1273,7 @@ const CustomJsonProcessing = [
             lbal = typeof lb != "number" ? 0 : lb,
             pbal = typeof pow != "number" ? 0 : pow,
             ops = [];
-          const broca = CodeShare.broca_calc(typeof broca_string == 'string' ? broca_string : '0,0', pbal, stats, json.block_num)
+          const broca = CodeShare.broca_calc(typeof broca_string == 'string' ? broca_string : '0,0', pbal, stats, json.block_num, 0, Base64)
           const cur_broca = parseInt(broca.split(',')[0]) || 0
           if (amount <= lbal && active) {
             ops.push({
@@ -1748,7 +1717,7 @@ const CustomJsonProcessing = [
             ops = [],
             err = '' //no log no broca?
           if (typeof broca != "string") broca = '0,0'
-          let brocaString = CodeShare.broca_calc(broca, pow, stats, json.block_num)
+          let brocaString = CodeShare.broca_calc(broca, pow, stats, json.block_num, 0, Base64)
           broca = parseInt(broca.split(',')[0])
           if (typeof template.i != "string") err += `Contract doesn't exist.`
           if (typeof authF != 'string') err += `@${from} hasn't registered a public key. `
@@ -1873,7 +1842,7 @@ const CustomJsonProcessing = [
                 } catch (e) {
                   console.log("Error parsing metadata:", e);
                 }
-                if (json.m && typeof json.m === 'string' && CodeShare.isValidMetadata(json.m) && metadata_size == metadata_size_verification) {
+                if (json.m && typeof json.m === 'string' && CodeShare.isValidMetadata(json.m, Base64) && metadata_size == metadata_size_verification) {
                   proffer.m = json.m;
                   proffer.m = stringify(proffer.m);
                 }
@@ -1938,7 +1907,7 @@ const CustomJsonProcessing = [
                     ops.push({
                       type: "put",
                       path: ["broca", json.f],
-                      data: CodeShare.broca_calc(broca, bpow, stats, json.block_num, broca_refund)
+                      data: CodeShare.broca_calc(broca, bpow, stats, json.block_num, broca_refund, Base64)
                     });
                     ops.push({
                       type: "put",
@@ -2149,7 +2118,7 @@ const CustomJsonProcessing = [
             ops = [],
             err = '';
 
-            brocaString = CodeShare.broca_calc(brocaString, bpow, stats, json.block_num)
+            brocaString = CodeShare.broca_calc(brocaString, bpow, stats, json.block_num, 0, Base64)
             broca = parseInt(brocaString.split(',')[0])
           // Validate metadata if provided
           if (json.m && typeof json.m === 'string') {
@@ -2161,7 +2130,7 @@ const CustomJsonProcessing = [
             } catch (e) {
               err += 'Invalid metadata format. ';
             }
-            if (!CodeShare.isValidMetadata(json.m) || metadata_size !== metadata_size_verification) {
+            if (!CodeShare.isValidMetadata(json.m, Base64) || metadata_size !== metadata_size_verification) {
               err += 'Invalid metadata structure. ';
             }
           }
@@ -2358,7 +2327,7 @@ const CustomJsonProcessing = [
                 ops.push({
                   type: 'put',
                   path: ['broca', account],
-                  data: CodeShare.broca_calc(exts[refunds[account].i], exts[refunds[account].i + 1], stats, json.block_num, refunds[account].a)
+                  data: CodeShare.broca_calc(exts[refunds[account].i], exts[refunds[account].i + 1], stats, json.block_num, refunds[account].a, Base64)
                 })
               }
               var items = Object.keys(contract.df)//goods
@@ -2405,7 +2374,7 @@ const CustomJsonProcessing = [
               ops.push({
                 type: 'put',
                 path: ['broca', proffer.f],
-                data: CodeShare.broca_calc(exts[0], exts[1], stats, json.block_num, proffer.r)
+                data: CodeShare.broca_calc(exts[0], exts[1], stats, json.block_num, proffer.r, Base64)
               })
               ops.push({
                 type: "del",
@@ -2473,7 +2442,7 @@ const CustomJsonProcessing = [
                   }
                   complete_metadata += partial.chunks[i];
                 }
-                if (!CodeShare.isValidMetadata(complete_metadata) || complete_metadata.split(',').length !== metadata_size_verification) {
+                if (!CodeShare.isValidMetadata(complete_metadata, Base64) || complete_metadata.split(',').length !== metadata_size_verification) {
                   errors.push(`Invalid metadata format or size for contract ${json.id}`)
                   ops.push({
                     type: "del",
@@ -2498,7 +2467,7 @@ const CustomJsonProcessing = [
                 return
               }
             } else if (json.m && typeof json.m === "string") {
-              if (!CodeShare.isValidMetadata(json.m) || json.m.split(',').length !== metadata_size_verification) {
+              if (!CodeShare.isValidMetadata(json.m, Base64) || json.m.split(',').length !== metadata_size_verification) {
                 errors.push(`Invalid metadata format or size for contract ${json.id}`);
                 return
               }
@@ -2512,7 +2481,7 @@ const CustomJsonProcessing = [
                 errors.push(`Failed to apply diff for contract ${json.id}`)
                 return
               }
-              if (!CodeShare.isValidMetadata(newMetadata) || newMetadata.split(',').length !== metadata_size_verification) {
+              if (!CodeShare.isValidMetadata(newMetadata, Base64) || newMetadata.split(',').length !== metadata_size_verification) {
                 errors.push(`Invalid metadata format or size after diff for contract ${json.id}`);
                 return
               }
@@ -2553,7 +2522,7 @@ const CustomJsonProcessing = [
               }
               const metadata_size_verification = (Object.keys(contract.df).length * 4 + 1)
               if (update.m && typeof update.m === "string") {
-                if (!CodeShare.isValidMetadata(update.m) || update.m.split(',').length !== metadata_size_verification) {
+                if (!CodeShare.isValidMetadata(update.m, Base64) || update.m.split(',').length !== metadata_size_verification) {
                   errors.push(`Invalid metadata format or size for contract ${contractId}`);
                   //console.log(!isValidMetadata(update.m), update.m.split(',').length, metadata_size_verification)
                   return
@@ -2564,7 +2533,7 @@ const CustomJsonProcessing = [
                 }
               } else if (update.diff && typeof update.diff === "string") {
                 const newMetadata = jsdiff.applyPatch(contract.m, update.diff)
-                if (!CodeShare.isValidMetadata(newMetadata) || newMetadata.split(',').length !== metadata_size_verification) {
+                if (!CodeShare.isValidMetadata(newMetadata, Base64) || newMetadata.split(',').length !== metadata_size_verification) {
                   errors.push(`Invalid metadata format or size for contract ${contractId}`);
                   //console.log(!isValidMetadata(newMetadata), newMetadata.split(',').length, metadata_size_verification)
                   return
@@ -2663,7 +2632,7 @@ const CustomJsonProcessing = [
                   getPathObj(["bpow", account]),
                   getPathObj(["stats"])
                 ]).then(([broca, bpow, stats]) => {
-                  const updatedBroca = CodeShare.broca_calc(broca, bpow, stats, block_num, refundAmount);
+                  const updatedBroca = CodeShare.broca_calc(broca, bpow, stats, block_num, refundAmount, Base64);
                   ops.push({
                     type: "put",
                     path: ["broca", account],
@@ -2867,7 +2836,7 @@ const CustomJsonProcessing = [
             contract = mem[3],
             ops = [],
             err = '', //no log no broca?
-            brocaString = CodeShare.broca_calc(broca, pow, stats, json.block_num),
+            brocaString = CodeShare.broca_calc(broca, pow, stats, json.block_num, 0, Base64),
             broca = parseInt(brocaString.split(',')[0])
           if (json.broca <= broca && contract.c == 3) {
             broca = broca - json.broca
@@ -8418,7 +8387,7 @@ const CustomChron = [
                 stats = mem[1],
                 ops = [],
                 bytes = 0,
-                broca = CodeShare.broca_calc(mem[2], mem[3], stats, num),
+                broca = CodeShare.broca_calc(mem[2], mem[3], stats, num, 0, Base64),
                 renew = contract.m ? (contract.m.indexOf('"') >= 0 ? Base64.toNumber(JSON.parse(contract.m)[0]) & 1 : Base64.toNumber(contract.m[0]) & 1) : 0
               if (contract.c == 3 && renew && parseInt(broca.split(',')[0]) > 100) {
                 processor.doOn('extend', {
@@ -8478,7 +8447,7 @@ const CustomChron = [
   {
     op: 'channel_check',
     func: function (b, passed, res, rej, num, prand, ints, bh, context) {
-      const { store, getPathObj, CodeShare } = context;
+      const { store, getPathObj, CodeShare, Base64 } = context;
       function channelCheck(promies, delkey, num, id, b) {
         return new Promise((resolve, reject) => {
           Promise.all(promies)
@@ -8521,7 +8490,7 @@ const CustomChron = [
                 ops.push({
                   type: "put",
                   path: ["broca", b.from],
-                  data: CodeShare.broca_calc(broca, bpow, stats, num, contract.r)
+                  data: CodeShare.broca_calc(broca, bpow, stats, num, contract.r, Base64)
                 });
               }
               ops.push({ type: "del", path: ["chrono", delkey] });
