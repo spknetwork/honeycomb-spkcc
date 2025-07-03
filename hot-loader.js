@@ -68,9 +68,21 @@ export function hotAPI(api) {
   for (var customRoute of config.CustomAPI) {
     console.log(`Registering custom API route: ${customRoute.path}`);
     
-    const func = typeof customRoute.func === 'function' 
-      ? customRoute.func 
-      : new Function('req', 'res', 'next', 'runtimeContext', customRoute.func);
+    let func;
+    if (typeof customRoute.func === 'function') {
+      func = customRoute.func;
+    } else {
+      // Check if the function body contains await to determine if it should be async
+      const isAsync = customRoute.func.includes('await ');
+      
+      if (isAsync) {
+        // Create an async function
+        const AsyncFunction = (async function () {}).constructor;
+        func = new AsyncFunction('req', 'res', 'next', 'runtimeContext', customRoute.func);
+      } else {
+        func = new Function('req', 'res', 'next', 'runtimeContext', customRoute.func);
+      }
+    }
 
     // Register the route with proper error handling
     api.get(customRoute.path, (req, res, next) => {
@@ -207,7 +219,17 @@ export function hotOps(processor) {
     const funcBody = extractFunctionBody(customOp.func);
 
     // func expects: json, from, active, pc, runtimeContext
-    const func = new Function('json', 'pc', 'context', funcBody);
+    // Check if the function body contains await to determine if it should be async
+    const isAsync = funcBody.includes('await ');
+    let func;
+    
+    if (isAsync) {
+      // Create an async function
+      const AsyncFunction = (async function () {}).constructor;
+      func = new AsyncFunction('json', 'pc', 'context', funcBody);
+    } else {
+      func = new Function('json', 'pc', 'context', funcBody);
+    }
 
     // Processor.onOperation provides: json, from, active, pc
     // We call func with these + our runtimeContext
@@ -246,7 +268,16 @@ export function hotChron(chronOps) {
         console.log('Registering customChronJob:', customChronJob.op)
         if (!customChronJob || typeof customChronJob.func !== 'function') {
           const funcBody = extractFunctionBody(customChronJob.func);
-          customChronJob.function = new Function('b', 'passed', 'res', 'rej', 'num', 'prand', 'ints', 'bh', 'context', funcBody); 
+          // Check if the function body contains await to determine if it should be async
+          const isAsync = funcBody.includes('await ');
+          
+          if (isAsync) {
+            // Create an async function
+            const AsyncFunction = (async function () {}).constructor;
+            customChronJob.function = new AsyncFunction('b', 'passed', 'res', 'rej', 'num', 'prand', 'ints', 'bh', 'context', funcBody);
+          } else {
+            customChronJob.function = new Function('b', 'passed', 'res', 'rej', 'num', 'prand', 'ints', 'bh', 'context', funcBody);
+          }
         }
 
         // Create a closure that captures the current customChronJob by value
@@ -415,11 +446,21 @@ function rehydrateObjectRecursively(source, target) {
             paramsArray = keys.map(k => value.params[k]);
           }
           
-          const func = new Function(...paramsArray, value.body);
+          // Check if the function body contains await to determine if it should be async
+          const isAsync = value.body.includes('await ');
+          let func;
+          
+          if (isAsync) {
+            // Create an async function
+            const AsyncFunction = (async function () {}).constructor;
+            func = new AsyncFunction(...paramsArray, value.body);
+          } else {
+            func = new Function(...paramsArray, value.body);
+          }
           
           // Set the function at the correct nested path
           setNestedProperty(target, key, func);
-          console.log(`Rehydrated function at path: ${key}`);
+          console.log(`Rehydrated ${isAsync ? 'async ' : ''}function at path: ${key}`);
         } catch (e) {
           console.error(`Error rehydrating function ${key}:`, e, value);
           setNestedProperty(target, key, () => { console.error(`Function ${key} failed to rehydrate`); });
@@ -462,7 +503,18 @@ function rehydrateArrayOfFunctions(source, target) {
   for (const item of source) {
     if (typeof item === 'object' && item !== null && item.params && item.body) {
       try {
-        const func = new Function(...item.params, item.body);
+        // Check if the function body contains await to determine if it should be async
+        const isAsync = item.body.includes('await ');
+        let func;
+        
+        if (isAsync) {
+          // Create an async function
+          const AsyncFunction = (async function () {}).constructor;
+          func = new AsyncFunction(...item.params, item.body);
+        } else {
+          func = new Function(...item.params, item.body);
+        }
+        
         target.push(func);
       } catch (e) {
         console.error('Error rehydrating function from array:', e, item);
