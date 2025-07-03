@@ -9,6 +9,7 @@ export function report(plas, con, additional = {}) {
             var val = []
             const context = { config, fetch }
             if(typeof CodeShare.reportFunction == 'function')CodeShare.reportFunction(val, plas, con, additional, context).then(r => {
+                console.log('reportFunction', r)
                 let report = {
                     hash: plas.hashLastIBlock,
                     block: plas.hashBlock,

@@ -534,10 +534,8 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
               return new Promise(async (resolveEvery, rejectEvery) => {
                 let promises = []
                 const realTime = API.RAM.behind < 50 ? true : false
-                console.log(`Block ${num}: Every array has ${Every.length} functions, realTime=${realTime}, behind=${API.RAM.behind}`)
                 try {
                   for (var func of Every) {
-                    console.log(`Block ${num}: Calling Every function:`, func.name || 'anonymous')
                     await func(num, prand, stats, realTime, runtimeContext);
                   }
                 } catch (error) {
