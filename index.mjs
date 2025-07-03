@@ -541,6 +541,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                     await func(num, prand, stats, realTime, runtimeContext);
                   }
                 } catch (error) {
+                  console.log(error)
                   rejectEvery(error);
                   return;
                 }
