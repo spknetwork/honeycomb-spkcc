@@ -336,6 +336,17 @@ export function hotConfig(newConfig, cleanState, api, chronOps, processor) {
       // Already an array (potentially dehydrated definitions)
       everyDefsFromChain = newConfig.CustomEvery;
       console.log('Using config.CustomEvery array directly as definitions');
+    } else if (typeof newConfig.CustomEvery === 'object') {
+      // Handle case where array is stored as object with numeric keys
+      console.log('Converting CustomEvery object with numeric keys to array');
+      everyDefsFromChain = [];
+      const keys = Object.keys(newConfig.CustomEvery).sort((a, b) => parseInt(a) - parseInt(b));
+      for (const key of keys) {
+        if (!isNaN(parseInt(key))) {
+          everyDefsFromChain.push(newConfig.CustomEvery[key]);
+        }
+      }
+      console.log(`Converted ${keys.length} CustomEvery entries from object to array`);
     }
   }
 
