@@ -7,6 +7,9 @@ const username = ENV.account || 'disregardfiat';
 const active = ENV.active || '';
 const follow = ENV.follow || 'disregardfiat';
 const poav_address = ENV.POA_URL || ""
+const poaStatsWindowSize = ENV.POA_STATS_WINDOW || 1000 // Number of recent measurements to keep for statistics
+const poaMinMeasurements = ENV.POA_MIN_MEASUREMENTS || 10 // Minimum measurements before calculating z-scores
+const troleEndpoint = ENV.TROLE_ENDPOINT || 'https://ipfs.dlux.io' // Trole service endpoint for fetching node health scores
 const msowner = ENV.msowner || '';
 const mspublic = ENV.mspublic || '';
 const memoKey = ENV.memo || '';
@@ -139,37 +142,163 @@ const CustomEvery = [
 ]
 
 const CodeShare = {
-  reportFunction: function (val, plas, con, proofs = {}) {
-    return new Promise((resolve, reject) => {
-      function msIzer(timer) {
-        var ms = 0
-        // regex to match m but not ms
-        var minuteD = timer.split(/m(?![s])/g)
-        if (minuteD.length > 1) {
-          var minutes = minuteD[0]
-          timer = minuteD[1]
-          const dotSplit = minutes.split(".")
-          if (dotSplit.length > 1) {
-            ms += parseInt(dotSplit[0]) * 60000
-            ms = parseInt(dotSplit[1] * 60) * 1000
-          } else {
-            ms += parseInt(dotSplit[0]) * 60000
-          }
-        }
-        // regex to match s but not ms
-        var secondD = timer.split(/(?<![m])s/g)
-        if (secondD.length > 1) {
-          var seconds = secondD[0]
-          timer = secondD[1]
-          ms += parseInt(parseFloat(seconds) * 1000)
-        }
-        // regex to match ms
-        var millisecondD = timer.split(/ms/g)
-        if (millisecondD.length > 1) {
-          ms += parseInt(millisecondD[0])
-        }
-        return ms
+  // Initialize PoA statistics in RAM if not exists
+  initPoAStats: function(context) {
+    const { RAM, config } = context;
+    if (!RAM.poaStats) {
+      RAM.poaStats = {
+        windowSize: config.poaStatsWindowSize || 1000,
+        measurements: {} // node -> array of latencies
+      };
+    }
+  },
+  
+  // Add measurement to rolling statistics
+  addPoAMeasurement: function(node, latency, context) {
+    const { RAM } = context;
+    CodeShare.initPoAStats(context);
+    
+    if (!RAM.poaStats.measurements[node]) {
+      RAM.poaStats.measurements[node] = [];
+    }
+    
+    const measurements = RAM.poaStats.measurements[node];
+    measurements.push(latency);
+    
+    // Keep only the most recent measurements
+    if (measurements.length > RAM.poaStats.windowSize) {
+      measurements.shift();
+    }
+  },
+  
+  // Get statistics for a node
+  getPoAStatistics: function(node, context) {
+    const { RAM } = context;
+    CodeShare.initPoAStats(context);
+    
+    const measurements = RAM.poaStats.measurements[node];
+    
+    if (!measurements || measurements.length < 2) {
+      return null;
+    }
+    
+    // Calculate mean
+    const mean = measurements.reduce((sum, val) => sum + val, 0) / measurements.length;
+    
+    // Calculate standard deviation
+    const variance = measurements.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / measurements.length;
+    const stdDev = Math.sqrt(variance);
+    
+    return { mean, stdDev, count: measurements.length };
+  },
+  
+  // Calculate z-score for a measurement
+  calculatePoAZScore: function(node, latency, context) {
+    const stats = CodeShare.getPoAStatistics(node, context);
+    
+    if (!stats || stats.stdDev === 0) {
+      return 0; // Return normal if insufficient data
+    }
+    
+    return (latency - stats.mean) / stats.stdDev;
+  },
+  
+  // Convert time string to milliseconds
+  msIzer: function(timer) {
+    var ms = 0
+    // regex to match m but not ms
+    var minuteD = timer.split(/m(?![s])/g)
+    if (minuteD.length > 1) {
+      var minutes = minuteD[0]
+      timer = minuteD[1]
+      const dotSplit = minutes.split(".")
+      if (dotSplit.length > 1) {
+        ms += parseInt(dotSplit[0]) * 60000
+        ms += parseInt(dotSplit[1] * 60) * 1000
+      } else {
+        ms += parseInt(dotSplit[0]) * 60000
       }
+    }
+    // regex to match s but not ms
+    var secondD = timer.split(/(?<![m])s/g)
+    if (secondD.length > 1) {
+      var seconds = secondD[0]
+      timer = secondD[1]
+      ms += parseInt(parseFloat(seconds) * 1000)
+    }
+    // regex to match ms
+    var millisecondD = timer.split(/ms/g)
+    if (millisecondD.length > 1) {
+      ms += parseInt(millisecondD[0])
+    }
+    return ms
+  },
+  
+  // Base64 encoding constants
+  BASE64_CHARS: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+=",
+  NORMAL_POSITION: 32, // 'W' character represents 0 standard deviations
+  Z_SCORE_STEP: 0.1, // Each character represents 0.1 standard deviation
+  
+  // Convert z-score to base64 character
+  zScoreToBase64: function(zScore) {
+    // Clamp z-score to valid range (-3.2 to +3.1)
+    const clampedZ = Math.max(-3.2, Math.min(3.1, zScore));
+    
+    // Calculate position (0-63)
+    const position = Math.round((clampedZ / CodeShare.Z_SCORE_STEP) + CodeShare.NORMAL_POSITION);
+    
+    // Ensure position is within valid range
+    const finalPosition = Math.max(0, Math.min(63, position));
+    
+    return CodeShare.BASE64_CHARS[finalPosition];
+  },
+  
+  // Convert base64 character to z-score
+  base64ToZScore: function(char) {
+    const position = CodeShare.BASE64_CHARS.indexOf(char);
+    
+    if (position === -1) {
+      throw new Error(`Invalid base64 character: ${char}`);
+    }
+    
+    // Calculate z-score from position
+    const zScore = (position - CodeShare.NORMAL_POSITION) * CodeShare.Z_SCORE_STEP;
+    
+    return zScore;
+  },
+  
+  // Function to fetch trole health score for a node
+  fetchTroleHealthScore: async function(nodeName, context) {
+    const { config } = context;
+    const endpoint = config.troleEndpoint || 'https://ipfs.dlux.io';
+    
+    try {
+      // Use native fetch if available, otherwise use the context fetch
+      const fetchFn = context.fetch || fetch;
+      const response = await fetchFn(`${endpoint}/node-health/${nodeName}`, {
+        headers: {
+          'X-Health-Check': 'true'
+        },
+        timeout: 5000
+      });
+      
+      if (response.ok) {
+        const text = await response.text();
+        // Trole returns a 2-character string
+        if (text && text.length === 2) {
+          return text;
+        }
+      }
+    } catch (error) {
+      if (config.mode == 'verbose') console.log(`Failed to fetch trole health score for ${nodeName}:`, error.message);
+    }
+    
+    // Return empty string if no response
+    return '';
+  },
+  
+  reportFunction: function (val, plas, con, proofs = {}, context = {}) {
+    return new Promise((resolve, reject) => {
       const offset = plas.hashBlock % 200 > 100 ? 0 : 100
       for (var i = 0; i < 100; i++) {
         for (var CID in proofs[`${i + offset}`]) {
@@ -180,10 +309,14 @@ const CodeShare = {
           } catch (e) { continue }
           if (nodes.length) {
             for (var j = 0; j < nodes.length; j++) {
-              if (proofs[`${i + offset}`][CID].npid[nodes[j]] && proofs[`${i + offset}`][CID].npid[nodes[j]].Elapsed) formated.push([nodes[j], msIzer(proofs[`${i + offset}`][CID].npid[nodes[j]].Elapsed)])
+              // Just read the 1-3 char string from RAM
+              const scoreStr = proofs[`${i + offset}`][CID].npid[nodes[j]]
+              if (scoreStr && typeof scoreStr === 'string' && scoreStr.length >= 1) {
+                formated.push([nodes[j], scoreStr])
+              }
+              // If no score string, node failed validation - don't include
             }
             if (formated.length > 2) val.push(formated)
-
           }
         }
         if (JSON.stringify(val).length > 7800) break
@@ -192,7 +325,7 @@ const CodeShare = {
     })
   },
   PoA: {
-    Check: function (b, rand, stats, val, cBroca, vBroca, pc, context) {
+    Check: async function (b, rand, stats, val, cBroca, vBroca, pc, context) {
       const { getPathObj, CodeShare, Base58, config, Base64, store } = context
       var promises = []
       for (var i = 0; i < b.report.v.length; i++) {
@@ -216,19 +349,18 @@ const CodeShare = {
           }
         }
         if (promises.length) Promise.all(promises).then(contracts => {
-          const oldTotal = stats.val_tot_ms || 0
-          const oldCount = stats.val_count || 0
-          const oldMean = parseInt(oldTotal / oldCount)
-          const oldStdDevNum = stats.val_std_dev_num || parseInt((Math.pow(oldTotal - oldMean, 2)) * 1000)
-          const oldStdDev = parseInt(Math.sqrt(oldStdDevNum / (oldCount * 1000)))
-          var newStdDevNum = oldStdDevNum
-          var newCount = oldCount
-          var newTotal = oldTotal
+          // Statistics tracking for validation counts
+          var newCount = stats.val_count || 0
+          var totalValidations = stats.val_total || 0
+          var successfulValidations = stats.val_successful || 0
           for (var i = 0; i < contracts.length; i++) {
             var reward = 0
             try {
-              reward = parseInt((contracts[i].p * contracts[i].r * contracts[i].df[b.report.v[i][0]]) / (contracts[i].u * 3))
-              if (config.mode == 'verbose') console.log({ contract: contracts[i], reward })
+              // Calculate reward using .v/.u ratio for verification confidence
+              const verificationRatio = (contracts[i].v || 0) / (contracts[i].u || 1)
+              // Base reward calculation with verification ratio modifier
+              reward = parseInt((contracts[i].p * contracts[i].r * contracts[i].df[b.report.v[i][0]] * verificationRatio) / (contracts[i].u * 3))
+              if (config.mode == 'verbose') console.log({ contract: contracts[i], verificationRatio, reward })
             } catch (e) {
               if (config.mode == 'verbose') console.log(e)
               continue
@@ -250,18 +382,49 @@ const CodeShare = {
               }
             }
             var accepted = {}
+            // Process node results - data now comes as 1-3 character strings
             for (var j = 2; j < b.report.v[i].length; j++) {
-              if (b.report.v[i][j][1] > 0 && typeof b.report.v[i][j][1] == 'number' && b.report.v[i][j][1] < 240000) {
-                newCount++
-                newTotal += b.report.v[i][j][1]
-                const delta = b.report.v[i][j][1] - oldMean
-                newStdDevNum = parseInt(newStdDevNum + (Math.pow(b.report.v[i][j][1] - oldMean, 2) * 1000))
-                if (Math.abs(delta) < 2 * oldStdDev) {
-                  paid++
-                  accepted[b.report.v[i][j][0]] = { a: b.report.v[i][j][0], r: 2, p: 0 }
-                } else if (Math.abs(delta) < 3 * oldStdDev) {
-                  paid++
-                  accepted[b.report.v[i][j][0]] = { a: b.report.v[i][j][0], r: 1, p: 0 }
+              const nodeName = b.report.v[i][j][0]
+              const scoreStr = b.report.v[i][j][1]
+              
+              // scoreStr should be 1-3 characters: PoA z-score (1 char) + optional Trole scores (2 chars)
+              if (scoreStr && typeof scoreStr == 'string' && scoreStr.length >= 1) {
+                try {
+                  // Extract the PoA z-score (first character)
+                  const poaZScoreChar = scoreStr[0]
+                  const poaZScore = CodeShare.base64ToZScore(poaZScoreChar)
+                  
+                  // Check if we have trole scores for double rewards
+                  const hasTroleBonus = scoreStr.length >= 3
+                  
+                  newCount++
+                  
+                  // Reward based on z-score performance
+                  // Within ±2 standard deviations = full reward (r: 2)
+                  // Within ±3 standard deviations = partial reward (r: 1)
+                  // Beyond ±3 standard deviations = no reward
+                  if (Math.abs(poaZScore) < 2) {
+                    paid++
+                    accepted[nodeName] = { 
+                      a: nodeName, 
+                      r: 2, 
+                      p: 0, 
+                      z: poaZScore, 
+                      bonus: hasTroleBonus // Track if they get double rewards
+                    }
+                  } else if (Math.abs(poaZScore) < 3) {
+                    paid++
+                    accepted[nodeName] = { 
+                      a: nodeName, 
+                      r: 1, 
+                      p: 0, 
+                      z: poaZScore, 
+                      bonus: hasTroleBonus // Track if they get double rewards
+                    }
+                  }
+                  // Nodes beyond ±3 SD get no reward
+                } catch (e) {
+                  if (config.mode == 'verbose') console.log('Error decoding z-score:', e)
                 }
               }
             }
@@ -281,15 +444,50 @@ const CodeShare = {
             }
             acc.sort((a, b) => a.p - b.p)
             for (var j = 0; j < acc.length; j++) {
-              if (j < contracts[i].p) cBroca[acc[j].a] = cBroca[acc[j].a] ? cBroca[acc[j].a] + reward : reward
-              else cBroca[acc[j].a] = cBroca[acc[j].a] ? cBroca[acc[j].a] + parseInt(reward / Math.pow(j - 1 - contracts[i].p, 2)) : parseInt(reward / Math.pow(j - 1 - contracts[i].p, 2))
+              // Calculate base reward
+              let nodeReward
+              if (j < contracts[i].p) {
+                nodeReward = reward
+              } else {
+                nodeReward = parseInt(reward / Math.pow(j - 1 - contracts[i].p, 2))
+              }
+              
+              // Double the reward if node has trole bonus (3-char string)
+              if (acc[j].bonus) {
+                nodeReward = nodeReward * 2
+              }
+              
+              cBroca[acc[j].a] = cBroca[acc[j].a] ? cBroca[acc[j].a] + nodeReward : nodeReward
             }
-            if (paid) vBroca[b.self] = vBroca[b.self] ? vBroca[b.self] + (2 * reward) : (2 * reward)
+            if (paid) {
+              vBroca[b.self] = vBroca[b.self] ? vBroca[b.self] + (2 * reward) : (2 * reward)
+              successfulValidations += paid
+              
+              // Update contract verification score based on validation success
+              const successRate = paid / (b.report.v[i].length - 2) // success rate for this validation
+              
+              // Adjust contract .v field based on success rate
+              if (contracts[i]) {
+                const currentV = contracts[i].v || contracts[i].u / 2
+                // Move .v towards .u for high success rates, towards 0 for low rates
+                const targetV = contracts[i].u * successRate
+                const adjustment = 0.5 // 10% adjustment per validation
+                contracts[i].v = Math.round(currentV + (targetV - currentV) * adjustment)
+                contracts[i].lastValidated = Date.now()
+                
+                ops.push({
+                  type: "put",
+                  path: ['contract', contractIDs[i].split(',')[0], contractIDs[i].split(',')[1]],
+                  data: contracts[i]
+                })
+              }
+            }
+            totalValidations += (b.report.v[i].length - 2) // Subtract 2 for CID and block number
           }
           delete b.report.v
-          stats.val_tot_ms = newTotal
           stats.val_count = newCount
-          stats.val_std_dev_num = newStdDevNum
+          stats.val_total = totalValidations
+          stats.val_successful = successfulValidations
           var ops = [{ type: "put", path: ["markets", "node", b.self], data: b },
           { type: "put", path: ["stats"], data: stats }]
           if (Object.keys(vBroca).length) ops.push({ type: "put", path: ["vbroca"], data: vBroca })
@@ -355,6 +553,7 @@ const CodeShare = {
                         toVerify[dfKeys[j]].i = i
                         toVerify[dfKeys[j]].v = 0
                         toVerify[dfKeys[j]].npid = {}
+                        toVerify[dfKeys[j]].sizes = {} // Store reported file sizes
                         for (var node in toVerify[dfKeys[j]].n) {
                           toVerify[dfKeys[j]].npid[toVerify[dfKeys[j]].n[node]] = {
                             Message: 0,
@@ -455,8 +654,9 @@ const CodeShare = {
         socket.on('open', (connection) => {
           if (config.mode == 'verbose') console.log("WebSocket connected successfully")
           const timeoutId = setTimeout(() => {
-            if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name] && !RAM.Pending[`${bn % 200}`][CID].npid[Name].Status) {
-              RAM.Pending[`${bn % 200}`][CID].npid[Name] = { Status: 'Invalid', Message: 'Timeout' }
+            // Remove entry for timeouts
+            if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
+              delete RAM.Pending[`${bn % 200}`][CID].npid[Name]
             }
             socket.close()
             if (config.mode == 'verbose') console.log("Timeout:", CID)
@@ -473,16 +673,18 @@ const CodeShare = {
               //socket.close()
               if (config.mode == 'verbose') console.log('Found Hive Account')
             } else if (data.Status === 'IpfsPeerIDError') {
+              // Remove entry for invalid results
               if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
-                RAM.Pending[`${bn % 200}`][CID].npid[Name] = { Status: 'Invalid', Message: 'IpfsPeerIDError' }
+                delete RAM.Pending[`${bn % 200}`][CID].npid[Name]
               }
               socket.close()
               if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
             } else if (data.Status === 'RequestingProof') {
               if (config.mode == 'verbose') console.log('RequestingProof')
             } else if (data.Status === 'Connection Error') {
+              // Remove entry for invalid results
               if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
-                RAM.Pending[`${bn % 200}`][CID].npid[Name] = { Status: 'Invalid', Message: 'ConnectionError' }
+                delete RAM.Pending[`${bn % 200}`][CID].npid[Name]
               }
               socket.close()
               if (config.mode == 'verbose') console.log('Error: Connection Error')
@@ -498,13 +700,46 @@ const CodeShare = {
               if (config.mode == 'verbose') console.log('Validating Proof', { data })
             } else if (data.Status === "Valid") {
               clearTimeout(timeoutId)
-              if (RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name] && !RAM.Pending[`${bn % 200}`][CID].npid[Name].Message) RAM.Pending[`${bn % 200}`][CID].npid[Name] = data
+              if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
+                // Process the elapsed time and calculate z-score
+                if (data.Elapsed) {
+                  const elapsedMs = CodeShare.msIzer(data.Elapsed)
+                  
+                  // Add measurement to rolling statistics
+                  CodeShare.addPoAMeasurement(Name, elapsedMs, context)
+                  
+                  // Calculate z-score
+                  const zScore = CodeShare.calculatePoAZScore(Name, elapsedMs, context)
+                  const zScoreChar = CodeShare.zScoreToBase64(zScore)
+                  
+                  // Try to fetch trole health score for bonus
+                  CodeShare.fetchTroleHealthScore(Name, context).then(troleScore => {
+                    if (troleScore && troleScore.length === 2) {
+                      // Store 3-char string for double rewards
+                      RAM.Pending[`${bn % 200}`][CID].npid[Name] = zScoreChar + troleScore
+                      if (config.mode == 'verbose') console.log('Stored score with trole bonus:', Name, zScoreChar + troleScore)
+                    } else {
+                      // Store just the PoA z-score (1 char)
+                      RAM.Pending[`${bn % 200}`][CID].npid[Name] = zScoreChar
+                      if (config.mode == 'verbose') console.log('Stored score:', Name, zScoreChar)
+                    }
+                  }).catch(err => {
+                    // On error, store just the PoA z-score (1 char)
+                    RAM.Pending[`${bn % 200}`][CID].npid[Name] = zScoreChar
+                    if (config.mode == 'verbose') console.log('Stored score:', Name, zScoreChar)
+                  })
+                } else {
+                  // No elapsed time, remove the entry so it's not reported
+                  delete RAM.Pending[`${bn % 200}`][CID].npid[Name]
+                }
+              }
               if (config.mode == 'verbose') console.log('Proof Valid', { data })
               socket.close()
             } else if (data.Status === "Invalid") {
               clearTimeout(timeoutId)
-              if (RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
-                RAM.Pending[`${bn % 200}`][CID].npid[Name] = data
+              // Remove entry for invalid results
+              if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
+                delete RAM.Pending[`${bn % 200}`][CID].npid[Name]
               }
               if (config.mode == 'verbose') console.log('Proof Invalid', { data })
               socket.close()
@@ -515,19 +750,174 @@ const CodeShare = {
         })
         socket.onerror = (error) => {
           clearTimeout(timeoutId)
-          if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
-            RAM.Pending[`${bn % 200}`][CID].npid[Name] = { Status: 'Invalid', Message: 'WebSocketError: ' + error.toString() }
-          }
+          // Don't store anything for errors
           if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
         };
 
         if (config.mode == 'verbose') console.log("WebSocket connection initiated")
       } catch (error) {
-        if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
-          RAM.Pending[`${bn % 200}`][CID].npid[Name] = { Status: 'Invalid', Message: 'Exception: ' + error.toString() }
-        }
+        // Don't store anything for exceptions
         if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
       }
+    }
+  },
+  updateContractVerification: function(contractPath, actualSize, expectedSize, context) {
+    // Update contract .v field based on file size verification
+    const { getPathObj, store } = context
+    
+    return getPathObj(contractPath).then(contract => {
+      if (!contract || !contract.u) return Promise.resolve()
+      
+      // Calculate verification adjustment
+      const sizeDiff = Math.abs(actualSize - expectedSize)
+      const tolerance = expectedSize * 0.01 // 1% tolerance for compression/encoding differences
+      
+      let verificationAdjustment = 1.0
+      if (sizeDiff <= tolerance) {
+        // Size matches within tolerance - increase verification
+        verificationAdjustment = 1.1 // 10% increase
+      } else {
+        // Size mismatch - decrease verification proportionally
+        const mismatchRatio = sizeDiff / expectedSize
+        verificationAdjustment = Math.max(0.5, 1 - mismatchRatio) // At least 50% penalty
+      }
+      
+      // Update contract .v field
+      const currentV = contract.v || 0
+      const newV = Math.min(contract.u, Math.max(0, currentV * verificationAdjustment))
+      
+      contract.v = parseInt(newV)
+      contract.lastVerified = Date.now()
+      
+      return store.put(contractPath, contract)
+    })
+  },
+  Base64: {
+    glyphs64: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+=",
+    fromNumber: function (number) {
+      if (
+        isNaN(Number(number)) ||
+        number === null ||
+        number === Number.POSITIVE_INFINITY
+      )
+        throw "The input is not valid";
+      if (number < 0) throw "Can't represent negative numbers now";
+      var char;
+      var residual = Math.floor(number);
+      var result = "";
+      while (true) {
+        char = residual % 64;
+        result = this.glyphs64.charAt(char) + result;
+        residual = Math.floor(residual / 64);
+        if (residual == 0) break;
+      }
+      return result;
+    },
+
+    toNumber: function (chars) {
+      var result = 0;
+      chars = chars.split("");
+      for (var e = 0; e < chars.length; e++) {
+        result = result * 64 + this.glyphs64.indexOf(chars[e]);
+      }
+      return result;
+    },
+  },
+  broca_calc: function (last = '0,0', pow, stats, bn, add = 0) {
+    if (typeof last != "string" || last === undefined || last === null) last = '0,0'
+    const last_calc = this.Base64.toNumber(last.split(',')[1])
+    const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000)))
+    var total = parseInt(last.split(',')[0]) + accured + add
+    if (total > (pow * 1000)) total = (pow * 1000)
+    return `${total},${this.Base64.fromNumber(bn)}`
+  },
+  isValidMetadata: function (metadataString) {
+    let metaData = metadataString.split(',')
+    const contractData = metaData[0]
+    const metadata = metaData.splice(1)
+    if (metadata.length % 4 !== 0) return false
+    let firstChar = contractData.split('')[0]
+    if (firstChar == '#' || firstChar == '|') firstChar = "1"
+    let simpleTest = this.Base64.toNumber(firstChar) + 1
+    if (typeof simpleTest !== 'number') return false
+    let encryptionData = contractData.split('#')
+    encryptionData[encryptionData.length - 1] = encryptionData[encryptionData.length - 1].split('|')[0]
+    encryptionData = encryptionData.splice(1)
+    for (let i = 0; i < encryptionData.length; i++) {
+      let key = encryptionData[i]
+      if (key.endsWith(';')) key = key.substring(0, key.length - 1)
+      let atIndex = key.indexOf('@')
+      if (atIndex === -1) return false
+      let cipher = key.substring(0, atIndex)
+      if (!/^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/.test(cipher)) return false
+      let account = key.substring(atIndex + 1)
+      if (!/^[a-z0-9-.]{1,16}$/.test(account)) return false
+    }
+    let folderData = contractData.split('|')
+    folderData = folderData.splice(1)
+    if (folderData.length > 48) return false
+    let folderIndexMap = new Map()
+    folderIndexMap.set(0, "Root")
+    let k = 1
+    for (var l = 2; l < 10; l++) {
+      folderIndexMap.set(l, l)
+    }
+    for (let i = 0; i < folderData.length; i++) {
+      let folderPath = folderData[i]
+      let pathParts = folderPath.split('/')
+      for (let j = 0; j < pathParts.length; j++) {
+        let part = pathParts[j]
+        if (j < pathParts.length - 1) {
+          if (!part.match(/^[0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/))
+            return false
+          let parentIndex = Base58.toNumber(part);
+          if (!folderIndexMap.has(parentIndex)) return false
+        } else {
+          if (!part.match(/^[0-9a-zA-Z+_.\- ]{2,16}$/)) return false
+          folderIndexMap.set(k, folderPath)
+          if (k == 1) {
+            k = 9
+          }
+          k++
+        }
+      }
+    }
+
+    if (!validateFileMetadata(metadata, folderIndexMap)) return false
+    return true
+    function validateFileMetadata(metadataStr, folderIndexMap) {
+      const fileEntries = [];
+      for (let i = 0; i < metadataStr.length; i += 4) {
+        if (i + 4 <= metadataStr.length) {
+          fileEntries.push(metadataStr.slice(i, i + 4));
+        } else return false
+      }
+      const namePattern = /^[^,]{1,32}$/u
+      const typePattern = /^[a-z0-9]{0,4}(?:\.[0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)?$/
+      const ipfsPattern = /^Qm[1-9A-HJ-NP-Za-km-z]{44}$/
+      const urlPattern = /^(https?:\/\/[^\s$.?#].[^\s]*)$/
+      const flagsPattern = /^([0-9a-zA-Z+/=]?)-([0-9a-zA-Z+/=]?)-([0-9a-zA-Z+/=]*)$/
+      for (let i = 0; i < fileEntries.length; i++) {
+        const entry = fileEntries[i];
+        if (entry.length !== 4) return false;
+        const [name, type, thumb, flagsCombined] = entry
+        if (!namePattern.test(name)) return false
+        if (!typePattern.test(type)) return false
+        const typeParts = type.split('.');
+        function b58ToNumber(str) {
+          const glyphs58 = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+          var result = 0;
+      chars = chars.split("");
+      for (var e = 0; e < chars.length; e++) {
+        result = result * 58 + glyphs58.indexOf(chars[e]);
+      }
+      return result;
+        }
+        if (typeParts.length > 1 && !folderIndexMap.has(b58ToNumber(typeParts[1])) && typeParts[1] != "0") return false
+        if (thumb && !ipfsPattern.test(thumb) && !urlPattern.test(thumb)) return false
+        if (flagsCombined && !flagsPattern.test(flagsCombined)) return false
+      }
+      return true
     }
   }
 }
@@ -897,15 +1287,7 @@ const CustomJsonProcessing = [
     type: "on",
     op: "broca_power_up",
     func: function (json, from, active, pc, context) {
-      const { store, config, getPathObj, getPathNum, postToDiscord, Base64 } = context
-      const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string" || last === undefined || last === null) last = '0,0'
-        const last_calc = Base64.toNumber(last.split(',')[1])
-        const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
-        var total = parseInt(last.split(',')[0]) + accured + add
-        if (total > (pow * 1000)) total = (pow * 1000)
-        return `${total},${Base64.fromNumber(bn)}`
-      }
+      const { store, config, getPathObj, getPathNum, postToDiscord, Base64, CodeShare } = context
       var amount = parseInt(json.amount),
         lpp = getPathNum(["lbroca", from]),
         tpowp = getPathNum(["bpow", "t"]),
@@ -922,7 +1304,7 @@ const CustomJsonProcessing = [
             lbal = typeof lb != "number" ? 0 : lb,
             pbal = typeof pow != "number" ? 0 : pow,
             ops = [];
-          const broca = broca_calc(typeof broca_string == 'string' ? broca_string : '0,0', pbal, stats, json.block_num)
+          const broca = CodeShare.broca_calc(typeof broca_string == 'string' ? broca_string : '0,0', pbal, stats, json.block_num)
           const cur_broca = parseInt(broca.split(',')[0]) || 0
           if (amount <= lbal && active) {
             ops.push({
@@ -1342,15 +1724,7 @@ const CustomJsonProcessing = [
     op: "channel_open",
     func: function (json, from, active, pc, context) {
       console.log("channel_open", json)
-      const { store, config, getPathObj, getPathNum, postToDiscord, chronAssign, Base64 } = context
-      const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string" || last === undefined || last === null) last = '0,0'
-        const last_calc = Base64.toNumber(last.split(',')[1])
-        const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
-        var total = parseInt(last.split(',')[0]) + accured + add
-        if (total > (pow * 1000)) total = (pow * 1000)
-        return `${total},${Base64.fromNumber(bn)}`
-      }
+      const { store, config, getPathObj, getPathNum, postToDiscord, chronAssign, Base64, CodeShare } = context
       if (json.to && json.broker) { //make this accept arrays of ops
         var Pbroca = getPathObj(["broca", from]);
         var Ppow = getPathNum(["bpow", from]);
@@ -1374,8 +1748,8 @@ const CustomJsonProcessing = [
             ops = [],
             err = '' //no log no broca?
           if (typeof broca != "string") broca = '0,0'
-          let brocaString = broca_calc(broca, pow, stats, json.block_num)
-            broca = parseInt(broca.split(',')[0])
+          let brocaString = CodeShare.broca_calc(broca, pow, stats, json.block_num)
+          broca = parseInt(broca.split(',')[0])
           if (typeof template.i != "string") err += `Contract doesn't exist.`
           if (typeof authF != 'string') err += `@${from} hasn't registered a public key. `
           if (typeof authT != "string") err += `@${json.to} hasn't registered a public key. `;
@@ -1454,95 +1828,7 @@ const CustomJsonProcessing = [
     type: "on",
     op: "channel_update",
     func: function (json, from, active, pc, context) {
-      const { store, config, getPathObj, getPathNum, postToDiscord, chronAssign, Base64, Base58, stringify, verifySig } = context
-      const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string" || last === undefined || last === null) last = '0,0'
-        const last_calc = Base64.toNumber(last.split(',')[1])
-        const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
-        var total = parseInt(last.split(',')[0]) + accured + add
-        if (total > (pow * 1000)) total = (pow * 1000)
-        return `${total},${Base64.fromNumber(bn)}`
-      }
-      function isValidMetadata(metadataString) {
-        let metaData = metadataString.split(',')
-        const contractData = metaData[0]
-        const metadata = metaData.splice(1)
-        if (metadata.length % 4 !== 0) return false
-        let firstChar = contractData.split('')[0]
-        if (firstChar == '#' || firstChar == '|') firstChar = "1"
-        let simpleTest = Base64.toNumber(firstChar) + 1
-        if (typeof simpleTest !== 'number') return false
-        let encryptionData = contractData.split('#')
-        encryptionData[encryptionData.length - 1] = encryptionData[encryptionData.length - 1].split('|')[0]
-        encryptionData = encryptionData.splice(1)
-        for (let i = 0; i < encryptionData.length; i++) {
-          let key = encryptionData[i]
-          if (key.endsWith(';')) key = key.substring(0, key.length - 1)
-          let atIndex = key.indexOf('@')
-          if (atIndex === -1) return false
-          let cipher = key.substring(0, atIndex)
-          if (!/^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/.test(cipher)) return false
-          let account = key.substring(atIndex + 1)
-          if (!/^[a-z0-9-.]{1,16}$/.test(account)) return false
-        }
-        let folderData = contractData.split('|')
-        folderData = folderData.splice(1)
-        if (folderData.length > 48) return false
-        let folderIndexMap = new Map()
-        folderIndexMap.set(0, "Root")
-        let k = 1
-        for (var l = 2; l < 10; l++) {
-          folderIndexMap.set(l, l)
-        }
-        for (let i = 0; i < folderData.length; i++) {
-          let folderPath = folderData[i]
-          let pathParts = folderPath.split('/')
-          for (let j = 0; j < pathParts.length; j++) {
-            let part = pathParts[j]
-            if (j < pathParts.length - 1) {
-              if (!part.match(/^[0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/))
-                return false
-              let parentIndex = Base58.toNumber(part);
-              if (!folderIndexMap.has(parentIndex)) return false
-            } else {
-              if (!part.match(/^[0-9a-zA-Z+_.\- ]{2,16}$/)) return false
-              folderIndexMap.set(k, folderPath)
-              if (k == 1) {
-                k = 9
-              }
-              k++
-            }
-          }
-        }
-
-        if (!validateFileMetadata(metadata, folderIndexMap)) return false
-        return true
-        function validateFileMetadata(metadataStr, folderIndexMap) {
-          const fileEntries = [];
-          for (let i = 0; i < metadataStr.length; i += 4) {
-            if (i + 4 <= metadataStr.length) {
-              fileEntries.push(metadataStr.slice(i, i + 4));
-            } else return false
-          }
-          const namePattern = /^[^,]{1,32}$/u
-          const typePattern = /^[a-z0-9]{0,4}(?:\.[0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)?$/
-          const ipfsPattern = /^Qm[1-9A-HJ-NP-Za-km-z]{44}$/
-          const urlPattern = /^(https?:\/\/[^\s$.?#].[^\s]*)$/
-          const flagsPattern = /^([0-9a-zA-Z+/=]?)-([0-9a-zA-Z+/=]?)-([0-9a-zA-Z+/=]*)$/
-          for (let i = 0; i < fileEntries.length; i++) {
-            const entry = fileEntries[i];
-            if (entry.length !== 4) return false;
-            const [name, type, thumb, flagsCombined] = entry
-            if (!namePattern.test(name)) return false
-            if (!typePattern.test(type)) return false
-            const typeParts = type.split('.');
-            if (typeParts.length > 1 && !folderIndexMap.has(Base58.toNumber(typeParts[1])) && typeParts[1] != "0") return false
-            if (thumb && !ipfsPattern.test(thumb) && !urlPattern.test(thumb)) return false
-            if (flagsCombined && !flagsPattern.test(flagsCombined)) return false
-          }
-          return true
-        }
-      }
+      const { store, config, getPathObj, getPathNum, postToDiscord, chronAssign, Base64, Base58, stringify, verifySig, CodeShare } = context
       function process_complete_update(json, from, active) {
         return new Promise((resolve, reject) => {
           if (active && json.fo && json.f && json.id && json.co === from) {
@@ -1587,7 +1873,7 @@ const CustomJsonProcessing = [
                 } catch (e) {
                   console.log("Error parsing metadata:", e);
                 }
-                if (json.m && typeof json.m === 'string' && isValidMetadata(json.m) && metadata_size == metadata_size_verification) {
+                if (json.m && typeof json.m === 'string' && CodeShare.isValidMetadata(json.m) && metadata_size == metadata_size_verification) {
                   proffer.m = json.m;
                   proffer.m = stringify(proffer.m);
                 }
@@ -1628,6 +1914,7 @@ const CustomJsonProcessing = [
                   const broca_refund = proffer.r - parseInt((total / proffer.a) * proffer.r);
                   proffer.r -= broca_refund;
                   proffer.u = total;
+                  proffer.v = parseInt(total/2);
 
                   if (!num) {
                     err = `${json.id}-No Files`;
@@ -1651,7 +1938,7 @@ const CustomJsonProcessing = [
                     ops.push({
                       type: "put",
                       path: ["broca", json.f],
-                      data: broca_calc(broca, bpow, stats, json.block_num, broca_refund)
+                      data: CodeShare.broca_calc(broca, bpow, stats, json.block_num, broca_refund)
                     });
                     ops.push({
                       type: "put",
@@ -1846,17 +2133,180 @@ const CustomJsonProcessing = [
   },
   {
     type: "on",
+    op: "direct_upload",
+    func: function (json, from, active, pc, context) {
+      const { store, config, getPathObj, getPathNum, postToDiscord, stringify, CodeShare } = context
+      if (active && json.c && json.s && json.id) {
+        var Pbroca = getPathObj(["broca", from]);
+        var Ppow = getPathNum(["bpow", from]);
+        var Pstats = getPathObj(["stats"]);
+        var Pauth = getPathObj(["authorities", from]);
+
+        Promise.all([Pbroca, Pstats, Ppow]).then(mem => {
+          var brocaString = mem[0],
+            stats = mem[1],
+            bpow = mem[2],
+            ops = [],
+            err = '';
+
+            brocaString = CodeShare.broca_calc(brocaString, bpow, stats, json.block_num)
+            broca = parseInt(brocaString.split(',')[0])
+          // Validate metadata if provided
+          if (json.m && typeof json.m === 'string') {
+            const cids = json.c.split(',');
+            const metadata_size_verification = (cids.length * 4 + 1);
+            let metadata_size = 0;
+            try {
+              metadata_size = json.m.split(',').length;
+            } catch (e) {
+              err += 'Invalid metadata format. ';
+            }
+            if (!CodeShare.isValidMetadata(json.m) || metadata_size !== metadata_size_verification) {
+              err += 'Invalid metadata structure. ';
+            }
+          }
+
+          if (!err) {
+            var total = 0;
+            var cids = json.c.split(',');
+            var sizes = json.s.split(',');
+            var proms = [];
+            var decentralized_files = {};
+
+            for (var i = 0; i < cids.length; i++) {
+              if (cids[i] && sizes[i]) {
+                const rev = cids[i].split("").reverse().join("");
+
+                ops.push({
+                  type: "put",
+                  path: ["IPFS", `${rev}`],
+                  data: `${from},${json.id}`
+                });
+
+                proms.push(getPathObj(["IPFS", `${rev}`]));
+                decentralized_files[cids[i]] = parseInt(sizes[i]);
+              }
+            }
+
+            Promise.all(proms).then(ips => {
+              var num = 0;
+              for (var i = 0; i < ips.length; i++) {
+                if (typeof ips[i] === "string") {
+                  delete decentralized_files[cids[i]];
+                } else {
+                  num++;
+                  total += parseInt(sizes[i] || 0);
+                }
+              }
+
+              if (!num) {
+                err = `${json.id}-No New Files`;
+                ops = [{
+                  type: "put",
+                  path: ["feed", `${json.block_num}:${json.transaction_id}`],
+                  data: err
+                }];
+                if (config.hookurl || config.status) {
+                  postToDiscord(err, `${json.block_num}:${json.transaction_id}`);
+                }
+              } else if (broca < total) {
+                err = `${json.id}-Insufficient Broca`;
+                ops = [{
+                  type: "put",
+                  path: ["feed", `${json.block_num}:${json.transaction_id}`],
+                  data: err
+                }];
+              } else {
+                // Update statistics
+                stats.total_bytes += total;
+                stats.total_files += num;
+
+                // Create direct upload contract
+                const directContract = {
+                  c: 3, // Complete status
+                  n: { "1": from },
+                  m: json.m ? stringify(json.m) : stringify("1"),
+                  nt: "1",
+                  df: decentralized_files,
+                  u: total,
+                  v: 1, //verified file size
+                  r: 0, // No refund needed for direct uploads
+                  b: from, // broker is self
+                  fo: from, // file owner is self
+                  f: from, // uploader is self
+                  type: "direct_upload",
+                  created: json.block_num
+                };
+
+                ops.push({
+                  type: "put",
+                  path: ["stats"],
+                  data: stats
+                });
+
+                ops.push({
+                  type: "put",
+                  path: ["contract", from, json.id],
+                  data: directContract
+                });
+
+                ops.push({
+                  type: "put",
+                  path: ["cPointers", json.id],
+                  data: from
+                });
+
+                ops.push({
+                  type: "put",
+                  path: ["broca", from],
+                  data: `${broca - total},${brocaString.split(',')[1]}}`
+                });
+
+                ops.push({
+                  type: "put",
+                  path: ["feed", `${json.block_num}:${json.transaction_id}`],
+                  data: `${json.id} direct upload completed`
+                });
+
+                if (config.hookurl || config.status) {
+                  postToDiscord(`Direct upload completed: ${num} files, ${total} bytes`, `${json.block_num}:${json.transaction_id}`);
+                }
+              }
+
+              if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+              store.batch(ops, pc);
+            }).catch(e => {
+              console.log("Error processing direct upload:", e);
+              pc[0](pc[2]);
+            });
+          } else {
+            ops.push({
+              type: "put",
+              path: ["feed", `${json.block_num}:${json.transaction_id}`],
+              data: err
+            });
+            if (config.hookurl || config.status) {
+              postToDiscord(err, `${json.block_num}:${json.transaction_id}`);
+            }
+            if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+            store.batch(ops, pc);
+          }
+        }).catch(e => {
+          console.log("Error in direct upload:", e);
+          pc[0](pc[2]);
+        });
+      } else {
+        // Invalid operation
+        if (process.env.npm_lifecycle_event == "test") pc[2] = [];
+        pc[0](pc[2]);
+      }
+    }
+  },
+  {
+    type: "on",
     op: "contract_close",
     func: function (json, from, active, pc, context) {
-      const { store, config, getPathObj, postToDiscord, Base64 } = context
-      const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string" || last === undefined || last === null) last = '0,0'
-        const last_calc = Base64.toNumber(last.split(',')[1])
-        const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
-        var total = parseInt(last.split(',')[0]) + accured + add
-        if (total > (pow * 1000)) total = (pow * 1000)
-        return `${total},${Base64.fromNumber(bn)}`
-      }
+      const { store, config, getPathObj, postToDiscord, CodeShare } = context
       if (json?.id.indexOf(':') > 0) {
         var Pstats = getPathObj(["stats"])
         var Pcontract = getPathObj(["contract", from, json.id])
@@ -1908,7 +2358,7 @@ const CustomJsonProcessing = [
                 ops.push({
                   type: 'put',
                   path: ['broca', account],
-                  data: broca_calc(exts[refunds[account].i], exts[refunds[account].i + 1], stats, json.block_num, refunds[account].a)
+                  data: CodeShare.broca_calc(exts[refunds[account].i], exts[refunds[account].i + 1], stats, json.block_num, refunds[account].a)
                 })
               }
               var items = Object.keys(contract.df)//goods
@@ -1955,7 +2405,7 @@ const CustomJsonProcessing = [
               ops.push({
                 type: 'put',
                 path: ['broca', proffer.f],
-                data: broca_calc(exts[0], exts[1], stats, json.block_num, proffer.r)
+                data: CodeShare.broca_calc(exts[0], exts[1], stats, json.block_num, proffer.r)
               })
               ops.push({
                 type: "del",
@@ -1988,87 +2438,7 @@ const CustomJsonProcessing = [
     type: "on",
     op: "update_metadata",
     func: function (json, from, active, pc, context) {
-      const { store, config, getPathObj, postToDiscord, Base58, Base64 } = context
-      function isValidMetadata(metadataString) {
-        let metaData = metadataString.split(',')
-        const contractData = metaData[0]
-        const metadata = metaData.splice(1)
-        if (metadata.length % 4 !== 0) return false
-        let firstChar = contractData.split('')[0]
-        if (firstChar == '#' || firstChar == '|') firstChar = "1"
-        let simpleTest = Base64.toNumber(firstChar) + 1
-        if (typeof simpleTest !== 'number') return false
-        let encryptionData = contractData.split('#')
-        encryptionData[encryptionData.length - 1] = encryptionData[encryptionData.length - 1].split('|')[0]
-        encryptionData = encryptionData.splice(1)
-        for (let i = 0; i < encryptionData.length; i++) {
-          let key = encryptionData[i]
-          if (key.endsWith(';')) key = key.substring(0, key.length - 1)
-          let atIndex = key.indexOf('@')
-          if (atIndex === -1) return false
-          let cipher = key.substring(0, atIndex)
-          if (!/^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/.test(cipher)) return false
-          let account = key.substring(atIndex + 1)
-          if (!/^[a-z0-9-.]{1,16}$/.test(account)) return false
-        }
-        let folderData = contractData.split('|')
-        folderData = folderData.splice(1)
-        if (folderData.length > 48) return false
-        let folderIndexMap = new Map()
-        folderIndexMap.set(0, "Root")
-        let k = 1
-        for (var l = 2; l < 10; l++) {
-          folderIndexMap.set(l, l)
-        }
-        for (let i = 0; i < folderData.length; i++) {
-          let folderPath = folderData[i]
-          let pathParts = folderPath.split('/')
-          for (let j = 0; j < pathParts.length; j++) {
-            let part = pathParts[j]
-            if (j < pathParts.length - 1) {
-              if (!part.match(/^[0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/))
-                return false
-              let parentIndex = Base58.toNumber(part);
-              if (!folderIndexMap.has(parentIndex)) return false
-            } else {
-              if (!part.match(/^[0-9a-zA-Z+_.\- ]{2,16}$/)) return false
-              folderIndexMap.set(k, folderPath)
-              if (k == 1) {
-                k = 9
-              }
-              k++
-            }
-          }
-        }
-
-        if (!validateFileMetadata(metadata, folderIndexMap)) return false
-        return true
-        function validateFileMetadata(metadataStr, folderIndexMap) {
-          const fileEntries = [];
-          for (let i = 0; i < metadataStr.length; i += 4) {
-            if (i + 4 <= metadataStr.length) {
-              fileEntries.push(metadataStr.slice(i, i + 4));
-            } else return false
-          }
-          const namePattern = /^[^,]{1,32}$/u
-          const typePattern = /^[a-z0-9]{0,4}(?:\.[0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)?$/
-          const ipfsPattern = /^Qm[1-9A-HJ-NP-Za-km-z]{44}$/
-          const urlPattern = /^(https?:\/\/[^\s$.?#].[^\s]*)$/
-          const flagsPattern = /^([0-9a-zA-Z+/=]?)-([0-9a-zA-Z+/=]?)-([0-9a-zA-Z+/=]*)$/
-          for (let i = 0; i < fileEntries.length; i++) {
-            const entry = fileEntries[i];
-            if (entry.length !== 4) return false;
-            const [name, type, thumb, flagsCombined] = entry
-            if (!namePattern.test(name)) return false
-            if (!typePattern.test(type)) return false
-            const typeParts = type.split('.');
-            if (typeParts.length > 1 && !folderIndexMap.has(Base58.toNumber(typeParts[1])) && typeParts[1] != "0") return false
-            if (thumb && !ipfsPattern.test(thumb) && !urlPattern.test(thumb)) return false
-            if (flagsCombined && !flagsPattern.test(flagsCombined)) return false
-          }
-          return true
-        }
-      }
+      const { store, config, getPathObj, postToDiscord, Base58, Base64, CodeShare } = context
       function handleSingleUpdate(json, from, ops, errors) {
         return Promise.all([
           getPathObj(["contract", from, json.id]),
@@ -2103,7 +2473,7 @@ const CustomJsonProcessing = [
                   }
                   complete_metadata += partial.chunks[i];
                 }
-                if (!isValidMetadata(complete_metadata) || complete_metadata.split(',').length !== metadata_size_verification) {
+                if (!CodeShare.isValidMetadata(complete_metadata) || complete_metadata.split(',').length !== metadata_size_verification) {
                   errors.push(`Invalid metadata format or size for contract ${json.id}`)
                   ops.push({
                     type: "del",
@@ -2128,7 +2498,7 @@ const CustomJsonProcessing = [
                 return
               }
             } else if (json.m && typeof json.m === "string") {
-              if (!isValidMetadata(json.m) || json.m.split(',').length !== metadata_size_verification) {
+              if (!CodeShare.isValidMetadata(json.m) || json.m.split(',').length !== metadata_size_verification) {
                 errors.push(`Invalid metadata format or size for contract ${json.id}`);
                 return
               }
@@ -2142,7 +2512,7 @@ const CustomJsonProcessing = [
                 errors.push(`Failed to apply diff for contract ${json.id}`)
                 return
               }
-              if (!isValidMetadata(newMetadata) || newMetadata.split(',').length !== metadata_size_verification) {
+              if (!CodeShare.isValidMetadata(newMetadata) || newMetadata.split(',').length !== metadata_size_verification) {
                 errors.push(`Invalid metadata format or size after diff for contract ${json.id}`);
                 return
               }
@@ -2183,7 +2553,7 @@ const CustomJsonProcessing = [
               }
               const metadata_size_verification = (Object.keys(contract.df).length * 4 + 1)
               if (update.m && typeof update.m === "string") {
-                if (!isValidMetadata(update.m) || update.m.split(',').length !== metadata_size_verification) {
+                if (!CodeShare.isValidMetadata(update.m) || update.m.split(',').length !== metadata_size_verification) {
                   errors.push(`Invalid metadata format or size for contract ${contractId}`);
                   //console.log(!isValidMetadata(update.m), update.m.split(',').length, metadata_size_verification)
                   return
@@ -2194,7 +2564,7 @@ const CustomJsonProcessing = [
                 }
               } else if (update.diff && typeof update.diff === "string") {
                 const newMetadata = jsdiff.applyPatch(contract.m, update.diff)
-                if (!isValidMetadata(newMetadata) || newMetadata.split(',').length !== metadata_size_verification) {
+                if (!CodeShare.isValidMetadata(newMetadata) || newMetadata.split(',').length !== metadata_size_verification) {
                   errors.push(`Invalid metadata format or size for contract ${contractId}`);
                   //console.log(!isValidMetadata(newMetadata), newMetadata.split(',').length, metadata_size_verification)
                   return
@@ -2263,15 +2633,7 @@ const CustomJsonProcessing = [
     type: "on",
     op: "delete_files",
     func: function (json, from, active, pc, context) {
-      const { store, getPathObj, Base64 } = context
-      const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string" || last === undefined || last === null) last = '0,0'
-        const last_calc = Base64.toNumber(last.split(',')[1])
-        const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
-        var total = parseInt(last.split(',')[0]) + accured + add
-        if (total > (pow * 1000)) total = (pow * 1000)
-        return `${total},${Base64.fromNumber(bn)}`
-      }
+      const { store, getPathObj, CodeShare } = context
       function calculateRefunds(deletedFilesByContract, block_num, from) {
         return new Promise(resolve => {
           const ops = []
@@ -2301,7 +2663,7 @@ const CustomJsonProcessing = [
                   getPathObj(["bpow", account]),
                   getPathObj(["stats"])
                 ]).then(([broca, bpow, stats]) => {
-                  const updatedBroca = broca_calc(broca, bpow, stats, block_num, refundAmount);
+                  const updatedBroca = CodeShare.broca_calc(broca, bpow, stats, block_num, refundAmount);
                   ops.push({
                     type: "put",
                     path: ["broca", account],
@@ -2492,15 +2854,7 @@ const CustomJsonProcessing = [
     type: "on",
     op: "extend",
     func: function (json, from, active, pc, context) {
-      const { store, getPathObj, Base64, postToDiscord, config, getPathNum, chronAssign, processor } = context
-      const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string" || last === undefined || last === null) last = '0,0'
-        const last_calc = Base64.toNumber(last.split(',')[1])
-        const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
-        var total = parseInt(last.split(',')[0]) + accured + add
-        if (total > (pow * 1000)) total = (pow * 1000)
-        return `${total},${Base64.fromNumber(bn)}`
-      }
+      const { store, getPathObj, CodeShare, postToDiscord, config, getPathNum, chronAssign, processor } = context
       if (json.broca && json.id && json.file_owner) {
         var Pbroca = getPathObj(["broca", from]);
         var Ppow = getPathNum(["bpow", from])
@@ -2513,7 +2867,7 @@ const CustomJsonProcessing = [
             contract = mem[3],
             ops = [],
             err = '', //no log no broca?
-          brocaString = broca_calc(broca, pow, stats, json.block_num),
+            brocaString = CodeShare.broca_calc(broca, pow, stats, json.block_num),
             broca = parseInt(brocaString.split(',')[0])
           if (json.broca <= broca && contract.c == 3) {
             broca = broca - json.broca
@@ -2533,7 +2887,7 @@ const CustomJsonProcessing = [
             }
             let deletePromise = new Promise((resolve, reject) => {
               if (cidsFlaggedForDeletion.length) {
-                processor.doOn( 'delete_files', { cids: cidsFlaggedForDeletion, block_num: json.block_num, transaction_id: json.transaction_id }, contract.t, true, [resolve, reject, 0])
+                processor.doOn('delete_files', { cids: cidsFlaggedForDeletion, block_num: json.block_num, transaction_id: json.transaction_id }, contract.t, true, [resolve, reject, 0])
               } else {
                 resolve([])
               }
@@ -8054,15 +8408,7 @@ const CustomChron = [
     op: 'contract_close',
     func: function (b, passed, res, rej, num, prand, ints, bh, context) {
       console.log('This block')
-      const { store, getPathObj, getPathNum, Base64, processor } = context;
-      const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string" || last === undefined || last === null) last = '0,0'
-        const last_calc = Base64.toNumber(last.split(',')[1])
-        const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
-        var total = parseInt(last.split(',')[0]) + accured + add
-        if (total > (pow * 1000)) total = (pow * 1000)
-        return `${total},${Base64.fromNumber(bn)}`
-      }
+      const { store, getPathObj, getPathNum, Base64, processor, CodeShare } = context;
       function contractClose(promies, delkey, num, id, b) {
         return new Promise((resolve, reject) => {
           Promise.all(promies)
@@ -8072,10 +8418,10 @@ const CustomChron = [
                 stats = mem[1],
                 ops = [],
                 bytes = 0,
-                broca = broca_calc(mem[2], mem[3], stats, num),
+                broca = CodeShare.broca_calc(mem[2], mem[3], stats, num),
                 renew = contract.m ? (contract.m.indexOf('"') >= 0 ? Base64.toNumber(JSON.parse(contract.m)[0]) & 1 : Base64.toNumber(contract.m[0]) & 1) : 0
               if (contract.c == 3 && renew && parseInt(broca.split(',')[0]) > 100) {
-                processor.doOn( 'extend', {
+                processor.doOn('extend', {
                   broca: parseInt(broca.split(',')[0]) > parseInt(3 * contract.r / contract.p) ? parseInt(3 * contract.r / contract.p) + 1 : parseInt(parseInt(broca.split(',')[0]) / 2) + 1,
                   id: contract.i,
                   file_owner: contract.t,
@@ -8119,7 +8465,7 @@ const CustomChron = [
         Pstats = getPathObj(["stats"]),
         Pbroca = getPathObj(["broca", b.fo]),
         Ppow = getPathObj(["spow", b.fo]);
-        console.log('cc', passed)
+      console.log('cc', passed)
       contractClose(
         [Pcontract, Pstats, Pbroca, Ppow],
         passed.delKey,
@@ -8132,15 +8478,7 @@ const CustomChron = [
   {
     op: 'channel_check',
     func: function (b, passed, res, rej, num, prand, ints, bh, context) {
-      const { store, getPathObj, Base64 } = context;
-      const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string" || last === undefined || last === null) last = '0,0'
-        const last_calc = Base64.toNumber(last.split(',')[1])
-        const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
-        var total = parseInt(last.split(',')[0]) + accured + add
-        if (total > (pow * 1000)) total = (pow * 1000)
-        return `${total},${Base64.fromNumber(bn)}`
-      }
+      const { store, getPathObj, CodeShare } = context;
       function channelCheck(promies, delkey, num, id, b) {
         return new Promise((resolve, reject) => {
           Promise.all(promies)
@@ -8183,7 +8521,7 @@ const CustomChron = [
                 ops.push({
                   type: "put",
                   path: ["broca", b.from],
-                  data: broca_calc(broca, bpow, stats, num, contract.r)
+                  data: CodeShare.broca_calc(broca, bpow, stats, num, contract.r)
                 });
               }
               ops.push({ type: "del", path: ["chrono", delkey] });
@@ -8567,6 +8905,9 @@ export var config = {
   featuresModelSpk,
   featuresModelBroca,
   poav_address,
+  poaStatsWindowSize,
+  poaMinMeasurements,
+  troleEndpoint,
   govToken,
   RAMreport,
   state,

@@ -389,7 +389,7 @@ const CodeShare = {
       })
     },
     getRange(prand, account, val, stats, context) {
-      const { CodeShare, Base58 } = context
+      const { CodeShare, Base58, config } = context
       const cutoff = stats.val_threshold || 1
       var total = 0
       var n = Object.keys(val)
@@ -454,7 +454,10 @@ const CodeShare = {
         var socket = new WebSocket(`${config.poav_address}/validate`);
         socket.on('open', (connection) => {
           if (config.mode == 'verbose') console.log("WebSocket connected successfully")
-          setTimeout(() => {
+          const timeoutId = setTimeout(() => {
+            if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name] && !RAM.Pending[`${bn % 200}`][CID].npid[Name].Status) {
+              RAM.Pending[`${bn % 200}`][CID].npid[Name] = { Status: 'Invalid', Message: 'Timeout' }
+            }
             socket.close()
             if (config.mode == 'verbose') console.log("Timeout:", CID)
           }, 240000)
@@ -470,14 +473,17 @@ const CodeShare = {
               //socket.close()
               if (config.mode == 'verbose') console.log('Found Hive Account')
             } else if (data.Status === 'IpfsPeerIDError') {
-              socket.close()
-              if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
-            } else if (data.Status === 'IpfsPeerIDError') {
+              if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
+                RAM.Pending[`${bn % 200}`][CID].npid[Name] = { Status: 'Invalid', Message: 'IpfsPeerIDError' }
+              }
               socket.close()
               if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
             } else if (data.Status === 'RequestingProof') {
               if (config.mode == 'verbose') console.log('RequestingProof')
             } else if (data.Status === 'Connection Error') {
+              if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
+                RAM.Pending[`${bn % 200}`][CID].npid[Name] = { Status: 'Invalid', Message: 'ConnectionError' }
+              }
               socket.close()
               if (config.mode == 'verbose') console.log('Error: Connection Error')
             } else if (data.Status === 'ProofReceived') {
@@ -491,10 +497,15 @@ const CodeShare = {
             } else if (data.Status === "Validating Proof") {
               if (config.mode == 'verbose') console.log('Validating Proof', { data })
             } else if (data.Status === "Valid") {
+              clearTimeout(timeoutId)
               if (RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name] && !RAM.Pending[`${bn % 200}`][CID].npid[Name].Message) RAM.Pending[`${bn % 200}`][CID].npid[Name] = data
               if (config.mode == 'verbose') console.log('Proof Valid', { data })
               socket.close()
             } else if (data.Status === "Invalid") {
+              clearTimeout(timeoutId)
+              if (RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
+                RAM.Pending[`${bn % 200}`][CID].npid[Name] = data
+              }
               if (config.mode == 'verbose') console.log('Proof Invalid', { data })
               socket.close()
             } else {
@@ -503,13 +514,148 @@ const CodeShare = {
           })
         })
         socket.onerror = (error) => {
+          clearTimeout(timeoutId)
+          if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
+            RAM.Pending[`${bn % 200}`][CID].npid[Name] = { Status: 'Invalid', Message: 'WebSocketError: ' + error.toString() }
+          }
           if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
         };
 
         if (config.mode == 'verbose') console.log("WebSocket connection initiated")
       } catch (error) {
+        if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
+          RAM.Pending[`${bn % 200}`][CID].npid[Name] = { Status: 'Invalid', Message: 'Exception: ' + error.toString() }
+        }
         if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
       }
+    }
+  },
+  Base64: {
+    glyphs64: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+=",
+    fromNumber: function (number) {
+      if (
+        isNaN(Number(number)) ||
+        number === null ||
+        number === Number.POSITIVE_INFINITY
+      )
+        throw "The input is not valid";
+      if (number < 0) throw "Can't represent negative numbers now";
+      var char;
+      var residual = Math.floor(number);
+      var result = "";
+      while (true) {
+        char = residual % 64;
+        result = this.glyphs64.charAt(char) + result;
+        residual = Math.floor(residual / 64);
+        if (residual == 0) break;
+      }
+      return result;
+    },
+
+    toNumber: function (chars) {
+      var result = 0;
+      chars = chars.split("");
+      for (var e = 0; e < chars.length; e++) {
+        result = result * 64 + this.glyphs64.indexOf(chars[e]);
+      }
+      return result;
+    },
+  },
+  broca_calc: function (last = '0,0', pow, stats, bn, add = 0) {
+    if (typeof last != "string" || last === undefined || last === null) last = '0,0'
+    const last_calc = this.Base64.toNumber(last.split(',')[1])
+    const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000)))
+    var total = parseInt(last.split(',')[0]) + accured + add
+    if (total > (pow * 1000)) total = (pow * 1000)
+    return `${total},${this.Base64.fromNumber(bn)}`
+  },
+  isValidMetadata: function (metadataString) {
+    let metaData = metadataString.split(',')
+    const contractData = metaData[0]
+    const metadata = metaData.splice(1)
+    if (metadata.length % 4 !== 0) return false
+    let firstChar = contractData.split('')[0]
+    if (firstChar == '#' || firstChar == '|') firstChar = "1"
+    let simpleTest = this.Base64.toNumber(firstChar) + 1
+    if (typeof simpleTest !== 'number') return false
+    let encryptionData = contractData.split('#')
+    encryptionData[encryptionData.length - 1] = encryptionData[encryptionData.length - 1].split('|')[0]
+    encryptionData = encryptionData.splice(1)
+    for (let i = 0; i < encryptionData.length; i++) {
+      let key = encryptionData[i]
+      if (key.endsWith(';')) key = key.substring(0, key.length - 1)
+      let atIndex = key.indexOf('@')
+      if (atIndex === -1) return false
+      let cipher = key.substring(0, atIndex)
+      if (!/^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/.test(cipher)) return false
+      let account = key.substring(atIndex + 1)
+      if (!/^[a-z0-9-.]{1,16}$/.test(account)) return false
+    }
+    let folderData = contractData.split('|')
+    folderData = folderData.splice(1)
+    if (folderData.length > 48) return false
+    let folderIndexMap = new Map()
+    folderIndexMap.set(0, "Root")
+    let k = 1
+    for (var l = 2; l < 10; l++) {
+      folderIndexMap.set(l, l)
+    }
+    for (let i = 0; i < folderData.length; i++) {
+      let folderPath = folderData[i]
+      let pathParts = folderPath.split('/')
+      for (let j = 0; j < pathParts.length; j++) {
+        let part = pathParts[j]
+        if (j < pathParts.length - 1) {
+          if (!part.match(/^[0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/))
+            return false
+          let parentIndex = Base58.toNumber(part);
+          if (!folderIndexMap.has(parentIndex)) return false
+        } else {
+          if (!part.match(/^[0-9a-zA-Z+_.\- ]{2,16}$/)) return false
+          folderIndexMap.set(k, folderPath)
+          if (k == 1) {
+            k = 9
+          }
+          k++
+        }
+      }
+    }
+
+    if (!validateFileMetadata(metadata, folderIndexMap)) return false
+    return true
+    function validateFileMetadata(metadataStr, folderIndexMap) {
+      const fileEntries = [];
+      for (let i = 0; i < metadataStr.length; i += 4) {
+        if (i + 4 <= metadataStr.length) {
+          fileEntries.push(metadataStr.slice(i, i + 4));
+        } else return false
+      }
+      const namePattern = /^[^,]{1,32}$/u
+      const typePattern = /^[a-z0-9]{0,4}(?:\.[0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)?$/
+      const ipfsPattern = /^Qm[1-9A-HJ-NP-Za-km-z]{44}$/
+      const urlPattern = /^(https?:\/\/[^\s$.?#].[^\s]*)$/
+      const flagsPattern = /^([0-9a-zA-Z+/=]?)-([0-9a-zA-Z+/=]?)-([0-9a-zA-Z+/=]*)$/
+      for (let i = 0; i < fileEntries.length; i++) {
+        const entry = fileEntries[i];
+        if (entry.length !== 4) return false;
+        const [name, type, thumb, flagsCombined] = entry
+        if (!namePattern.test(name)) return false
+        if (!typePattern.test(type)) return false
+        const typeParts = type.split('.');
+        function b58ToNumber(str) {
+          const glyphs58 = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
+          var result = 0;
+      chars = chars.split("");
+      for (var e = 0; e < chars.length; e++) {
+        result = result * 58 + glyphs58.indexOf(chars[e]);
+      }
+      return result;
+        }
+        if (typeParts.length > 1 && !folderIndexMap.has(b58ToNumber(typeParts[1])) && typeParts[1] != "0") return false
+        if (thumb && !ipfsPattern.test(thumb) && !urlPattern.test(thumb)) return false
+        if (flagsCombined && !flagsPattern.test(flagsCombined)) return false
+      }
+      return true
     }
   }
 }
@@ -879,15 +1025,7 @@ const CustomJsonProcessing = [
     type: "on",
     op: "broca_power_up",
     func: function (json, from, active, pc, context) {
-      const { store, config, getPathObj, getPathNum, postToDiscord, Base64 } = context
-      const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string") last = '0,0'
-        const last_calc = Base64.toNumber(last.split(',')[1])
-        const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
-        var total = parseInt(last.split(',')[0]) + accured + add
-        if (total > (pow * 1000)) total = (pow * 1000)
-        return `${total},${Base64.fromNumber(bn)}`
-      }
+      const { store, config, getPathObj, getPathNum, postToDiscord, Base64, CodeShare } = context
       var amount = parseInt(json.amount),
         lpp = getPathNum(["lbroca", from]),
         tpowp = getPathNum(["bpow", "t"]),
@@ -904,7 +1042,7 @@ const CustomJsonProcessing = [
             lbal = typeof lb != "number" ? 0 : lb,
             pbal = typeof pow != "number" ? 0 : pow,
             ops = [];
-          const broca = broca_calc(typeof broca_string == 'string' ? broca_string : '0,0', pbal, stats, json.block_num)
+          const broca = CodeShare.broca_calc(typeof broca_string == 'string' ? broca_string : '0,0', pbal, stats, json.block_num)
           const cur_broca = parseInt(broca.split(',')[0]) || 0
           if (amount <= lbal && active) {
             ops.push({
@@ -1324,15 +1462,7 @@ const CustomJsonProcessing = [
     op: "channel_open",
     func: function (json, from, active, pc, context) {
       console.log("channel_open", json)
-      const { store, config, getPathObj, getPathNum, postToDiscord, chronAssign, Base64 } = context
-      const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string") last = '0,0'
-        const last_calc = Base64.toNumber(last.split(',')[1])
-        const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
-        var total = parseInt(last.split(',')[0]) + accured + add
-        if (total > (pow * 1000)) total = (pow * 1000)
-        return `${total},${Base64.fromNumber(bn)}`
-      }
+      const { store, config, getPathObj, getPathNum, postToDiscord, chronAssign, Base64, CodeShare } = context
       if (json.to && json.broker) { //make this accept arrays of ops
         var Pbroca = getPathObj(["broca", from]);
         var Ppow = getPathNum(["bpow", from]);
@@ -1352,12 +1482,12 @@ const CustomJsonProcessing = [
             authB = mem[5],
             template = mem[6],
             pow = mem[7],
-            broker = mem[8]
-          ops = [],
+            broker = mem[8],
+            ops = [],
             err = '' //no log no broca?
           if (typeof broca != "string") broca = '0,0'
-          brocaString = broca_calc(broca, pow, stats, json.block_num),
-            broca = parseInt(broca.split(',')[0])
+          let brocaString = CodeShare.broca_calc(broca, pow, stats, json.block_num)
+          broca = parseInt(broca.split(',')[0])
           if (typeof template.i != "string") err += `Contract doesn't exist.`
           if (typeof authF != 'string') err += `@${from} hasn't registered a public key. `
           if (typeof authT != "string") err += `@${json.to} hasn't registered a public key. `;
@@ -1436,95 +1566,7 @@ const CustomJsonProcessing = [
     type: "on",
     op: "channel_update",
     func: function (json, from, active, pc, context) {
-      const { store, config, getPathObj, getPathNum, postToDiscord, chronAssign, Base64, Base58, stringify, verifySig } = context
-      const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string") last = '0,0'
-        const last_calc = Base64.toNumber(last.split(',')[1])
-        const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
-        var total = parseInt(last.split(',')[0]) + accured + add
-        if (total > (pow * 1000)) total = (pow * 1000)
-        return `${total},${Base64.fromNumber(bn)}`
-      }
-      function isValidMetadata(metadataString) {
-        let metaData = metadataString.split(',')
-        const contractData = metaData[0]
-        const metadata = metaData.splice(1)
-        if (metadata.length % 4 !== 0) return false
-        let firstChar = contractData.split('')[0]
-        if (firstChar == '#' || firstChar == '|') firstChar = "1"
-        let simpleTest = Base64.toNumber(firstChar) + 1
-        if (typeof simpleTest !== 'number') return false
-        let encryptionData = contractData.split('#')
-        encryptionData[encryptionData.length - 1] = encryptionData[encryptionData.length - 1].split('|')[0]
-        encryptionData = encryptionData.splice(1)
-        for (let i = 0; i < encryptionData.length; i++) {
-          let key = encryptionData[i]
-          if (key.endsWith(';')) key = key.substring(0, key.length - 1)
-          let atIndex = key.indexOf('@')
-          if (atIndex === -1) return false
-          let cipher = key.substring(0, atIndex)
-          if (!/^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/.test(cipher)) return false
-          let account = key.substring(atIndex + 1)
-          if (!/^[a-z0-9-.]{1,16}$/.test(account)) return false
-        }
-        let folderData = contractData.split('|')
-        folderData = folderData.splice(1)
-        if (folderData.length > 48) return false
-        let folderIndexMap = new Map()
-        folderIndexMap.set(0, "Root")
-        let k = 1
-        for (var l = 2; l < 10; l++) {
-          folderIndexMap.set(l, l)
-        }
-        for (let i = 0; i < folderData.length; i++) {
-          let folderPath = folderData[i]
-          let pathParts = folderPath.split('/')
-          for (let j = 0; j < pathParts.length; j++) {
-            let part = pathParts[j]
-            if (j < pathParts.length - 1) {
-              if (!part.match(/^[0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/))
-                return false
-              let parentIndex = Base58.toNumber(part);
-              if (!folderIndexMap.has(parentIndex)) return false
-            } else {
-              if (!part.match(/^[0-9a-zA-Z+_.\- ]{2,16}$/)) return false
-              folderIndexMap.set(k, folderPath)
-              if (k == 1) {
-                k = 9
-              }
-              k++
-            }
-          }
-        }
-
-        if (!validateFileMetadata(metadata, folderIndexMap)) return false
-        return true
-        function validateFileMetadata(metadataStr, folderIndexMap) {
-          const fileEntries = [];
-          for (let i = 0; i < metadataStr.length; i += 4) {
-            if (i + 4 <= metadataStr.length) {
-              fileEntries.push(metadataStr.slice(i, i + 4));
-            } else return false
-          }
-          const namePattern = /^[^,]{1,32}$/u
-          const typePattern = /^[a-z0-9]{0,4}(?:\.[0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)?$/
-          const ipfsPattern = /^Qm[1-9A-HJ-NP-Za-km-z]{44}$/
-          const urlPattern = /^(https?:\/\/[^\s$.?#].[^\s]*)$/
-          const flagsPattern = /^([0-9a-zA-Z+/=]?)-([0-9a-zA-Z+/=]?)-([0-9a-zA-Z+/=]*)$/
-          for (let i = 0; i < fileEntries.length; i++) {
-            const entry = fileEntries[i];
-            if (entry.length !== 4) return false;
-            const [name, type, thumb, flagsCombined] = entry
-            if (!namePattern.test(name)) return false
-            if (!typePattern.test(type)) return false
-            const typeParts = type.split('.');
-            if (typeParts.length > 1 && !folderIndexMap.has(Base58.toNumber(typeParts[1])) && typeParts[1] != "0") return false
-            if (thumb && !ipfsPattern.test(thumb) && !urlPattern.test(thumb)) return false
-            if (flagsCombined && !flagsPattern.test(flagsCombined)) return false
-          }
-          return true
-        }
-      }
+      const { store, config, getPathObj, getPathNum, postToDiscord, chronAssign, Base64, Base58, stringify, verifySig, CodeShare } = context
       function process_complete_update(json, from, active) {
         return new Promise((resolve, reject) => {
           if (active && json.fo && json.f && json.id && json.co === from) {
@@ -1569,7 +1611,7 @@ const CustomJsonProcessing = [
                 } catch (e) {
                   console.log("Error parsing metadata:", e);
                 }
-                if (json.m && typeof json.m === 'string' && isValidMetadata(json.m) && metadata_size == metadata_size_verification) {
+                if (json.m && typeof json.m === 'string' && CodeShare.isValidMetadata(json.m) && metadata_size == metadata_size_verification) {
                   proffer.m = json.m;
                   proffer.m = stringify(proffer.m);
                 }
@@ -1610,6 +1652,7 @@ const CustomJsonProcessing = [
                   const broca_refund = proffer.r - parseInt((total / proffer.a) * proffer.r);
                   proffer.r -= broca_refund;
                   proffer.u = total;
+                  proffer.v = parseInt(total/2);
 
                   if (!num) {
                     err = `${json.id}-No Files`;
@@ -1633,7 +1676,7 @@ const CustomJsonProcessing = [
                     ops.push({
                       type: "put",
                       path: ["broca", json.f],
-                      data: broca_calc(broca, bpow, stats, json.block_num, broca_refund)
+                      data: CodeShare.broca_calc(broca, bpow, stats, json.block_num, broca_refund)
                     });
                     ops.push({
                       type: "put",
@@ -1828,17 +1871,180 @@ const CustomJsonProcessing = [
   },
   {
     type: "on",
+    op: "direct_upload",
+    func: function (json, from, active, pc, context) {
+      const { store, config, getPathObj, getPathNum, postToDiscord, stringify, CodeShare } = context
+      if (active && json.c && json.s && json.id) {
+        var Pbroca = getPathObj(["broca", from]);
+        var Ppow = getPathNum(["bpow", from]);
+        var Pstats = getPathObj(["stats"]);
+        var Pauth = getPathObj(["authorities", from]);
+
+        Promise.all([Pbroca, Pstats, Ppow]).then(mem => {
+          var brocaString = mem[0],
+            stats = mem[1],
+            bpow = mem[2],
+            ops = [],
+            err = '';
+
+            brocaString = CodeShare.broca_calc(brocaString, bpow, stats, json.block_num)
+            broca = parseInt(brocaString.split(',')[0])
+          // Validate metadata if provided
+          if (json.m && typeof json.m === 'string') {
+            const cids = json.c.split(',');
+            const metadata_size_verification = (cids.length * 4 + 1);
+            let metadata_size = 0;
+            try {
+              metadata_size = json.m.split(',').length;
+            } catch (e) {
+              err += 'Invalid metadata format. ';
+            }
+            if (!CodeShare.isValidMetadata(json.m) || metadata_size !== metadata_size_verification) {
+              err += 'Invalid metadata structure. ';
+            }
+          }
+
+          if (!err) {
+            var total = 0;
+            var cids = json.c.split(',');
+            var sizes = json.s.split(',');
+            var proms = [];
+            var decentralized_files = {};
+
+            for (var i = 0; i < cids.length; i++) {
+              if (cids[i] && sizes[i]) {
+                const rev = cids[i].split("").reverse().join("");
+
+                ops.push({
+                  type: "put",
+                  path: ["IPFS", `${rev}`],
+                  data: `${from},${json.id}`
+                });
+
+                proms.push(getPathObj(["IPFS", `${rev}`]));
+                decentralized_files[cids[i]] = parseInt(sizes[i]);
+              }
+            }
+
+            Promise.all(proms).then(ips => {
+              var num = 0;
+              for (var i = 0; i < ips.length; i++) {
+                if (typeof ips[i] === "string") {
+                  delete decentralized_files[cids[i]];
+                } else {
+                  num++;
+                  total += parseInt(sizes[i] || 0);
+                }
+              }
+
+              if (!num) {
+                err = `${json.id}-No New Files`;
+                ops = [{
+                  type: "put",
+                  path: ["feed", `${json.block_num}:${json.transaction_id}`],
+                  data: err
+                }];
+                if (config.hookurl || config.status) {
+                  postToDiscord(err, `${json.block_num}:${json.transaction_id}`);
+                }
+              } else if (broca < total) {
+                err = `${json.id}-Insufficient Broca`;
+                ops = [{
+                  type: "put",
+                  path: ["feed", `${json.block_num}:${json.transaction_id}`],
+                  data: err
+                }];
+              } else {
+                // Update statistics
+                stats.total_bytes += total;
+                stats.total_files += num;
+
+                // Create direct upload contract
+                const directContract = {
+                  c: 3, // Complete status
+                  n: { "1": from },
+                  m: json.m ? stringify(json.m) : stringify("1"),
+                  nt: "1",
+                  df: decentralized_files,
+                  u: total,
+                  v: 1, //verified file size
+                  r: 0, // No refund needed for direct uploads
+                  b: from, // broker is self
+                  fo: from, // file owner is self
+                  f: from, // uploader is self
+                  type: "direct_upload",
+                  created: json.block_num
+                };
+
+                ops.push({
+                  type: "put",
+                  path: ["stats"],
+                  data: stats
+                });
+
+                ops.push({
+                  type: "put",
+                  path: ["contract", from, json.id],
+                  data: directContract
+                });
+
+                ops.push({
+                  type: "put",
+                  path: ["cPointers", json.id],
+                  data: from
+                });
+
+                ops.push({
+                  type: "put",
+                  path: ["broca", from],
+                  data: `${broca - total},${brocaString.split(',')[1]}}`
+                });
+
+                ops.push({
+                  type: "put",
+                  path: ["feed", `${json.block_num}:${json.transaction_id}`],
+                  data: `${json.id} direct upload completed`
+                });
+
+                if (config.hookurl || config.status) {
+                  postToDiscord(`Direct upload completed: ${num} files, ${total} bytes`, `${json.block_num}:${json.transaction_id}`);
+                }
+              }
+
+              if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+              store.batch(ops, pc);
+            }).catch(e => {
+              console.log("Error processing direct upload:", e);
+              pc[0](pc[2]);
+            });
+          } else {
+            ops.push({
+              type: "put",
+              path: ["feed", `${json.block_num}:${json.transaction_id}`],
+              data: err
+            });
+            if (config.hookurl || config.status) {
+              postToDiscord(err, `${json.block_num}:${json.transaction_id}`);
+            }
+            if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+            store.batch(ops, pc);
+          }
+        }).catch(e => {
+          console.log("Error in direct upload:", e);
+          pc[0](pc[2]);
+        });
+      } else {
+        // Invalid operation
+        if (process.env.npm_lifecycle_event == "test") pc[2] = [];
+        pc[0](pc[2]);
+      }
+    }
+  },
+  {
+    type: "on",
     op: "contract_close",
     func: function (json, from, active, pc, context) {
-      const { store, config, getPathObj, postToDiscord, Base64 } = context
-      const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string") last = '0,0'
-        const last_calc = Base64.toNumber(last.split(',')[1])
-        const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
-        var total = parseInt(last.split(',')[0]) + accured + add
-        if (total > (pow * 1000)) total = (pow * 1000)
-        return `${total},${Base64.fromNumber(bn)}`
-      }
+      const { store, config, getPathObj, postToDiscord, CodeShare } = context
       if (json?.id.indexOf(':') > 0) {
         var Pstats = getPathObj(["stats"])
         var Pcontract = getPathObj(["contract", from, json.id])
@@ -1890,7 +2096,7 @@ const CustomJsonProcessing = [
                 ops.push({
                   type: 'put',
                   path: ['broca', account],
-                  data: broca_calc(exts[refunds[account].i], exts[refunds[account].i + 1], stats, json.block_num, refunds[account].a)
+                  data: CodeShare.broca_calc(exts[refunds[account].i], exts[refunds[account].i + 1], stats, json.block_num, refunds[account].a)
                 })
               }
               var items = Object.keys(contract.df)//goods
@@ -1937,7 +2143,7 @@ const CustomJsonProcessing = [
               ops.push({
                 type: 'put',
                 path: ['broca', proffer.f],
-                data: broca_calc(exts[0], exts[1], stats, json.block_num, proffer.r)
+                data: CodeShare.broca_calc(exts[0], exts[1], stats, json.block_num, proffer.r)
               })
               ops.push({
                 type: "del",
@@ -1970,87 +2176,7 @@ const CustomJsonProcessing = [
     type: "on",
     op: "update_metadata",
     func: function (json, from, active, pc, context) {
-      const { store, config, getPathObj, postToDiscord, Base58, Base64 } = context
-      function isValidMetadata(metadataString) {
-        let metaData = metadataString.split(',')
-        const contractData = metaData[0]
-        const metadata = metaData.splice(1)
-        if (metadata.length % 4 !== 0) return false
-        let firstChar = contractData.split('')[0]
-        if (firstChar == '#' || firstChar == '|') firstChar = "1"
-        let simpleTest = Base64.toNumber(firstChar) + 1
-        if (typeof simpleTest !== 'number') return false
-        let encryptionData = contractData.split('#')
-        encryptionData[encryptionData.length - 1] = encryptionData[encryptionData.length - 1].split('|')[0]
-        encryptionData = encryptionData.splice(1)
-        for (let i = 0; i < encryptionData.length; i++) {
-          let key = encryptionData[i]
-          if (key.endsWith(';')) key = key.substring(0, key.length - 1)
-          let atIndex = key.indexOf('@')
-          if (atIndex === -1) return false
-          let cipher = key.substring(0, atIndex)
-          if (!/^[123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/.test(cipher)) return false
-          let account = key.substring(atIndex + 1)
-          if (!/^[a-z0-9-.]{1,16}$/.test(account)) return false
-        }
-        let folderData = contractData.split('|')
-        folderData = folderData.splice(1)
-        if (folderData.length > 48) return false
-        let folderIndexMap = new Map()
-        folderIndexMap.set(0, "Root")
-        let k = 1
-        for (var l = 2; l < 10; l++) {
-          folderIndexMap.set(l, l)
-        }
-        for (let i = 0; i < folderData.length; i++) {
-          let folderPath = folderData[i]
-          let pathParts = folderPath.split('/')
-          for (let j = 0; j < pathParts.length; j++) {
-            let part = pathParts[j]
-            if (j < pathParts.length - 1) {
-              if (!part.match(/^[0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+$/))
-                return false
-              let parentIndex = Base58.toNumber(part);
-              if (!folderIndexMap.has(parentIndex)) return false
-            } else {
-              if (!part.match(/^[0-9a-zA-Z+_.\- ]{2,16}$/)) return false
-              folderIndexMap.set(k, folderPath)
-              if (k == 1) {
-                k = 9
-              }
-              k++
-            }
-          }
-        }
-
-        if (!validateFileMetadata(metadata, folderIndexMap)) return false
-        return true
-        function validateFileMetadata(metadataStr, folderIndexMap) {
-          const fileEntries = [];
-          for (let i = 0; i < metadataStr.length; i += 4) {
-            if (i + 4 <= metadataStr.length) {
-              fileEntries.push(metadataStr.slice(i, i + 4));
-            } else return false
-          }
-          const namePattern = /^[^,]{1,32}$/u
-          const typePattern = /^[a-z0-9]{0,4}(?:\.[0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz]+)?$/
-          const ipfsPattern = /^Qm[1-9A-HJ-NP-Za-km-z]{44}$/
-          const urlPattern = /^(https?:\/\/[^\s$.?#].[^\s]*)$/
-          const flagsPattern = /^([0-9a-zA-Z+/=]?)-([0-9a-zA-Z+/=]?)-([0-9a-zA-Z+/=]*)$/
-          for (let i = 0; i < fileEntries.length; i++) {
-            const entry = fileEntries[i];
-            if (entry.length !== 4) return false;
-            const [name, type, thumb, flagsCombined] = entry
-            if (!namePattern.test(name)) return false
-            if (!typePattern.test(type)) return false
-            const typeParts = type.split('.');
-            if (typeParts.length > 1 && !folderIndexMap.has(Base58.toNumber(typeParts[1])) && typeParts[1] != "0") return false
-            if (thumb && !ipfsPattern.test(thumb) && !urlPattern.test(thumb)) return false
-            if (flagsCombined && !flagsPattern.test(flagsCombined)) return false
-          }
-          return true
-        }
-      }
+      const { store, config, getPathObj, postToDiscord, Base58, Base64, CodeShare } = context
       function handleSingleUpdate(json, from, ops, errors) {
         return Promise.all([
           getPathObj(["contract", from, json.id]),
@@ -2085,7 +2211,7 @@ const CustomJsonProcessing = [
                   }
                   complete_metadata += partial.chunks[i];
                 }
-                if (!isValidMetadata(complete_metadata) || complete_metadata.split(',').length !== metadata_size_verification) {
+                if (!CodeShare.isValidMetadata(complete_metadata) || complete_metadata.split(',').length !== metadata_size_verification) {
                   errors.push(`Invalid metadata format or size for contract ${json.id}`)
                   ops.push({
                     type: "del",
@@ -2110,7 +2236,7 @@ const CustomJsonProcessing = [
                 return
               }
             } else if (json.m && typeof json.m === "string") {
-              if (!isValidMetadata(json.m) || json.m.split(',').length !== metadata_size_verification) {
+              if (!CodeShare.isValidMetadata(json.m) || json.m.split(',').length !== metadata_size_verification) {
                 errors.push(`Invalid metadata format or size for contract ${json.id}`);
                 return
               }
@@ -2124,7 +2250,7 @@ const CustomJsonProcessing = [
                 errors.push(`Failed to apply diff for contract ${json.id}`)
                 return
               }
-              if (!isValidMetadata(newMetadata) || newMetadata.split(',').length !== metadata_size_verification) {
+              if (!CodeShare.isValidMetadata(newMetadata) || newMetadata.split(',').length !== metadata_size_verification) {
                 errors.push(`Invalid metadata format or size after diff for contract ${json.id}`);
                 return
               }
@@ -2165,7 +2291,7 @@ const CustomJsonProcessing = [
               }
               const metadata_size_verification = (Object.keys(contract.df).length * 4 + 1)
               if (update.m && typeof update.m === "string") {
-                if (!isValidMetadata(update.m) || update.m.split(',').length !== metadata_size_verification) {
+                if (!CodeShare.isValidMetadata(update.m) || update.m.split(',').length !== metadata_size_verification) {
                   errors.push(`Invalid metadata format or size for contract ${contractId}`);
                   //console.log(!isValidMetadata(update.m), update.m.split(',').length, metadata_size_verification)
                   return
@@ -2176,7 +2302,7 @@ const CustomJsonProcessing = [
                 }
               } else if (update.diff && typeof update.diff === "string") {
                 const newMetadata = jsdiff.applyPatch(contract.m, update.diff)
-                if (!isValidMetadata(newMetadata) || newMetadata.split(',').length !== metadata_size_verification) {
+                if (!CodeShare.isValidMetadata(newMetadata) || newMetadata.split(',').length !== metadata_size_verification) {
                   errors.push(`Invalid metadata format or size for contract ${contractId}`);
                   //console.log(!isValidMetadata(newMetadata), newMetadata.split(',').length, metadata_size_verification)
                   return
@@ -2245,15 +2371,7 @@ const CustomJsonProcessing = [
     type: "on",
     op: "delete_files",
     func: function (json, from, active, pc, context) {
-      const { store, getPathObj, Base64 } = context
-      const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string") last = '0,0'
-        const last_calc = Base64.toNumber(last.split(',')[1])
-        const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
-        var total = parseInt(last.split(',')[0]) + accured + add
-        if (total > (pow * 1000)) total = (pow * 1000)
-        return `${total},${Base64.fromNumber(bn)}`
-      }
+      const { store, getPathObj, CodeShare } = context
       function calculateRefunds(deletedFilesByContract, block_num, from) {
         return new Promise(resolve => {
           const ops = []
@@ -2283,7 +2401,7 @@ const CustomJsonProcessing = [
                   getPathObj(["bpow", account]),
                   getPathObj(["stats"])
                 ]).then(([broca, bpow, stats]) => {
-                  const updatedBroca = broca_calc(broca, bpow, stats, block_num, refundAmount);
+                  const updatedBroca = CodeShare.broca_calc(broca, bpow, stats, block_num, refundAmount);
                   ops.push({
                     type: "put",
                     path: ["broca", account],
@@ -2474,15 +2592,7 @@ const CustomJsonProcessing = [
     type: "on",
     op: "extend",
     func: function (json, from, active, pc, context) {
-      const { store, getPathObj, Base64, postToDiscord, config, getPathNum, chronAssign, processor } = context
-      const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string") last = '0,0'
-        const last_calc = Base64.toNumber(last.split(',')[1])
-        const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
-        var total = parseInt(last.split(',')[0]) + accured + add
-        if (total > (pow * 1000)) total = (pow * 1000)
-        return `${total},${Base64.fromNumber(bn)}`
-      }
+      const { store, getPathObj, CodeShare, postToDiscord, config, getPathNum, chronAssign, processor } = context
       if (json.broca && json.id && json.file_owner) {
         var Pbroca = getPathObj(["broca", from]);
         var Ppow = getPathNum(["bpow", from])
@@ -2494,8 +2604,8 @@ const CustomJsonProcessing = [
             pow = mem[2],
             contract = mem[3],
             ops = [],
-            err = '' //no log no broca?
-          brocaString = broca_calc(broca, pow, stats, json.block_num),
+            err = '', //no log no broca?
+            brocaString = CodeShare.broca_calc(broca, pow, stats, json.block_num),
             broca = parseInt(brocaString.split(',')[0])
           if (json.broca <= broca && contract.c == 3) {
             broca = broca - json.broca
@@ -2515,7 +2625,7 @@ const CustomJsonProcessing = [
             }
             let deletePromise = new Promise((resolve, reject) => {
               if (cidsFlaggedForDeletion.length) {
-                processor.doOn( 'delete_files', { cids: cidsFlaggedForDeletion, block_num: json.block_num, transaction_id: json.transaction_id }, contract.t, true, [resolve, reject, 0])
+                processor.doOn('delete_files', { cids: cidsFlaggedForDeletion, block_num: json.block_num, transaction_id: json.transaction_id }, contract.t, true, [resolve, reject, 0])
               } else {
                 resolve([])
               }
@@ -5376,7 +5486,7 @@ const CustomOperationsProcessing = [
                     ops.push({ type: "del", path: ["contracts", co, addr] });
                     ops.push({ type: "del", path: ["chrono", c.expire_path] });
                     if (json.from == config.username) {
-                      //delete plasma.pending[i + ':transfer']
+                      delete plasma.pending[addr + ':transfer']
                       let NodeOps = GetNodeOps();
                       for (var i = 0; i < NodeOps.length; i++) {
                         if (
@@ -8036,15 +8146,7 @@ const CustomChron = [
     op: 'contract_close',
     func: function (b, passed, res, rej, num, prand, ints, bh, context) {
       console.log('This block')
-      const { store, getPathObj, getPathNum, Base64, processor } = context;
-      const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string") last = '0,0'
-        const last_calc = Base64.toNumber(last.split(',')[1])
-        const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
-        var total = parseInt(last.split(',')[0]) + accured + add
-        if (total > (pow * 1000)) total = (pow * 1000)
-        return `${total},${Base64.fromNumber(bn)}`
-      }
+      const { store, getPathObj, getPathNum, Base64, processor, CodeShare } = context;
       function contractClose(promies, delkey, num, id, b) {
         return new Promise((resolve, reject) => {
           Promise.all(promies)
@@ -8054,10 +8156,10 @@ const CustomChron = [
                 stats = mem[1],
                 ops = [],
                 bytes = 0,
-                broca = broca_calc(mem[2], mem[3], stats, num),
+                broca = CodeShare.broca_calc(mem[2], mem[3], stats, num),
                 renew = contract.m ? (contract.m.indexOf('"') >= 0 ? Base64.toNumber(JSON.parse(contract.m)[0]) & 1 : Base64.toNumber(contract.m[0]) & 1) : 0
               if (contract.c == 3 && renew && parseInt(broca.split(',')[0]) > 100) {
-                processor.doOp( 'extend', {
+                processor.doOn('extend', {
                   broca: parseInt(broca.split(',')[0]) > parseInt(3 * contract.r / contract.p) ? parseInt(3 * contract.r / contract.p) + 1 : parseInt(parseInt(broca.split(',')[0]) / 2) + 1,
                   id: contract.i,
                   file_owner: contract.t,
@@ -8101,7 +8203,7 @@ const CustomChron = [
         Pstats = getPathObj(["stats"]),
         Pbroca = getPathObj(["broca", b.fo]),
         Ppow = getPathObj(["spow", b.fo]);
-        console.log('cc', passed)
+      console.log('cc', passed)
       contractClose(
         [Pcontract, Pstats, Pbroca, Ppow],
         passed.delKey,
@@ -8114,15 +8216,7 @@ const CustomChron = [
   {
     op: 'channel_check',
     func: function (b, passed, res, rej, num, prand, ints, bh, context) {
-      const { store, getPathObj, Base64 } = context;
-      const broca_calc = (last = '0,0', pow, stats, bn, add = 0) => {
-        if (typeof last != "string") last = '0,0'
-        const last_calc = Base64.toNumber(last.split(',')[1])
-        const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000))) //revisit 
-        var total = parseInt(last.split(',')[0]) + accured + add
-        if (total > (pow * 1000)) total = (pow * 1000)
-        return `${total},${Base64.fromNumber(bn)}`
-      }
+      const { store, getPathObj, CodeShare } = context;
       function channelCheck(promies, delkey, num, id, b) {
         return new Promise((resolve, reject) => {
           Promise.all(promies)
@@ -8148,8 +8242,12 @@ const CustomChron = [
                   data: stats
                 });
                 if (contract?.s) ops.push({ type: "del", path: ['ben', b.to, contract?.s.split(',')[0]] });
-                ops.push({ type: "del", path: ['proffer', b.to, b.from, b.c] });
-                ops.push({ type: "del", path: ['partial_update', b.c.split(":")[2]] })
+                if (b.c) {
+                  ops.push({ type: "del", path: ['proffer', b.to, b.from, b.c] });
+                }
+                if (b.c && typeof b.c === 'string') {
+                  ops.push({ type: "del", path: ['partial_update', b.c.split(":")[2]] })
+                }
                 ops.push({ type: "del", path: ['contract', b.to, contract.i] });
                 if (contract.s) ops.push({ type: "del", path: ['ben', b.to, contract.s.split(',')[0]] });
                 ops.push({
@@ -8161,7 +8259,7 @@ const CustomChron = [
                 ops.push({
                   type: "put",
                   path: ["broca", b.from],
-                  data: broca_calc(broca, bpow, stats, num, contract.r)
+                  data: CodeShare.broca_calc(broca, bpow, stats, num, contract.r)
                 });
               }
               ops.push({ type: "del", path: ["chrono", delkey] });
@@ -8172,8 +8270,8 @@ const CustomChron = [
             });
         });
       }
-      let Pproffer = getPathObj(['proffer', b.to, b.from, b.c]),
-        Ptemplate = getPathObj(["template", b.c]),
+      let Pproffer = b.c ? getPathObj(['proffer', b.to, b.from, b.c]) : Promise.resolve({}),
+        Ptemplate = b.c ? getPathObj(["template", b.c]) : Promise.resolve({}),
         Pstats = getPathObj(["stats"]),
         Pbroca = getPathObj(["broca", b.from]),
         Ppow = getPathObj(["bpow", b.from]);

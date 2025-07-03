@@ -1,12 +1,14 @@
 import { config } from './config.js'
 import { plasma, VERSION, CodeShare } from './index.mjs'
+import fetch from 'node-fetch'
 
 //tell the hive your state, this is asynchronous with IPFS return... 
 export function report(plas, con, additional = {}) {
     return new Promise((resolve, reject) => {
         con.then(r => {
             var val = []
-            if(typeof CodeShare.reportFunction == 'function')CodeShare.reportFunction(val, plas, con, additional).then(r => {
+            const context = { config, fetch }
+            if(typeof CodeShare.reportFunction == 'function')CodeShare.reportFunction(val, plas, con, additional, context).then(r => {
                 let report = {
                     hash: plas.hashLastIBlock,
                     block: plas.hashBlock,
@@ -85,36 +87,6 @@ export function report(plas, con, additional = {}) {
             }
         })
     })
-}
-
-function msIzer(timer) {
-    var ms = 0
-    // regex to match m but not ms
-    var minuteD = timer.split(/m(?![s])/g)
-    if (minuteD.length > 1) {
-        var minutes = minuteD[0]
-        timer = minuteD[1]
-        const dotSplit = minutes.split(".")
-        if (dotSplit.length > 1) {
-            ms += parseInt(dotSplit[0]) * 60000
-            ms = parseInt(dotSplit[1] * 60) * 1000
-        } else {
-            ms += parseInt(dotSplit[0]) * 60000
-        }
-    }
-    // regex to match s but not ms
-    var secondD = timer.split(/(?<![m])s/g)
-    if (secondD.length > 1) {
-        var seconds = secondD[0]
-        timer = secondD[1]
-        ms += parseInt(parseFloat(seconds) * 1000)
-    }
-    // regex to match ms
-    var millisecondD = timer.split(/ms/g)
-    if (millisecondD.length > 1) {
-        ms += parseInt(millisecondD[0])
-    }
-    return ms
 }
 
 export function sig_submit(sign) {

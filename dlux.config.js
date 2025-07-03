@@ -34,6 +34,11 @@ const timeoutContinuous = ENV.timeoutContinuous || 30000;
 const override = ENV.override || 0 //69116600 //will use standard restarts after this blocknumber
 const engineCrank = ENV.startingHash || 'QmconUD3faVGbgC2jAXRiueEuLarjfaUiDz5SA74kptuvu' //but this state will be inserted before
 
+// PoA Statistics Configuration
+const poaStatsWindowSize = ENV.POA_STATS_WINDOW || 1000 // Number of recent measurements to keep for statistics
+const poaMinMeasurements = ENV.POA_MIN_MEASUREMENTS || 10 // Minimum measurements before calculating z-scores
+const troleEndpoint = ENV.TROLE_ENDPOINT || 'https://ipfs.dlux.io' // Trole service endpoint for fetching node health scores
+
 // third party configs
 const rta = ENV.rta || '' //rtrades account : IPFS pinning interface
 const rtp = ENV.rtp || '' //rtrades password : IPFS pinning interface
@@ -254,7 +259,10 @@ let config = {
     CustomJsonProcessing,
     CustomOperationsProcessing,
     CustomAPI,
-    CustomChron
+    CustomChron,
+    poaStatsWindowSize,
+    poaMinMeasurements,
+    troleEndpoint
 };
 
 module.exports = config;
