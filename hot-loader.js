@@ -136,13 +136,6 @@ export function hotCustom(processor) {
     return false;
   }
 
-  // Debug the CodeShare structure
-  console.log('hotCustom - Module-level CodeShare:', CodeShare);
-  console.log('hotCustom - CodeShare.PoA:', CodeShare?.PoA);
-  console.log('hotCustom - CodeShare.PoA.Check:', CodeShare?.PoA?.Check);
-  console.log('hotCustom - runtimeContext.CodeShare:', runtimeContext?.CodeShare);
-  console.log('hotCustom - runtimeContext.CodeShare.PoA:', runtimeContext?.CodeShare?.PoA);
-
   for (var n = 0; n < CJP_Array.length; n++) {
     const customOp = CJP_Array[n];
     if (customOp.type == 'on' && customOp.op && customOp.func) {

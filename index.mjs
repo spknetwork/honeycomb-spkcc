@@ -527,7 +527,6 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
               function ChonOp(delKey, ints, prand, num, bh) {
                 return new Promise((res, rej) => {
                   store.getWith(['chrono', chrops[j[i]]], { delKey, ints }, function (e, b, passed) {
-                    if(chronOps[b.op])console.log(b, passed, res, rej, num, prand, ints, bh, chronOps[b.op].toString())
                     chronOps[b.op](b, passed, res, rej, num, prand, ints, bh, runtimeContext)
                   })
                 })
