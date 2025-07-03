@@ -34,17 +34,7 @@ export function initializeContext(processorToUse, storeToUse, statusToUse, versi
     processor: processorToUse 
   };
 
-  // Detailed logging for CodeShare structure
-  const codeShareExists = !!CodeShare;
-  const poaExists = codeShareExists && typeof CodeShare.PoA === 'object' && CodeShare.PoA !== null;
-  const checkExists = poaExists && typeof CodeShare.PoA.Check === 'function';
-  console.log(`runtimeContext initialized/updated. CodeShare defined: ${codeShareExists}. CodeShare.PoA object exists: ${poaExists}. CodeShare.PoA.Check is function: ${checkExists}`);
-  if (codeShareExists && !poaExists) {
-    try { console.log('CodeShare content (keys):', JSON.stringify(Object.keys(CodeShare))); } catch(e){ console.log('CodeShare content: (unstringifiable)');}
-  }
-  if (poaExists && !checkExists) {
-    try { console.log('CodeShare.PoA content (keys):', JSON.stringify(Object.keys(CodeShare.PoA))); } catch(e){ console.log('CodeShare.PoA content: (unstringifiable)');}
-  }
+  console.log('runtimeContext initialized/updated');
 }
 
 export function hotAPI(api) {
@@ -345,16 +335,11 @@ export function customInit(api, chron, processor, codeShareDefsFromChain, everyD
     // If we have definitions from chain, rehydrate them
     if (codeShareDefsFromChain && typeof codeShareDefsFromChain === 'object') {
       console.log('Rehydrating CodeShare from chain definitions...');
-      console.log('Available definition keys:', Object.keys(codeShareDefsFromChain));
       rehydrateObjectRecursively(codeShareDefsFromChain, newCodeShare);
-      console.log('Rehydrated CodeShare structure:', newCodeShare);
-      console.log('Rehydrated CodeShare.PoA:', newCodeShare.PoA);
-      console.log('Rehydrated CodeShare.PoA.Check type:', typeof newCodeShare.PoA?.Check);
     } else {
       // Fall back to initial config.CodeShare if available
       if (config.CodeShare && typeof config.CodeShare === 'object') {
         console.log('Using initial config.CodeShare as fallback...');
-        console.log('config.CodeShare.PoA.Check type:', typeof config.CodeShare.PoA?.Check);
         rehydrateObjectRecursively(config.CodeShare, newCodeShare);
       }
     }
@@ -392,9 +377,7 @@ export function customInit(api, chron, processor, codeShareDefsFromChain, everyD
     CodeShare = newCodeShare;
     Every = newEvery;
     
-    console.log('Final CodeShare after rehydration:', CodeShare);
-    console.log('Final CodeShare.PoA:', CodeShare.PoA);
-    console.log('Final CodeShare.PoA.Check type:', typeof CodeShare.PoA?.Check);
+    console.log('Final CodeShare after rehydration');
     console.log('Every after rehydration:', Every.length, 'functions');
 
     // Re-initialize context so it picks up the new CodeShare and Every
@@ -413,7 +396,7 @@ export function customInit(api, chron, processor, codeShareDefsFromChain, everyD
 function rehydrateObjectRecursively(source, target) {
   console.log('rehydrateObjectRecursively called with source keys:', Object.keys(source));
   
-  // Handle path-based definitions (e.g., "PoA.Check": {params, body})
+  // Handle path-based definitions (e.g., "nested.function": {params, body})
   for (const key in source) {
     if (Object.hasOwnProperty.call(source, key)) {
       const value = source[key];
