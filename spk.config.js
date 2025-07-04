@@ -149,8 +149,8 @@ const CodeShare = {
       RAM.pool = {
         connections: new Map(), // Map of address -> { socket, queue, processing }
         maxConnections: 5, // Maximum concurrent connections
-        batchSize: 50, // Maximum validations per batch
-        batchTimeout: 1000 // Milliseconds to wait before sending partial batch
+        batchSize: 100, // Maximum validations per batch
+        batchTimeout: 3000 // Milliseconds to wait before sending partial batch (increased from 1s to 3s)
       };
     }
   },
@@ -823,7 +823,7 @@ const CodeShare = {
       }
       var gt = Base58.fromNumber(Number(r % 7427658739644928n))
       while (gt.length < 9) {
-        gt = '1' + gt  // Pad at the beginning for p-adic consistency
+        gt = gt + '1'  // Pad at the end (reverting to previous strategy)
       }
       return gt
     },
@@ -851,7 +851,8 @@ const CodeShare = {
         peerid,
         SALT,
         bn,
-        timestamp: Date.now()
+        timestamp: Date.now(),
+        validator: config.username || config.leader || 'spk-test' // Include validator identity
       };
       
       CodeShare.queueValidation(validationRequest, context);
