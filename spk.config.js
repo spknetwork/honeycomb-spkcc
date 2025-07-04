@@ -233,47 +233,27 @@ const CodeShare = {
     }
     return ms
   },
-  
-  // Base64 encoding constants
-  BASE64_CHARS: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+=",
-  NORMAL_POSITION: 32, // 'W' character represents 0 standard deviations
-  Z_SCORE_STEP: 0.1, // Each character represents 0.1 standard deviation
-  
-  // Convert z-score to base64 character
   zScoreToBase64: function(zScore) {
-    // Clamp z-score to valid range (-3.2 to +3.1)
     const clampedZ = Math.max(-3.2, Math.min(3.1, zScore));
-    
-    // Calculate position (0-63)
-    const position = Math.round((clampedZ / CodeShare.Z_SCORE_STEP) + CodeShare.NORMAL_POSITION);
-    
-    // Ensure position is within valid range
+    const position = Math.round((clampedZ / 0.1) + 32);
     const finalPosition = Math.max(0, Math.min(63, position));
-    
-    return CodeShare.BASE64_CHARS[finalPosition];
+    return "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+="[finalPosition];
   },
-  
-  // Convert base64 character to z-score
   base64ToZScore: function(char) {
-    const position = CodeShare.BASE64_CHARS.indexOf(char);
+    const position = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+=".indexOf(char);
     
     if (position === -1) {
       throw new Error(`Invalid base64 character: ${char}`);
     }
-    
-    // Calculate z-score from position
-    const zScore = (position - CodeShare.NORMAL_POSITION) * CodeShare.Z_SCORE_STEP;
+    const zScore = (position - 32) * 0.1;
     
     return zScore;
   },
-  
-  // Function to fetch trole health score for a node
   fetchTroleHealthScore: async function(nodeName, context) {
     const { config } = context;
     const endpoint = config.troleEndpoint || 'https://ipfs.dlux.io';
     
     try {
-      // Use native fetch if available, otherwise use the context fetch
       const fetchFn = context.fetch || fetch;
       const response = await fetchFn(`${endpoint}/node-health/${nodeName}`, {
         headers: {
@@ -284,7 +264,6 @@ const CodeShare = {
       
       if (response.ok) {
         const text = await response.text();
-        // Trole returns a 2-character string
         if (text && text.length === 2) {
           return text;
         }
@@ -292,11 +271,8 @@ const CodeShare = {
     } catch (error) {
       if (config.mode == 'verbose') console.log(`Failed to fetch trole health score for ${nodeName}:`, error.message);
     }
-    
-    // Return empty string if no response
     return '';
   },
-  
   reportFunction: function (plas, con, proofs, context) {
     return new Promise((resolve, reject) => {
       var val = []
@@ -311,12 +287,10 @@ const CodeShare = {
           } catch (e) { continue }
           if (nodes.length) {
             for (var j = 0; j < nodes.length; j++) {
-              // Just read the 1-3 char string from RAM
               const scoreStr = proofs[`${i + offset}`][CID].npid[nodes[j]]
               if (scoreStr && typeof scoreStr === 'string' && scoreStr.length >= 1) {
                 formated.push([nodes[j], scoreStr])
               }
-              // If no score string, node failed validation - don't include
             }
             if (formated.length > 2) val.push(formated)
           }
@@ -351,7 +325,6 @@ const CodeShare = {
           }
         }
         if (promises.length) Promise.all(promises).then(contracts => {
-          // Statistics tracking for validation counts
           var newCount = stats.val_count || 0
           var totalValidations = stats.val_total || 0
           var successfulValidations = stats.val_successful || 0
