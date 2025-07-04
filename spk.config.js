@@ -660,6 +660,7 @@ const CodeShare = {
       let SpkStorageDist = 0;
       let BrocaStorageDist = 0;
       let spkShares = {};
+      let brocaShares = {};
       let SpkRewardedServices = 0;
       let BrocaRewardedServices = 0;
       let std = 0;
