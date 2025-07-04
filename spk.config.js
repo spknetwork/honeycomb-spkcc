@@ -602,7 +602,7 @@ const CodeShare = {
       }
       var gt = Base58.fromNumber(Number(r % 7427658739644928n))
       while (gt.length < 9) {
-        gt = gt + '1'
+        gt = '1' + gt  // Pad at the beginning for p-adic consistency
       }
       return gt
     },
