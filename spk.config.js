@@ -569,22 +569,52 @@ const CodeShare = {
 
     try {
       // Fetch SPK/BROCA specific data
-      const [vbroca, spk, cspk, powBal, cbroca, lbroca] = await Promise.all([
+      const [vbroca, sbroca, ubroca,spk, cspk, powBal, cbroca, lbroca, granted, pow] = await Promise.all([
         getPathObj(['vbroca']),
+        getPathObj(['sbroca']),
+        getPathObj(['ubroca']),
         getPathObj(['spk']),
         getPathObj(['cspk']),
         getPathNum(['bpow', 't']),
         getPathObj(['cbroca']),
-        getPathObj(['lbroca'])
+        getPathObj(['lbroca']),
+        getPathObj(['granted']),
+        getPathObj(['pow'])
       ]);
 
       // Calculate total verified BROCA (not collateral BROCA)
       let totalVBroca = 0;
       let brocaAccounts = {};
+      let totalPowered = 0;
+      let totalGranted = 0;
+      let storageBroca = 0;
 
       for (const acc in vbroca) {
         totalVBroca += vbroca[acc] || 0;
         brocaAccounts[acc] = vbroca[acc] || 0;
+      }
+
+      for (const acc in sbroca) {
+        totalVBroca += sbroca[acc] || 0;
+        brocaAccounts[acc] = sbroca[acc] || 0;
+        storageBroca += sbroca[acc] || 0;
+      }
+
+      for (const acc in ubroca) {
+        totalVBroca += ubroca[acc] || 0;
+        brocaAccounts[acc] = ubroca[acc] || 0;
+      }
+      daops.push({ type: 'del', path: ['sbroca'] });
+      daops.push({ type: 'del', path: ['ubroca'] });
+      daops.push({ type: 'del', path: ['vbroca'] });
+
+      for (const acc in brocaAccounts) {
+        totalPowered += pow[acc] || 0;
+      }
+
+      for (const acc in brocaAccounts) {
+        totalPowered += granted[acc].t || 0;
+        totalGranted += granted[acc].t || 0;
       }
 
       // Minted
@@ -623,14 +653,28 @@ const CodeShare = {
       spk.u += newSPK; // unissued SPK for distribution
 
       // Storage provider rewards distribution
-      const SpkStorageRewards = spk.u;
-      const BrocaStorageRewards = lbroca.u + newBroca
+      const SpkDelegationRewards = parseInt(spk.u * 0.5)
+      const SpkStorageRewards = spk.u - SpkDelegationRewards
+      const BrocaDelegationRewards = parseInt((lbroca.u + newBroca) * 0.5)
+      const BrocaStorageRewards = (lbroca.u + newBroca) - BrocaDelegationRewards
       let SpkStorageDist = 0;
       let BrocaStorageDist = 0;
       let spkShares = {};
       let SpkRewardedServices = 0;
       let BrocaRewardedServices = 0;
+      let std = 0;
+      let mean = 0;
 
+      if(storageBroca > 0) {
+        const N = Object.keys(sbroca).length
+        mean = storageBroca / N
+        let total = 0;
+        for (const acc in sbroca) {
+          total += Math.pow(sbroca[acc] - mean, 2)
+        }
+        std = ParseInt(Math.sqrt(total / N))
+      }
+      // half of rewards go to storage providers, half to delegators
       if (totalVBroca > 0) {
         spk.u = 0; // Reset unissued after distribution
         lbroca.u = 0;
@@ -674,10 +718,74 @@ const CodeShare = {
           lbroca.u += (BrocaStorageRewards - BrocaStorageDist);
         }
       }
+      let Dtotal = 0;
+      let Dnum = 0;
+      let Dsum = 0;
+      let Dstd = 0;
+      let Dmean = 0;
+      let Delegations = {}
+      for (const acc in brocaAccounts) {
+        Delegations[acc] = (granted[acc].t || 0) + (pow[acc] || 0)
+        Dtotal += Delegations[acc]
+        Dnum++
+      }
+      Dmean = Dtotal / Dnum
+      for (const acc in Delegations) {
+        Dsum += Math.pow(Delegations[acc] - Dmean, 2)
+      }
+      Dstd = parseInt(Math.sqrt(Dsum / Dnum))
+      // Adjust storage based on delegation and power
+      for (const acc in sbroca) {
+        if(Delegations[acc] > Dmean + Dstd) {
+          sbroca[acc] = parseInt(sbroca[acc] * 1.5)
+        } else if (Delegations[acc] < Dmean - Dstd) {
+          sbroca[acc] = parseInt(sbroca[acc] * 0.66)
+        }
+        if(sbroca[acc] > mean + std) sbroca[acc] = parseInt(sbroca[acc] * 1.5)
+        else if (sbroca[acc] < mean - std) sbroca[acc] = parseInt(sbroca[acc] * 0.66)
+      }
+    //re sum sBroca
+    let sBrocaTotal = 0;
+    for (const acc in sbroca) {
+      sBrocaTotal += sbroca[acc]
+    }
+    let cummulativeSpkReward = 0;
+    let cummulativeBrocaReward = 0;
+    for (const acc in sbroca) {
+      thisSpkReward = parseInt(SpkDelegationRewards * sbroca[acc] / sBrocaTotal)
+      thisBrocaReward = parseInt(BrocaDelegationRewards * sbroca[acc] / sBrocaTotal)
+      if(thisSpkReward > 0 || thisBrocaReward > 0) {
+
+        const toSelfSpk = parseIint(thisSpkReward * pow[acc] /Delegations[acc] )
+        thisSpkReward -= toSelfSpk
+        cspk[acc] += toSelfSpk
+        cummulativeSpkReward += toSelfSpk
+        const toSelfBroca = parseInt(thisBrocaReward * pow[acc] /Delegations[acc] )
+        thisBrocaReward -= toSelfBroca
+        cbroca[acc] += toSelfBroca
+        cummulativeBrocaReward += toSelfBroca
+        for (const acc2 in granted[acc]) {
+          if(acc2 != acc && granted[acc][acc2] > 0 && acc2 != 't') {
+            const toOtherSpk = parseInt(thisSpkReward * granted[acc][acc2] / Delegations[acc] )
+            cspk[acc2] = cspk[acc2] ? cspk[acc2] + toOtherSpk : toOtherSpk
+            cummulativeSpkReward += toOtherSpk
+            const toOtherBroca = parseInt(thisBrocaReward * granted[acc][acc2] / Delegations[acc] )
+            cbroca[acc2] = cbroca[acc2] ? cbroca[acc2] + toOtherBroca : toOtherBroca
+            cummulativeBrocaReward += toOtherBroca
+          }
+        }
+      }
+    }
+    if(cummulativeSpkReward < SpkDelegationRewards) {
+      spk.u += (SpkDelegationRewards - cummulativeSpkReward)
+    }
+    if(cummulativeBrocaReward < BrocaDelegationRewards) {
+      lbroca.u += (BrocaDelegationRewards - cummulativeBrocaReward)
+    }
 
       // Update SPK balances in daops
       daops.push({ type: 'put', path: ['spk', 'ra'], data: 0 });
-      daops.push({ type: 'put', path: ['lbroca', 'ra'], data: 0 });
+      daops.push({ type: 'put', path: ['stats'], data: stats });
       daops.push({ type: 'put', path: ['cspk'], data: cspk });
       daops.push({ type: 'put', path: ['cbroca'], data: cbroca });
       daops.push({ type: 'put', path: ['vbroca'], data: brocaAccounts });
@@ -733,7 +841,7 @@ const CodeShare = {
     }
   },
   PoA: {
-    Check: async function (b, rand, stats, val, vBroca, pc, context) {
+    Check: async function (b, rand, stats, val, vBroca, sBroca, pc, context) {
       const { getPathObj, CodeShare, Base58, config, Base64, store } = context
       var promises = [], ops = []
       for (var i = 0; i < b.report.v.length; i++) {
@@ -866,7 +974,7 @@ const CodeShare = {
                 nodeReward = nodeReward * 2
               }
 
-              vBroca[acc[j].a] = vBroca[acc[j].a] ? vBroca[acc[j].a] + nodeReward : nodeReward
+              sBroca[acc[j].a] = sBroca[acc[j].a] ? sBroca[acc[j].a] + nodeReward : nodeReward
             }
             if (paid) {
               vBroca[b.self] = vBroca[b.self] ? vBroca[b.self] + (2 * reward) : (2 * reward)
@@ -901,6 +1009,7 @@ const CodeShare = {
           ops.push({ type: "put", path: ["markets", "node", b.self], data: b })
           ops.push({ type: "put", path: ["stats"], data: stats })
           if (Object.keys(vBroca).length) ops.push({ type: "put", path: ["vbroca"], data: vBroca })
+          if (Object.keys(sBroca).length) ops.push({ type: "put", path: ["sbroca"], data: sBroca })
           store.batch(ops, pc)
         })
         else store.batch([{ type: "put", path: ["markets", "node", b.self], data: b }], pc)
@@ -963,11 +1072,8 @@ const CodeShare = {
                         toVerify[dfKeys[j]].v = 0
                         toVerify[dfKeys[j]].npid = {}
                         toVerify[dfKeys[j]].sizes = {} // Store reported file sizes
+                        // Don't pre-populate npid - only add nodes when they successfully validate
                         for (var node in toVerify[dfKeys[j]].n) {
-                          toVerify[dfKeys[j]].npid[toVerify[dfKeys[j]].n[node]] = {
-                            Message: 0,
-                            Elapsed: 0
-                          }
                           k.push([dfKeys[j], toVerify[dfKeys[j]].n[node]])
                           if (config.mode == 'verbose') console.log('toVerify', toVerify[dfKeys[j]].n[node])
                           promises.push(getPathObj(['service', 'IPFS', toVerify[dfKeys[j]].n[node]]))
@@ -1266,13 +1372,14 @@ const CustomJsonProcessing = [
       var pStats = getPathObj(['stats'])
       let pVal = getPathObj(['val'])
       let PvBroca = getPathObj(['vbroca'])
-      Promise.all([pReport, pRand, pStats, pVal, PvBroca]).then(mem => {
-        var b = mem[0], rand = mem[1], stats = mem[2], val = mem[3], vBroca = mem[4]
+      let PsBroca = getPathObj(['sbroca'])
+      Promise.all([pReport, pRand, pStats, pVal, PvBroca, PsBroca]).then(mem => {
+        var b = mem[0], rand = mem[1], stats = mem[2], val = mem[3], vBroca = mem[4], sBroca = mem[5]
         if (from == b.self && active) {
           b.report = json
           delete b.report.timestamp
           if (b.report.v) {
-            CodeShare.PoA.Check(b, rand, stats, val, vBroca, pc, context)
+            CodeShare.PoA.Check(b, rand, stats, val, vBroca, sBroca, pc, context)
           } else {
             var ops = [
               { type: 'put', path: ['markets', 'node', from], data: b }
