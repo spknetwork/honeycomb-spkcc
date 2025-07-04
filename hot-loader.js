@@ -11,6 +11,8 @@ import stringify from 'json-stable-stringify';
 
 export var runtimeContext;
 export var CodeShare = config.CodeShare || {};
+// Make CodeShare available globally for rehydrated functions
+globalThis.CodeShare = CodeShare;
 export var Every = [HR.margins, ...(config.CustomEvery || [])];
 
 export function initializeContext(processorToUse, storeToUse, statusToUse, versionToUse) {
@@ -277,7 +279,6 @@ export function hotChron(chronOps) {
         chronOps[customChronJob.op] = ((chronJob) => {
             return (b, passed, res, rej, num, prand, ints, bh, context) => {
                 try {
-                    console.log('chronJob.function', chronJob.function.toString())
                     return chronJob.function(b, passed, res, rej, num, prand, ints, bh, context);
                 } catch (e) {
                     console.error(`Error executing custom chron job ${chronJob.op}:`, e);
@@ -432,6 +433,9 @@ export function customInit(api, chron, processor, codeShareDefsFromChain, everyD
     CodeShare = newCodeShare;
     Every = newEvery;
     
+    // Make CodeShare available globally for rehydrated functions
+    globalThis.CodeShare = CodeShare;
+    
     console.log('Final CodeShare after rehydration');
     console.log('Every after rehydration:', Every.length, 'functions');
 
@@ -477,9 +481,29 @@ function rehydrateObjectRecursively(source, target) {
           if (isAsync) {
             // Create an async function
             const AsyncFunction = (async function () {}).constructor;
-            func = new AsyncFunction(...paramsArray, value.body);
+            // Create function body that includes CodeShare reference
+            const funcBody = `
+              const CodeShare = this.CodeShare || globalThis.CodeShare;
+              ${value.body}
+            `;
+            func = new AsyncFunction(...paramsArray, funcBody);
+            // Bind CodeShare to the function's context
+            // Use a getter to ensure we always get the current CodeShare value
+            func = func.bind({ 
+              get CodeShare() { return CodeShare; }
+            });
           } else {
-            func = new Function(...paramsArray, value.body);
+            // Create function body that includes CodeShare reference
+            const funcBody = `
+              const CodeShare = this.CodeShare || globalThis.CodeShare;
+              ${value.body}
+            `;
+            func = new Function(...paramsArray, funcBody);
+            // Bind CodeShare to the function's context
+            // Use a getter to ensure we always get the current CodeShare value
+            func = func.bind({ 
+              get CodeShare() { return CodeShare; }
+            });
           }
           
           // Set the function at the correct nested path

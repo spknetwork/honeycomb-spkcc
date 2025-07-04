@@ -9,7 +9,6 @@ export function report(plas, con, additional = {}) {
     return new Promise((resolve, reject) => {
         con.then(r => {
             const context = { config, fetch }
-            console.log('CodeShare', CodeShare)
             if(CodeShare.reportFunction && CodeShare.reportFunction.body) {
                 // Rehydrate the function from the body string
                 const functionBody = CodeShare.reportFunction.body;
