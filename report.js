@@ -9,17 +9,34 @@ export function report(plas, con, additional = {}) {
     return new Promise((resolve, reject) => {
         con.then(r => {
             const context = { config, fetch }
-            const rf = CodeShare.reportFunction ? JSON.parse(CodeShare.reportFunction) : null
-            console.log('rf', rf, CodeShare.reportFunction)
-            if(rf) {
-                // Rehydrate the function from the body string
-                const functionBody = rf.body;
-               
-                const reportFunction = new Function(functionBody)();
-                
-                reportFunction(plas, con, RAM.pending, context).then(r => {
-                    console.log('reportFunction', r)
-                    val = r
+            let reportFunction = null;
+            
+            if(CodeShare.reportFunction) {
+                if(typeof CodeShare.reportFunction === 'function') {
+                    // Already rehydrated as a function
+                    reportFunction = CodeShare.reportFunction;
+                } else if(typeof CodeShare.reportFunction === 'string') {
+                    // JSON string from chain - needs parsing and rehydration
+                    try {
+                        const rf = JSON.parse(CodeShare.reportFunction);
+                        if(rf && rf.body) {
+                            // Create function from body string
+                            const paramsArray = rf.params ? Object.values(rf.params) : [];
+                            reportFunction = new Function(...paramsArray, rf.body);
+                        }
+                    } catch(e) {
+                        console.error('Error parsing reportFunction:', e);
+                    }
+                } else if(typeof CodeShare.reportFunction === 'object' && CodeShare.reportFunction.body) {
+                    // Already parsed object with body property
+                    const paramsArray = CodeShare.reportFunction.params ? Object.values(CodeShare.reportFunction.params) : [];
+                    reportFunction = new Function(...paramsArray, CodeShare.reportFunction.body);
+                }
+            }
+            
+            if(reportFunction) {
+                reportFunction(plas, con, RAM.pending, context).then(customReport => {
+                    console.log('reportFunction', customReport)
                     let report = {
                         hash: plas.hashLastIBlock,
                         block: plas.hashBlock,
@@ -42,7 +59,7 @@ export function report(plas, con, additional = {}) {
                             report.oracle = plasma.oracle
                         }
                     } catch (e) { }
-                    report = {...report, ...r}
+                    report = {...report, ...customReport}
                     var op = [
                         "custom_json",
                         {
