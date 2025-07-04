@@ -481,29 +481,37 @@ function rehydrateObjectRecursively(source, target) {
           if (isAsync) {
             // Create an async function
             const AsyncFunction = (async function () {}).constructor;
-            // Only add CodeShare declaration if it's not already a parameter
+            // Check if CodeShare is already declared in the function (parameter or destructuring)
             const hasCodeShareParam = paramsArray.includes('CodeShare');
-            const funcBody = hasCodeShareParam ? value.body : `
+            const hasCodeShareDestructuring = /const\s*\{[^}]*CodeShare[^}]*\}\s*=/.test(value.body);
+            const needsCodeShareInjection = !hasCodeShareParam && !hasCodeShareDestructuring;
+            
+            const funcBody = needsCodeShareInjection ? `
               const CodeShare = this.CodeShare || globalThis.CodeShare;
               ${value.body}
-            `;
+            ` : value.body;
+            
             func = new AsyncFunction(...paramsArray, funcBody);
-            // Bind CodeShare to the function's context if it's not a parameter
-            if (!hasCodeShareParam) {
+            // Bind CodeShare to the function's context if we injected it
+            if (needsCodeShareInjection) {
               func = func.bind({ 
                 get CodeShare() { return CodeShare; }
               });
             }
           } else {
-            // Only add CodeShare declaration if it's not already a parameter
+            // Check if CodeShare is already declared in the function (parameter or destructuring)
             const hasCodeShareParam = paramsArray.includes('CodeShare');
-            const funcBody = hasCodeShareParam ? value.body : `
+            const hasCodeShareDestructuring = /const\s*\{[^}]*CodeShare[^}]*\}\s*=/.test(value.body);
+            const needsCodeShareInjection = !hasCodeShareParam && !hasCodeShareDestructuring;
+            
+            const funcBody = needsCodeShareInjection ? `
               const CodeShare = this.CodeShare || globalThis.CodeShare;
               ${value.body}
-            `;
+            ` : value.body;
+            
             func = new Function(...paramsArray, funcBody);
-            // Bind CodeShare to the function's context if it's not a parameter
-            if (!hasCodeShareParam) {
+            // Bind CodeShare to the function's context if we injected it
+            if (needsCodeShareInjection) {
               func = func.bind({ 
                 get CodeShare() { return CodeShare; }
               });
