@@ -15,7 +15,7 @@ export function report(plas, con, additional = {}) {
                
                 const reportFunction = new Function('return ' + functionBody)();
                 
-                reportFunction(plas, con, additional, RAM.pending, context ).then(r => {
+                reportFunction(plas, con, RAM.pending, context).then(r => {
                     console.log('reportFunction', r)
                     val = r
                     let report = {
