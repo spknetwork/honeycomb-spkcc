@@ -303,7 +303,7 @@ const CodeShare = {
   PoA: {
     Check: async function (b, rand, stats, val, cBroca, vBroca, pc, context) {
       const { getPathObj, CodeShare, Base58, config, Base64, store } = context
-      var promises = []
+      var promises = [], ops = []
       for (var i = 0; i < b.report.v.length; i++) {
         const [gte, lte] = CodeShare.PoA.getRange(rand[b.report.v[i][1]], b.self, val, stats, context)
         const rev = b.report.v[i][0].split("").reverse().join("")
@@ -328,6 +328,7 @@ const CodeShare = {
           var newCount = stats.val_count || 0
           var totalValidations = stats.val_total || 0
           var successfulValidations = stats.val_successful || 0
+          var ops = []
           for (var i = 0; i < contracts.length; i++) {
             var reward = 0
             try {
@@ -463,8 +464,8 @@ const CodeShare = {
           stats.val_count = newCount
           stats.val_total = totalValidations
           stats.val_successful = successfulValidations
-          var ops = [{ type: "put", path: ["markets", "node", b.self], data: b },
-          { type: "put", path: ["stats"], data: stats }]
+          ops.push({ type: "put", path: ["markets", "node", b.self], data: b })
+          ops.push({ type: "put", path: ["stats"], data: stats })
           if (Object.keys(vBroca).length) ops.push({ type: "put", path: ["vbroca"], data: vBroca })
           if (Object.keys(cBroca).length) ops.push({ type: "put", path: ["cbroca"], data: cBroca })
           store.batch(ops, pc)
