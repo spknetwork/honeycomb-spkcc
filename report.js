@@ -1,5 +1,6 @@
 import { config } from './config.js'
 import { plasma, VERSION } from './index.mjs'
+import { RAM } from './routes/api.js'
 import fetch from 'node-fetch'
 import { CodeShare } from './hot-loader.js'
 
@@ -9,47 +10,56 @@ export function report(plas, con, additional = {}) {
         con.then(r => {
             const context = { config, fetch }
             console.log('CodeShare', CodeShare)
-            if(typeof CodeShare.reportFunction == 'function')CodeShare.reportFunction(plas, con, additional, context).then(r => {
-                console.log('reportFunction', r)
-                val = r
-                let report = {
-                    hash: plas.hashLastIBlock,
-                    block: plas.hashBlock,
-                    stash: plas.privHash,
-                    ipfs_id: plas.id,
-                    version: VERSION
-                }
-                if (plas.hashBlock % 10000 == 1) {
-                    report.hive_check = plas.hive_offset,
-                        report.hbd_check = plas.hbd_offset
-                }
-                try {
-                    if (r.block > report.block) {
-                        report.sig = r.sig,
-                            report.sig_block = r.block
+            if(CodeShare.reportFunction && CodeShare.reportFunction.body) {
+                // Rehydrate the function from the body string
+                const functionBody = CodeShare.reportFunction.body;
+                const reportFunction = new Function('plas', 'con', 'additional', 'proofs', 'context',  functionBody);
+                
+                // Initialize required variables for the function
+                const proofs = plas.proofs || {};
+                let val = [];
+                
+                reportFunction(plas, con, additional, RAM.pending, context ).then(r => {
+                    console.log('reportFunction', r)
+                    val = r
+                    let report = {
+                        hash: plas.hashLastIBlock,
+                        block: plas.hashBlock,
+                        stash: plas.privHash,
+                        ipfs_id: plas.id,
+                        version: VERSION
                     }
-                } catch (e) { }
-                try {
-                    if (plasma.oracle) {
-                        report.oracle = plasma.oracle
+                    if (plas.hashBlock % 10000 == 1) {
+                        report.hive_check = plas.hive_offset,
+                            report.hbd_check = plas.hbd_offset
                     }
-                } catch (e) { }
-                report = {...report, ...r}
-                var op = [
-                    "custom_json",
-                    {
-                        required_auths: [config.username],
-                        required_posting_auths: [],
-                        id: `${config.prefix}report${config.mirrorNet ? "M" : ""}`,
-                        json: JSON.stringify(report),
-                    },
-                ];
-                delete plasma.oracle
-                resolve([
-                    [0, 0], op
-                ])
-            })
-            else {
+                    try {
+                        if (r.block > report.block) {
+                            report.sig = r.sig,
+                                report.sig_block = r.block
+                        }
+                    } catch (e) { }
+                    try {
+                        if (plasma.oracle) {
+                            report.oracle = plasma.oracle
+                        }
+                    } catch (e) { }
+                    report = {...report, ...r}
+                    var op = [
+                        "custom_json",
+                        {
+                            required_auths: [config.username],
+                            required_posting_auths: [],
+                            id: `${config.prefix}report${config.mirrorNet ? "M" : ""}`,
+                            json: JSON.stringify(report),
+                        },
+                    ];
+                    delete plasma.oracle
+                    resolve([
+                        [0, 0], op
+                    ])
+                })
+            } else {
                 let report = {
                     hash: plas.hashLastIBlock,
                     block: plas.hashBlock,
