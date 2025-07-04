@@ -140,6 +140,7 @@ import { voter } from "./voter.js"
 import { report, sig_submit, osig_submit } from "./report.js"
 import { ipfsSaveState } from "./ipfsSaveState.js"
 import { dao, Liquidity } from "./dao.js"
+import { tally } from "./tally.js"
 import { release } from './lil_ops.js'
 import { hiveState } from './processor.js'
 import { getPathObj, getPathNum, getPathSome } from './getPathObj.js'
@@ -159,7 +160,6 @@ import {
 
 // Re-export for compatibility with existing imports
 export { CodeShare, runtimeContext }
-import { tally } from "./tally.js"
 
 Promise.all([config.startURL, config.clientURL]).then(urls => {
   config.startURL = urls[0]
@@ -616,7 +616,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                   block.root = ''
                 }
                 if (num % 100 === 0) {
-                  promises.push(tally(num, plasma, processor.isStreaming()));
+                  promises.push(tally(num, plasma, processor.isStreaming(), runtimeContext));
                   if (plasma.hashBlock < num - 100) {
                     promises.push(new Promise((res, rej) => {
                       function waitforipfs(n) {
