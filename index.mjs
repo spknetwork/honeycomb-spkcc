@@ -611,7 +611,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                   }))
                 }
                 if ((num - 18505) % 28800 === 0) { //time for daily magic
-                  promises.push(dao(num))
+                  promises.push(dao(num, runtimeContext))
                   block.prev_root = block.root
                   block.root = ''
                 }
@@ -850,7 +850,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                       if (cleanState.stats.chain){
                         cleanState.chain = cleanState.stats.chain
                         delete cleanState.stats.chain
-                      } else if (!cleanState.chain) cleanState.chain = {
+                      } else if (!cleanState.chain) {cleanState.chain = {
                         starting_block: config.starting_block,
                         prefix: config.prefix,
                         TOKEN: config.TOKEN,
@@ -884,7 +884,14 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                         CustomEvery: dehydrateCustomEvery(config.CustomEvery),
                         CodeShare: dehydrateCodeShare(config.CodeShare)
                       }
-
+                      delete cleanState.ben
+                      delete cleanState.cbroca
+                      delete cleanState.vbroca
+                      delete cleanState.cspk
+                      cleanState.stats.spk_interest_rate = 40383
+                      cleanState.stats.broca_interest_rate = 40383
+                      delete cleanState.stats.val_tot_ms
+                    }
                       store.put([], cleanState, function (err) {
                         if (err) {
                           console.log("errr", err);

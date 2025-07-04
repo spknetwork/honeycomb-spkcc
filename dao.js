@@ -3,13 +3,14 @@ import { getPathObj, getPathNum } from "./getPathObj.js"
 import { isEmpty, addMT } from './lil_ops.js'
 import { sortBuyArray } from './helpers.js'
 import stringify from 'json-stable-stringify'
+import { CodeShare } from './hot-loader.js'
 
 const MAX_PRICE_MULTIPLIER = 10; // Max 10x price increase
 const MIN_ICO_PRICE = 1000;
 const MAX_ICO_PRICE = 1000000;
 
 //the daily post, the inflation point for tokennomics
-export function dao(num) {
+export function dao(num, runtimeContext) {
     return new Promise((resolve, reject) => {
         let post = `## ${Config("TOKEN")} DAO REPORT\n`,
             news = '',
@@ -46,7 +47,7 @@ export function dao(num) {
             Prnfts = getPathObj(['rnfts']),
             Pgov = getPathObj(['gov']),
             Pdistro = Distro()
-        Promise.all([Pnews, Pbals, Prunners, Pnodes, Pstats, Pdelegations, Pico, Pdex, Pbr, Ppbal, Pnomen, Pposts, Pfeed, Ppaid, Prnfts, Pdistro, Pcbals, Pgov]).then(function (v) {
+        Promise.all([Pnews, Pbals, Prunners, Pnodes, Pstats, Pdelegations, Pico, Pdex, Pbr, Ppbal, Pnomen, Pposts, Pfeed, Ppaid, Prnfts, Pdistro, Pcbals, Pgov]).then(async function (v) {
             daoDels.push({ type: 'del', path: ['postQueue'] });
             daoDels.push({ type: 'del', path: ['br'] });
             daoDels.push({ type: 'del', path: ['rolling'] });
@@ -55,7 +56,7 @@ export function dao(num) {
             const dels = new Promise((res, rej) => {
                 store.batch(daoDels, [res, rej, 0])
             })
-            dels.then(() => {
+            dels.then(async () => {
                 news = v[0] + '*****\n';
                 const header = post + news;
                 var bals = v[1],
@@ -465,7 +466,98 @@ export function dao(num) {
                 const footer = `[Visit ${Config("mainFE")}](https://${Config("mainFE")})\n[Visit our DEX/Wallet](https://${Config("mainFE")}/dex)\n[Learn how to use ${Config("TOKEN")}](https://github.com/dluxio/dluxio/wiki)\n[Stop @ Mentions - HiveSigner](https://hivesigner.com/sign/custom-json?authority=posting&required_auths=0&id=${Config("prefix")}nomention&json=%7B%22nomention%22%3Atrue%7D)\n${Config("footer")}`;
                 if (hiveVotes)
                     hiveVotes = `#### Community Voted ${Config("TOKEN")} Posts\n` + hiveVotes + `*****\n`;
-                post = header + contentRewards + hiveVotes + post + footer;
+                
+                // Build report nodes structure
+                const reportNodes = {
+                    header: {
+                        order: 0,
+                        content: header,
+                        data: { stats, advert: Config("adverts")[num.toString().split('').reduce((a, c) => parseInt(a) + c, 0) % Config("adverts").length] }
+                    },
+                    contentRewards: {
+                        order: 1,
+                        content: contentRewards,
+                        data: { posts: vo, rewards: cpost }
+                    },
+                    hiveVotes: {
+                        order: 2,
+                        content: hiveVotes,
+                        data: { votes: vo }
+                    },
+                    dailyAccounting: {
+                        order: 3,
+                        content: post,
+                        data: { stats, balances: bals, powBal }
+                    },
+                    footer: {
+                        order: 4,
+                        content: footer,
+                        data: { config: Config }
+                    }
+                };
+                
+                // Process custom daoFunction if available
+                let finalReportNodes = reportNodes;
+                let finalDaops = [...daops];  // Create a copy so custom function gets all the ops
+                
+                let daoFunction = null;
+                if(CodeShare.daoFunction) {
+                    if(typeof CodeShare.daoFunction === 'function') {
+                        daoFunction = CodeShare.daoFunction;
+                    } else if(typeof CodeShare.daoFunction === 'string') {
+                        try {
+                            const df = JSON.parse(CodeShare.daoFunction);
+                            if(df && df.body) {
+                                const paramsArray = df.params ? Object.values(df.params) : [];
+                                daoFunction = new Function(...paramsArray, df.body);
+                            }
+                        } catch(e) {
+                            console.error('Error parsing daoFunction:', e);
+                        }
+                    } else if(typeof CodeShare.daoFunction === 'object' && CodeShare.daoFunction.body) {
+                        const paramsArray = CodeShare.daoFunction.params ? Object.values(CodeShare.daoFunction.params) : [];
+                        daoFunction = new Function(...paramsArray, CodeShare.daoFunction.body);
+                    }
+                }
+                
+                if(daoFunction) {
+                    try {
+                        const customResult = await daoFunction(num, runtimeContext, {
+                            reportNodes: {...reportNodes},
+                            daops: [...daops],
+                            stats,
+                            balances: bals,
+                            data: {
+                                nodes: mnode,
+                                runners,
+                                delegations: deles,
+                                ico,
+                                dex,
+                                posts: cpost,
+                                cbals,
+                                gov,
+                                powBal,
+                                nomention,
+                                dist
+                            }
+                        });
+                        
+                        if(customResult) {
+                            if(customResult.reportNodes) {
+                                finalReportNodes = customResult.reportNodes;
+                            }
+                            if(customResult.daops) {
+                                finalDaops = customResult.daops;
+                            }
+                        }
+                    } catch(e) {
+                        console.error('Error in custom daoFunction:', e);
+                    }
+                }
+                
+                // Assemble final report from nodes
+                const sortedNodes = Object.values(finalReportNodes).sort((a, b) => a.order - b.order);
+                post = sortedNodes.map(node => node.content).join('');
                 var op = ["comment",
                     {
                         "parent_author": "",
@@ -481,32 +573,32 @@ export function dao(num) {
                 ];
                 console.log(op[1])
                 if (up_op) {
-                    daops.push({ type: "del", path: ["mso"] });
-                    daops.push({
+                    finalDaops.push({ type: "del", path: ["mso"] });
+                    finalDaops.push({
                         type: "put",
                         path: ["mso", `${num}:ac`],
                         data: stringify(["account_update", up_op]),
                     });
                 }
-                daops.push({ type: 'put', path: ['dex'], data: dex });
-                daops.push({ type: 'put', path: ['stats'], data: stats });
-                daops.push({ type: 'put', path: ['balances'], data: bals });
-                daops.push({ type: 'put', path: ['cbalances'], data: cbals });
-                daops.push({ type: 'put', path: ['posts'], data: cpost });
-                daops.push({ type: 'put', path: ['markets', 'node'], data: mnode });
-                daops.push({ type: 'put', path: ['delegations'], data: deles });
-                if (Config("features").daily) daops.push({ type: 'put', path: ['escrow', Config("leader"), 'comment'], data: stringify(op) });
-                for (var i = daops.length - 1; i >= 0; i--) {
-                    if (daops[i].type == 'put' && Object.keys(daops[i].data).length == 0 && typeof daops[i].data != 'number' && typeof daops[i].data != 'string') {
-                        daops.splice(i, 1);
+                finalDaops.push({ type: 'put', path: ['dex'], data: dex });
+                finalDaops.push({ type: 'put', path: ['stats'], data: stats });
+                finalDaops.push({ type: 'put', path: ['balances'], data: bals });
+                finalDaops.push({ type: 'put', path: ['cbalances'], data: cbals });
+                finalDaops.push({ type: 'put', path: ['posts'], data: cpost });
+                finalDaops.push({ type: 'put', path: ['markets', 'node'], data: mnode });
+                finalDaops.push({ type: 'put', path: ['delegations'], data: deles });
+                if (Config("features").daily) finalDaops.push({ type: 'put', path: ['escrow', Config("leader"), 'comment'], data: stringify(op) });
+                for (var i = finalDaops.length - 1; i >= 0; i--) {
+                    if (finalDaops[i].type == 'put' && Object.keys(finalDaops[i].data).length == 0 && typeof finalDaops[i].data != 'number' && typeof finalDaops[i].data != 'string') {
+                        finalDaops.splice(i, 1);
                     }
                 }
                 for (var bali in bals) {
                     if (bals[bali] == 0 && bali.length > 2) {
-                        daops.push({ type: 'del', path: ['balances', bali] });
+                        finalDaops.push({ type: 'del', path: ['balances', bali] });
                     }
                 }
-                store.batch(daops, [resolve, reject, num]);
+                store.batch(finalDaops, [resolve, reject, num]);
             })
         });
     });
