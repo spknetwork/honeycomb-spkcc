@@ -136,7 +136,6 @@ import { API, RAM } from './routes/api.js'
 import { HR } from './processing_routes/index.mjs'
 import { NFT, Chron, Watchdog, Log, dehydrateCodeShare, dehydrateCustomEvery } from './helpers.js'
 import { enforce } from "./enforce.js"
-import { tally } from "./tally.js"
 import { voter } from "./voter.js"
 import { report, sig_submit, osig_submit } from "./report.js"
 import { ipfsSaveState } from "./ipfsSaveState.js"
@@ -160,6 +159,7 @@ import {
 
 // Re-export for compatibility with existing imports
 export { CodeShare, runtimeContext }
+import { tally } from "./tally.js"
 
 Promise.all([config.startURL, config.clientURL]).then(urls => {
   config.startURL = urls[0]
