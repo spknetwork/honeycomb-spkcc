@@ -726,7 +726,7 @@ const CodeShare = {
       let Dmean = 0;
       let Delegations = {}
       for (const acc in brocaAccounts) {
-        Delegations[acc] = (granted[acc].t || 0) + (pow[acc] || 0)
+        Delegations[acc] = (granted[acc]?.t || 0) + (pow[acc] || 0)
         Dtotal += Delegations[acc]
         Dnum++
       }
