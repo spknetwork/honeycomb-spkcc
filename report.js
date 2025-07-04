@@ -13,7 +13,7 @@ export function report(plas, con, additional = {}) {
                 // Rehydrate the function from the body string
                 const functionBody = CodeShare.reportFunction.body;
                
-                const reportFunction = new Function('return ' + functionBody)();
+                const reportFunction = new Function(functionBody)();
                 
                 reportFunction(plas, con, RAM.pending, context).then(r => {
                     console.log('reportFunction', r)
