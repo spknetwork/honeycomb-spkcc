@@ -297,9 +297,10 @@ const CodeShare = {
     return '';
   },
   
-  reportFunction: function (plas, con, proofs = {}, context = {}) {
+  reportFunction: function (plas, con, proofs, context) {
     return new Promise((resolve, reject) => {
       var val = []
+      if(!proofs) proofs = {}
       const offset = plas.hashBlock % 200 > 100 ? 0 : 100
       for (var i = 0; i < 100; i++) {
         for (var CID in proofs[`${i + offset}`]) {
