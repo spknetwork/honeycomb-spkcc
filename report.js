@@ -35,7 +35,7 @@ export function report(plas, con, additional = {}) {
             }
             
             if(reportFunction) {
-                reportFunction(plas, con, RAM.pending, context).then(customReport => {
+                reportFunction(plas, con, RAM.Pending, context).then(customReport => {
                     console.log('reportFunction', customReport)
                     let report = {
                         hash: plas.hashLastIBlock,
