@@ -670,7 +670,7 @@ const CodeShare = {
                 const targetV = contracts[i].u * successRate
                 const adjustment = 0.5 // 10% adjustment per validation
                 contracts[i].v = Math.round(currentV + (targetV - currentV) * adjustment)
-                contracts[i].lastValidated = Date.now()
+                contracts[i].lastValidated = b.report.block
                 
                 ops.push({
                   type: "put",
@@ -857,37 +857,6 @@ const CodeShare = {
       
       CodeShare.queueValidation(validationRequest, context);
     }
-  },
-  updateContractVerification: function(contractPath, actualSize, expectedSize, context) {
-    // Update contract .v field based on file size verification
-    const { getPathObj, store } = context
-    
-    return getPathObj(contractPath).then(contract => {
-      if (!contract || !contract.u) return Promise.resolve()
-      
-      // Calculate verification adjustment
-      const sizeDiff = Math.abs(actualSize - expectedSize)
-      const tolerance = expectedSize * 0.01 // 1% tolerance for compression/encoding differences
-      
-      let verificationAdjustment = 1.0
-      if (sizeDiff <= tolerance) {
-        // Size matches within tolerance - increase verification
-        verificationAdjustment = 1.1 // 10% increase
-      } else {
-        // Size mismatch - decrease verification proportionally
-        const mismatchRatio = sizeDiff / expectedSize
-        verificationAdjustment = Math.max(0.5, 1 - mismatchRatio) // At least 50% penalty
-      }
-      
-      // Update contract .v field
-      const currentV = contract.v || 0
-      const newV = Math.min(contract.u, Math.max(0, currentV * verificationAdjustment))
-      
-      contract.v = parseInt(newV)
-      contract.lastVerified = Date.now()
-      
-      return store.put(contractPath, contract)
-    })
   },
   broca_calc: function (last = '0,0', pow, stats, bn, add = 0, Base64) {
     if (typeof last != "string" || last === undefined || last === null || !last.includes(',')) last = '0,0'
