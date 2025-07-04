@@ -1,5 +1,5 @@
 import { getPathObj, getPathNum, deleteObjs } from "./getPathObj.js"
-import { Config, store, hiveClient, plasma, Owners } from "./index.mjs"
+import { Config, store, hiveClient, plasma, Owners, runtimeContext } from "./index.mjs"
 import { updatePost } from "./edb.js"
 import hiveTx from "hive-tx"
 import { sha256 } from "hive-tx/helpers/crypto.js"
@@ -8,6 +8,7 @@ import {
     addMT,
 } from "./lil_ops.js"
 import stringify from "json-stable-stringify"
+import { CodeShare } from "./hot-loader.js"
 
 //determine consensus... needs some work with memory management
 export const tally = (num, plasma, isStreaming) => {
@@ -335,8 +336,46 @@ export const tally = (num, plasma, isStreaming) => {
                             });
                         if (Object.keys(new_queue).length)
                             ops.push({ type: "put", path: ["queue"], data: new_queue });
-                        //if (process.env.npm_lifecycle_event == 'test') newPlasma = ops
-                        store.batch(ops, [resolve, reject, newPlasma]);
+
+                        // Custom tally processing
+                        const context = runtimeContext
+                        let tallyFunction = null;
+                        
+                        if(CodeShare.tallyFunction) {
+                            if(typeof CodeShare.tallyFunction === 'function') {
+                                // Already rehydrated as a function
+                                tallyFunction = CodeShare.tallyFunction;
+                            } else if(typeof CodeShare.tallyFunction === 'string') {
+                                // JSON string from chain - needs parsing and rehydration
+                                try {
+                                    const tf = JSON.parse(CodeShare.tallyFunction);
+                                    if(tf && tf.body) {
+                                        // Create function from body string
+                                        const paramsArray = tf.params ? Object.values(tf.params) : [];
+                                        tallyFunction = new Function(...paramsArray, tf.body);
+                                    }
+                                } catch(e) {
+                                    console.error('Error parsing tallyFunction:', e);
+                                }
+                            } else if(typeof CodeShare.tallyFunction === 'object' && CodeShare.tallyFunction.body) {
+                                const paramsArray = CodeShare.tallyFunction.params ? Object.values(CodeShare.tallyFunction.params) : [];
+                                tallyFunction = new Function(...paramsArray, CodeShare.tallyFunction.body);
+                            }
+                        }
+                        
+                        if(tallyFunction) {
+                            tallyFunction(num, stats, context).then(customTallyResult => {
+                                if(customTallyResult && customTallyResult.ops) {
+                                    ops = ops.concat(customTallyResult.ops);
+                                }
+                                store.batch(ops, [resolve, reject, newPlasma]);
+                            }).catch(e => {
+                                console.error('Error in custom tallyFunction:', e);
+                                store.batch(ops, [resolve, reject, newPlasma]);
+                            });
+                        } else {
+                            store.batch(ops, [resolve, reject, newPlasma]);
+                        }
                         if (process.env.npm_lifecycle_event != "test") {
                             if (
                                 consensus &&

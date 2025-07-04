@@ -521,8 +521,51 @@ const CodeShare = {
       resolve({v:val})
     })
   },
+  tallyFunction: function (num, plasma, isStreaming, context) {
+    return new Promise((resolve, reject) => {
+      const { Config, getPathObj } = context;
+      
+      // Fetch SPK token balances and stats
+      const promises = [
+        getPathObj(["spk"]),  // SPK token balances/data
+        getPathObj(["stats"]) // Stats for interest rates
+      ];
+      
+      Promise.all(promises).then(([spk, stats]) => {
+        // Calculate SPK token emission (inflation)
+        const mintSPK = Config("features").inflation
+          ? parseInt(stats.spkSupply / stats.spk_interest_rate)
+          : 0;
+        
+        // Update SPK balances
+        spk.ra = (spk.ra || 0) + mintSPK;
+        spk.t = (spk.t || 0) + mintSPK;
+        stats.spkSupply = (stats.spkSupply || 0) + (spk.t || 0);
+        
+        // Prepare operations to save the updated data
+        const ops = [];
+        
+        if (mintSPK > 0) {
+          ops.push({ type: "put", path: ["spk", "ra"], data: spk.ra });
+          ops.push({ type: "put", path: ["spk", "t"], data: spk.t });
+          ops.push({ type: "put", path: ["stats", "spkSupply"], data: stats.spkSupply });
+        }
+        
+        // Log the emission for debugging
+        if (mintSPK > 0 && Config("mode") === 'verbose') {
+          console.log(`SPK Token Emission: ${mintSPK} SPK minted at block ${num}`);
+          console.log(`New SPK Supply: ${stats.spkSupply}`);
+        }
+        
+        resolve({ ops });
+      }).catch(error => {
+        console.error('Error in tallyFunction:', error);
+        resolve({}); // Return empty result on error
+      });
+    })
+  },
   PoA: {
-    Check: async function (b, rand, stats, val, cBroca, vBroca, pc, context) {
+    Check: async function (b, rand, stats, val, vBroca, pc, context) {
       const { getPathObj, CodeShare, Base58, config, Base64, store } = context
       var promises = [], ops = []
       for (var i = 0; i < b.report.v.length; i++) {
@@ -654,7 +697,7 @@ const CodeShare = {
                 nodeReward = nodeReward * 2
               }
               
-              cBroca[acc[j].a] = cBroca[acc[j].a] ? cBroca[acc[j].a] + nodeReward : nodeReward
+              vBroca[acc[j].a] = vBroca[acc[j].a] ? vBroca[acc[j].a] + nodeReward : nodeReward
             }
             if (paid) {
               vBroca[b.self] = vBroca[b.self] ? vBroca[b.self] + (2 * reward) : (2 * reward)
@@ -688,7 +731,6 @@ const CodeShare = {
           ops.push({ type: "put", path: ["markets", "node", b.self], data: b })
           ops.push({ type: "put", path: ["stats"], data: stats })
           if (Object.keys(vBroca).length) ops.push({ type: "put", path: ["vbroca"], data: vBroca })
-          if (Object.keys(cBroca).length) ops.push({ type: "put", path: ["cbroca"], data: cBroca })
           store.batch(ops, pc)
         })
         else store.batch([{ type: "put", path: ["markets", "node", b.self], data: b }], pc)
@@ -1053,15 +1095,14 @@ const CustomJsonProcessing = [
       var pRand = getPathObj(['rand'])
       var pStats = getPathObj(['stats'])
       let pVal = getPathObj(['val'])
-      let PcBroca = getPathObj(['cbroca'])
       let PvBroca = getPathObj(['vbroca'])
-      Promise.all([pReport, pRand, pStats, pVal, PcBroca, PvBroca]).then(mem => {
-        var b = mem[0], rand = mem[1], stats = mem[2], val = mem[3], cBroca = mem[4]
+      Promise.all([pReport, pRand, pStats, pVal, PvBroca]).then(mem => {
+        var b = mem[0], rand = mem[1], stats = mem[2], val = mem[3], vBroca = mem[4]
         if (from == b.self && active) {
           b.report = json
           delete b.report.timestamp
           if (b.report.v) {
-            CodeShare.PoA.Check(b, rand, stats, val, cBroca, mem[5], pc, context)
+            CodeShare.PoA.Check(b, rand, stats, val, vBroca, pc, context)
           } else {
             var ops = [
               { type: 'put', path: ['markets', 'node', from], data: b }
