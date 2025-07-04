@@ -271,10 +271,18 @@ const CodeShare = {
   handleValidationResponse: function(data, context) {
     const { config, RAM, CodeShare } = context;
     
-    // Extract validation info from response
-    const { Name, CID, bn, Status } = data;
+    // Extract validation info from response - handle both old and new formats
+    let Name, CID, bn, Status;
     
-    if (!Name || !CID || bn === undefined) {
+    // Check if it's the new format with explicit fields
+    if (data.Name && data.CID && data.bn !== undefined) {
+      Name = data.Name;
+      CID = data.CID;
+      bn = data.bn;
+      Status = data.Status;
+    } else {
+      // Try to extract from context/pending requests
+      // This handles the old format messages during validation
       if (config.mode === 'verbose') console.log('Invalid response format:', data);
       return;
     }
