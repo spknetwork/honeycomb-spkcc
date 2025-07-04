@@ -481,29 +481,33 @@ function rehydrateObjectRecursively(source, target) {
           if (isAsync) {
             // Create an async function
             const AsyncFunction = (async function () {}).constructor;
-            // Create function body that includes CodeShare reference
-            const funcBody = `
+            // Only add CodeShare declaration if it's not already a parameter
+            const hasCodeShareParam = paramsArray.includes('CodeShare');
+            const funcBody = hasCodeShareParam ? value.body : `
               const CodeShare = this.CodeShare || globalThis.CodeShare;
               ${value.body}
             `;
             func = new AsyncFunction(...paramsArray, funcBody);
-            // Bind CodeShare to the function's context
-            // Use a getter to ensure we always get the current CodeShare value
-            func = func.bind({ 
-              get CodeShare() { return CodeShare; }
-            });
+            // Bind CodeShare to the function's context if it's not a parameter
+            if (!hasCodeShareParam) {
+              func = func.bind({ 
+                get CodeShare() { return CodeShare; }
+              });
+            }
           } else {
-            // Create function body that includes CodeShare reference
-            const funcBody = `
+            // Only add CodeShare declaration if it's not already a parameter
+            const hasCodeShareParam = paramsArray.includes('CodeShare');
+            const funcBody = hasCodeShareParam ? value.body : `
               const CodeShare = this.CodeShare || globalThis.CodeShare;
               ${value.body}
             `;
             func = new Function(...paramsArray, funcBody);
-            // Bind CodeShare to the function's context
-            // Use a getter to ensure we always get the current CodeShare value
-            func = func.bind({ 
-              get CodeShare() { return CodeShare; }
-            });
+            // Bind CodeShare to the function's context if it's not a parameter
+            if (!hasCodeShareParam) {
+              func = func.bind({ 
+                get CodeShare() { return CodeShare; }
+              });
+            }
           }
           
           // Set the function at the correct nested path
