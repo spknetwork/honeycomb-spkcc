@@ -13,13 +13,26 @@ export var runtimeContext;
 export var CodeShare = config.CodeShare || {};
 // Make CodeShare available globally for rehydrated functions
 globalThis.CodeShare = CodeShare;
-export var Every = [HR.margins, ...(config.CustomEvery || [])];
+
+// Initialize Every as empty array first, then populate it lazily
+export var Every = [];
+
+// Function to initialize Every when HR is available
+function initializeEvery() {
+  if (Every.length === 0) {
+    Every.push(HR.margins, ...(config.CustomEvery || []));
+  }
+  return Every;
+}
 
 export function initializeContext(processorToUse, storeToUse, statusToUse, versionToUse) {
   // Make a copy of config for runtimeContext.config, excluding sensitive keys.
   const configCopy = { ...config }; // global config is updated by hotConfig
   delete configCopy.active;
   delete configCopy.msowner;
+
+  // Initialize Every now that HR is available
+  initializeEvery();
 
   runtimeContext = { 
     store: storeToUse,
@@ -381,6 +394,8 @@ export function customInit(api, chron, processor, codeShareDefsFromChain, everyD
       }
     }
     
+    // Ensure Every is initialized before using HR.margins
+    initializeEvery();
     const newEvery = [HR.margins]; // Always start with HR.margins
     
     // If we have definitions from chain, rehydrate them

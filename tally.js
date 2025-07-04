@@ -1,5 +1,5 @@
 import { getPathObj, getPathNum, deleteObjs } from "./getPathObj.js"
-import { Config, store, hiveClient, plasma, Owners, runtimeContext } from "./index.mjs"
+import { Config, store, hiveClient, plasma, Owners } from "./index.mjs"
 import { updatePost } from "./edb.js"
 import hiveTx from "hive-tx"
 import { sha256 } from "hive-tx/helpers/crypto.js"
@@ -11,7 +11,7 @@ import stringify from "json-stable-stringify"
 import { CodeShare } from "./hot-loader.js"
 
 //determine consensus... needs some work with memory management
-export const tally = (num, plasma, isStreaming) => {
+export const tally = (num, plasma, isStreaming, runtimeContext) => {
     return new Promise((resolve, reject) => {
         var Prunners = getPathObj(["runners"]),
             Pnode = getPathObj(["markets", "node"]),
