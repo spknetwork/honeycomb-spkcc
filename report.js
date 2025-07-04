@@ -9,9 +9,11 @@ export function report(plas, con, additional = {}) {
     return new Promise((resolve, reject) => {
         con.then(r => {
             const context = { config, fetch }
-            if(CodeShare.reportFunction && CodeShare.reportFunction.body) {
+            const rf = CodeShare.reportFunction ? JSON.parse(CodeShare.reportFunction) : null
+            console.log('rf', rf, CodeShare.reportFunction)
+            if(rf) {
                 // Rehydrate the function from the body string
-                const functionBody = CodeShare.reportFunction.body;
+                const functionBody = rf.body;
                
                 const reportFunction = new Function(functionBody)();
                 
@@ -56,7 +58,7 @@ export function report(plas, con, additional = {}) {
                     ])
                 })
             } else {
-                console.log('Standard report', !!CodeShare.reportFunction, !!CodeShare.reportFunction.body)
+                console.log('Standard report')
                 let report = {
                     hash: plas.hashLastIBlock,
                     block: plas.hashBlock,
