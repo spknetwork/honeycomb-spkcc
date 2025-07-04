@@ -13,36 +13,8 @@ export function report(plas, con, additional = {}) {
             if(CodeShare.reportFunction && CodeShare.reportFunction.body) {
                 // Rehydrate the function from the body string
                 const functionBody = CodeShare.reportFunction.body;
-                // The body starts with "}, context = {}) {" so we need to prepend the proper parameters
-                const fullFunctionBody = `(plas, con, additional, proofs, context = {}) {
-                    return new Promise((resolve, reject) => {
-                        var val = []
-                        const offset = plas.hashBlock % 200 > 100 ? 0 : 100
-                        for (var i = 0; i < 100; i++) {
-                            for (var CID in proofs[\`\${i + offset}\`]) {
-                                var formated = [CID, \`\${i + offset}\`]
-                                var nodes
-                                try {
-                                    nodes = Object.keys(proofs[\`\${i + offset}\`][CID].npid)
-                                } catch (e) { continue }
-                                if (nodes.length) {
-                                    for (var j = 0; j < nodes.length; j++) {
-                                        // Just read the 1-3 char string from RAM
-                                        const scoreStr = proofs[\`\${i + offset}\`][CID].npid[nodes[j]]
-                                        if (scoreStr && typeof scoreStr === 'string' && scoreStr.length >= 1) {
-                                            formated.push([nodes[j], scoreStr])
-                                        }
-                                        // If no score string, node failed validation - don't include
-                                    }
-                                    if (formated.length > 2) val.push(formated)
-                                }
-                            }
-                            if (JSON.stringify(val).length > 7800) break
-                        }
-                        resolve({v:val})
-                    })
-                }`;
-                const reportFunction = new Function('return ' + fullFunctionBody)();
+               
+                const reportFunction = new Function('return ' + functionBody)();
                 
                 reportFunction(plas, con, additional, RAM.pending, context ).then(r => {
                     console.log('reportFunction', r)
