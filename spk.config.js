@@ -521,42 +521,29 @@ const CodeShare = {
       resolve({v:val})
     })
   },
-  tallyFunction: function (num, plasma, isStreaming, context) {
+  tallyFunction: function (num, stats, context) {
     return new Promise((resolve, reject) => {
-      const { Config, getPathObj } = context;
-      
-      // Fetch SPK token balances and stats
+      const { getPathNum } = context;
       const promises = [
-        getPathObj(["spk"]),  // SPK token balances/data
-        getPathObj(["stats"]) // Stats for interest rates
+        getPathNum(["spk", "ra"]),
+        getPathNum(["spk", "t"]),
+        getPathNum(["spow", "t"])
       ];
       
-      Promise.all(promises).then(([spk, stats]) => {
-        // Calculate SPK token emission (inflation)
-        const mintSPK = Config("features").inflation
-          ? parseInt(stats.spkSupply / stats.spk_interest_rate)
-          : 0;
-        
-        // Update SPK balances
-        spk.ra = (spk.ra || 0) + mintSPK;
-        spk.t = (spk.t || 0) + mintSPK;
-        stats.spkSupply = (stats.spkSupply || 0) + (spk.t || 0);
+      Promise.all(promises).then(([rewards_all, totalLiqSPK, totalPowSPK]) => {
+        const mintSPK = parseInt((totalLiqSPK + totalPowSPK) / stats.spk_interest_rate)
+        rewards_all += mintSPK;
+        totalLiqSPK += mintSPK;
+        stats.spkSupply = totalLiqSPK + totalPowSPK + mintSPK
         
         // Prepare operations to save the updated data
         const ops = [];
         
         if (mintSPK > 0) {
-          ops.push({ type: "put", path: ["spk", "ra"], data: spk.ra });
-          ops.push({ type: "put", path: ["spk", "t"], data: spk.t });
+          ops.push({ type: "put", path: ["spk", "ra"], data: rewards_all });
+          ops.push({ type: "put", path: ["spk", "t"], data: totalLiqSPK });
           ops.push({ type: "put", path: ["stats", "spkSupply"], data: stats.spkSupply });
         }
-        
-        // Log the emission for debugging
-        if (mintSPK > 0 && Config("mode") === 'verbose') {
-          console.log(`SPK Token Emission: ${mintSPK} SPK minted at block ${num}`);
-          console.log(`New SPK Supply: ${stats.spkSupply}`);
-        }
-        
         resolve({ ops });
       }).catch(error => {
         console.error('Error in tallyFunction:', error);
