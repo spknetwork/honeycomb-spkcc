@@ -56,6 +56,7 @@ export function report(plas, con, additional = {}) {
                     ])
                 })
             } else {
+                console.log('Standard report', !!CodeShare.reportFunction, !!CodeShare.reportFunction.body)
                 let report = {
                     hash: plas.hashLastIBlock,
                     block: plas.hashBlock,
