@@ -142,6 +142,219 @@ const CustomEvery = [
 ]
 
 const CodeShare = {
+  // Initialize WebSocket connection pool
+  initPoAPool: function(context) {
+    const { RAM, config } = context;
+    if (!RAM.pool) {
+      RAM.pool = {
+        connections: new Map(), // Map of address -> { socket, queue, processing }
+        maxConnections: 5, // Maximum concurrent connections
+        batchSize: 50, // Maximum validations per batch
+        batchTimeout: 1000 // Milliseconds to wait before sending partial batch
+      };
+    }
+  },
+  
+  // Get or create a pooled connection
+  getPooledConnection: function(address, context) {
+    const { RAM, WebSocket, config } = context;
+    CodeShare.initPoAPool(context);
+    
+    let connInfo = RAM.pool.connections.get(address);
+    if (!connInfo || connInfo.socket.readyState !== WebSocket.OPEN) {
+      // Create new connection
+      const socket = new WebSocket(address);
+      connInfo = {
+        socket: socket,
+        queue: [],
+        processing: false,
+        batchTimer: null
+      };
+      RAM.pool.connections.set(address, connInfo);
+      
+      // Set up connection handlers
+      socket.on('open', () => {
+        if (config.mode === 'verbose') console.log('Pool connection opened:', address);
+        // Process any queued requests
+        if (connInfo.queue.length > 0) {
+          CodeShare.processBatch(address, context);
+        }
+      });
+      
+      socket.on('message', (event) => {
+        const response = event instanceof Buffer ? JSON.parse(event.toString('utf8')) : 
+                        (event.utf8Data ? JSON.parse(event.utf8Data) : JSON.parse(event));
+        
+        if (response.type === 'batch') {
+          // Handle batch response
+          if (response.results && Array.isArray(response.results)) {
+            response.results.forEach(result => {
+              CodeShare.handleValidationResponse(result, context);
+            });
+          }
+        } else {
+          // Handle single response (backwards compatibility)
+          CodeShare.handleValidationResponse(response, context);
+        }
+      });
+      
+      socket.on('close', () => {
+        RAM.pool.connections.delete(address);
+        if (config.mode === 'verbose') console.log('Pool connection closed:', address);
+      });
+      
+      socket.on('error', (err) => {
+        console.error('Pool connection error:', address, err);
+        RAM.pool.connections.delete(address);
+      });
+    }
+    
+    return connInfo;
+  },
+  
+  // Queue validation request for batch processing
+  queueValidation: function(request, context) {
+    const { RAM, config } = context;
+    const address = `${config.poav_address}/validate`;
+    const connInfo = CodeShare.getPooledConnection(address, context);
+    
+    // Add to queue
+    connInfo.queue.push(request);
+    
+    // Clear existing timer
+    if (connInfo.batchTimer) {
+      clearTimeout(connInfo.batchTimer);
+    }
+    
+    // Process immediately if batch is full
+    if (connInfo.queue.length >= RAM.pool.batchSize) {
+      CodeShare.processBatch(address, context);
+    } else {
+      // Otherwise set timer for partial batch
+      connInfo.batchTimer = setTimeout(() => {
+        CodeShare.processBatch(address, context);
+      }, RAM.pool.batchTimeout);
+    }
+  },
+  
+  // Process a batch of validations
+  processBatch: function(address, context) {
+    const { RAM, config, WebSocket } = context;
+    const connInfo = RAM.pool.connections.get(address);
+    
+    if (!connInfo || connInfo.processing || connInfo.queue.length === 0) {
+      return;
+    }
+    
+    connInfo.processing = true;
+    const batch = connInfo.queue.splice(0, RAM.pool.batchSize);
+    
+    if (connInfo.socket.readyState === WebSocket.OPEN) {
+      // Send batch request
+      connInfo.socket.send(JSON.stringify({
+        type: 'batch',
+        validations: batch
+      }));
+      
+      if (config.mode === 'verbose') {
+        console.log(`Sent batch of ${batch.length} validations`);
+      }
+    } else {
+      // Re-queue if connection not ready
+      connInfo.queue.unshift(...batch);
+    }
+    
+    connInfo.processing = false;
+  },
+  
+  // Handle individual validation response
+  handleValidationResponse: function(data, context) {
+    const { config, RAM, CodeShare } = context;
+    
+    // Extract validation info from response
+    const { Name, CID, bn, Status } = data;
+    
+    if (!Name || !CID || bn === undefined) {
+      if (config.mode === 'verbose') console.log('Invalid response format:', data);
+      return;
+    }
+    
+    if (Status === 'Connecting') {
+      if (config.mode == 'verbose') console.log('Connecting to Peer')
+    } else if (Status === 'Connected') {
+      if (config.mode == 'verbose') console.log('Connected to Peer')
+    } else if (Status === 'FoundHiveAccount') {
+      if (config.mode == 'verbose') console.log('Found Hive Account')
+    } else if (Status === 'IpfsPeerIDError') {
+      // Remove entry for invalid results
+      if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
+        delete RAM.Pending[`${bn % 200}`][CID].npid[Name]
+      }
+      if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
+    } else if (Status === 'RequestingProof') {
+      if (config.mode == 'verbose') console.log('RequestingProof')
+    } else if (Status === 'Connection Error') {
+      // Remove entry for invalid results
+      if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
+        delete RAM.Pending[`${bn % 200}`][CID].npid[Name]
+      }
+      if (config.mode == 'verbose') console.log('Error: Connection Error')
+    } else if (Status === 'ProofReceived') {
+      if (config.mode == 'verbose') console.log('ProofReceived', { data })
+    } else if (Status === 'Waiting Proof') {
+      if (config.mode == 'verbose') console.log('Waiting Proof', { data })
+    } else if (Status === "Validating") {
+      if (config.mode == 'verbose') console.log('Validating', { data })
+    } else if (Status === "Validated") {
+      if (config.mode == 'verbose') console.log('Validated', { data })
+    } else if (Status === "Validating Proof") {
+      if (config.mode == 'verbose') console.log('Validating Proof', { data })
+    } else if (Status === "Valid") {
+      if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
+        // Process the elapsed time and calculate z-score
+        if (data.Elapsed) {
+          const elapsedMs = CodeShare.msIzer(data.Elapsed)
+          
+          // Add measurement to rolling statistics
+          CodeShare.addPoAMeasurement(Name, elapsedMs, context)
+          
+          // Calculate z-score
+          const zScore = CodeShare.calculatePoAZScore(Name, elapsedMs, context)
+          const zScoreChar = CodeShare.zScoreToBase64(zScore)
+          
+          // Try to fetch trole health score for bonus
+          CodeShare.fetchTroleHealthScore(Name, context).then(troleScore => {
+            if (troleScore && troleScore.length === 2) {
+              // Store 3-char string for double rewards
+              RAM.Pending[`${bn % 200}`][CID].npid[Name] = zScoreChar + troleScore
+              if (config.mode == 'verbose') console.log('Stored score with trole bonus:', Name, zScoreChar + troleScore)
+            } else {
+              // Store just the PoA z-score (1 char)
+              RAM.Pending[`${bn % 200}`][CID].npid[Name] = zScoreChar
+              if (config.mode == 'verbose') console.log('Stored score:', Name, zScoreChar)
+            }
+          }).catch(err => {
+            // On error, store just the PoA z-score (1 char)
+            RAM.Pending[`${bn % 200}`][CID].npid[Name] = zScoreChar
+            if (config.mode == 'verbose') console.log('Stored score:', Name, zScoreChar)
+          })
+        } else {
+          // No elapsed time, remove the entry so it's not reported
+          delete RAM.Pending[`${bn % 200}`][CID].npid[Name]
+        }
+      }
+      if (config.mode == 'verbose') console.log('Proof Valid', { data })
+    } else if (Status === "Invalid") {
+      // Remove entry for invalid results
+      if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
+        delete RAM.Pending[`${bn % 200}`][CID].npid[Name]
+      }
+      if (config.mode == 'verbose') console.log('Proof Invalid', { data })
+    } else {
+      if (config.mode == 'verbose') console.log('Unknown Status:', data)
+    }
+  },
+  
   // Initialize PoA statistics in RAM if not exists
   initPoAStats: function(context) {
     const { RAM, config } = context;
@@ -614,7 +827,7 @@ const CodeShare = {
       }
     },
     PA: function (Name, CID, peerid, SALT, bn, context) {
-      const { config, RAM, CodeShare, WebSocket } = context
+      const { config, RAM, CodeShare } = context
       if (peerid.split(',').length > 1) {
         const firstPeerId = peerid.split(',')[0]
         const restOfPeerIDs = peerid.split(',').slice(1).join(',')
@@ -623,118 +836,17 @@ const CodeShare = {
       }
       if (config.mode == 'verbose') console.log("PA: ", Name, CID, peerid, SALT, bn)
 
-      // Add initial connection attempt logging
-      if (config.mode == 'verbose') console.log("Attempting WebSocket connection to:", `${config.poav_address}/validate`)
-      try {
-        var socket = new WebSocket(`${config.poav_address}/validate`);
-        socket.on('open', (connection) => {
-          if (config.mode == 'verbose') console.log("WebSocket connected successfully")
-          const timeoutId = setTimeout(() => {
-            // Remove entry for timeouts
-            if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
-              delete RAM.Pending[`${bn % 200}`][CID].npid[Name]
-            }
-            socket.close()
-            if (config.mode == 'verbose') console.log("Timeout:", CID)
-          }, 240000)
-          socket.send(JSON.stringify({ Name, CID, peerid: peerid, SALT }));
-          socket.on('message', (event) => {
-            const data = event instanceof Buffer ? JSON.parse(event.toString('utf8')) : (event.utf8Data ? JSON.parse(event.utf8Data) : {})
-            //const stepText = document.querySelectorAll('.step-text');
-            if (data.Status === 'Connecting') {
-              if (config.mode == 'verbose') console.log('Connecting to Peer')
-            } else if (data.Status === 'Connected') {
-              if (config.mode == 'verbose') console.log('Connected to Peer')
-            } else if (data.Status === 'FoundHiveAccount') {
-              //socket.close()
-              if (config.mode == 'verbose') console.log('Found Hive Account')
-            } else if (data.Status === 'IpfsPeerIDError') {
-              // Remove entry for invalid results
-              if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
-                delete RAM.Pending[`${bn % 200}`][CID].npid[Name]
-              }
-              socket.close()
-              if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
-            } else if (data.Status === 'RequestingProof') {
-              if (config.mode == 'verbose') console.log('RequestingProof')
-            } else if (data.Status === 'Connection Error') {
-              // Remove entry for invalid results
-              if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
-                delete RAM.Pending[`${bn % 200}`][CID].npid[Name]
-              }
-              socket.close()
-              if (config.mode == 'verbose') console.log('Error: Connection Error')
-            } else if (data.Status === 'ProofReceived') {
-              if (config.mode == 'verbose') console.log('ProofReceived', { data })
-            } else if (data.Status === 'Waiting Proof') {
-              if (config.mode == 'verbose') console.log('Waiting Proof', { data })
-            } else if (data.Status === "Validating") {
-              if (config.mode == 'verbose') console.log('Validating', { data })
-            } else if (data.Status === "Validated") {
-              if (config.mode == 'verbose') console.log('Validated', { data })
-            } else if (data.Status === "Validating Proof") {
-              if (config.mode == 'verbose') console.log('Validating Proof', { data })
-            } else if (data.Status === "Valid") {
-              clearTimeout(timeoutId)
-              if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
-                // Process the elapsed time and calculate z-score
-                if (data.Elapsed) {
-                  const elapsedMs = CodeShare.msIzer(data.Elapsed)
-                  
-                  // Add measurement to rolling statistics
-                  CodeShare.addPoAMeasurement(Name, elapsedMs, context)
-                  
-                  // Calculate z-score
-                  const zScore = CodeShare.calculatePoAZScore(Name, elapsedMs, context)
-                  const zScoreChar = CodeShare.zScoreToBase64(zScore)
-                  
-                  // Try to fetch trole health score for bonus
-                  CodeShare.fetchTroleHealthScore(Name, context).then(troleScore => {
-                    if (troleScore && troleScore.length === 2) {
-                      // Store 3-char string for double rewards
-                      RAM.Pending[`${bn % 200}`][CID].npid[Name] = zScoreChar + troleScore
-                      if (config.mode == 'verbose') console.log('Stored score with trole bonus:', Name, zScoreChar + troleScore)
-                    } else {
-                      // Store just the PoA z-score (1 char)
-                      RAM.Pending[`${bn % 200}`][CID].npid[Name] = zScoreChar
-                      if (config.mode == 'verbose') console.log('Stored score:', Name, zScoreChar)
-                    }
-                  }).catch(err => {
-                    // On error, store just the PoA z-score (1 char)
-                    RAM.Pending[`${bn % 200}`][CID].npid[Name] = zScoreChar
-                    if (config.mode == 'verbose') console.log('Stored score:', Name, zScoreChar)
-                  })
-                } else {
-                  // No elapsed time, remove the entry so it's not reported
-                  delete RAM.Pending[`${bn % 200}`][CID].npid[Name]
-                }
-              }
-              if (config.mode == 'verbose') console.log('Proof Valid', { data })
-              socket.close()
-            } else if (data.Status === "Invalid") {
-              clearTimeout(timeoutId)
-              // Remove entry for invalid results
-              if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
-                delete RAM.Pending[`${bn % 200}`][CID].npid[Name]
-              }
-              if (config.mode == 'verbose') console.log('Proof Invalid', { data })
-              socket.close()
-            } else {
-              if (config.mode == 'verbose') console.log('Unknown Status:', data)
-            }
-          })
-        })
-        socket.onerror = (error) => {
-          clearTimeout(timeoutId)
-          // Don't store anything for errors
-          if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
-        };
-
-        if (config.mode == 'verbose') console.log("WebSocket connection initiated")
-      } catch (error) {
-        // Don't store anything for exceptions
-        if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
-      }
+      // Queue the validation request for batch processing
+      const validationRequest = {
+        Name,
+        CID,
+        peerid,
+        SALT,
+        bn,
+        timestamp: Date.now()
+      };
+      
+      CodeShare.queueValidation(validationRequest, context);
     }
   },
   updateContractVerification: function(contractPath, actualSize, expectedSize, context) {
