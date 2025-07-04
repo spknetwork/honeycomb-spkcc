@@ -569,7 +569,7 @@ const CodeShare = {
 
     try {
       // Fetch SPK/BROCA specific data
-      const [vbroca, sbroca, ubroca,spk, cspk, powBal, cbroca, lbroca, granted, pow] = await Promise.all([
+      const [vbroca, sbroca, ubroca, spk, cspk, powBal, cbroca, lbroca, granted, pow] = await Promise.all([
         getPathObj(['vbroca']),
         getPathObj(['sbroca']),
         getPathObj(['ubroca']),
@@ -613,8 +613,8 @@ const CodeShare = {
       }
 
       for (const acc in brocaAccounts) {
-        totalPowered += granted[acc].t || 0;
-        totalGranted += granted[acc].t || 0;
+        totalPowered += granted[acc]?.t || 0;
+        totalGranted += granted[acc]?.t || 0;
       }
 
       // Minted
@@ -627,7 +627,7 @@ const CodeShare = {
         //validations completed per day * percent to check normal/ (3(copies of files ) * target validations per day * total files) * 10000
         const valUtilization = parseInt(((stats.vals_per_day * 100) / (3 * stats.vals_target * stats.total_files)) * 10000);
         // normal percent to bytes
-        stats.utilization = parseInt((valUtilization * ((stats.total_bytes / stats.channel_bytes) / ((864000/stats.broca_refill) * powBal / 1000))) / 10000)
+        stats.utilization = parseInt((valUtilization * ((stats.total_bytes / stats.channel_bytes) / ((864000 / stats.broca_refill) * powBal / 1000))) / 10000)
         stats.broca_daily_ema = stats.broca_daily_ema ?
           parseInt((stats.broca_daily_ema * 3 + stats.utilization) / 4) :
           stats.utilization;
@@ -639,9 +639,9 @@ const CodeShare = {
       const utilizationDiff = stats.broca_daily_ema - targetUtilization;
 
       if (utilizationDiff > 0) {
-        newBroca = parseInt((utilizationDiff/targetUtilization) * powBal)
+        newBroca = parseInt((utilizationDiff / targetUtilization) * powBal)
       } else { // up to 10% clawback
-        stats.broca_clawback = parseInt(Math.abs(utilizationDiff/targetUtilization)* 1000)
+        stats.broca_clawback = parseInt(Math.abs(utilizationDiff / targetUtilization) * 1000)
       }
       // Initialize SPK object if needed
       if (!spk.u) spk.u = 0;
@@ -665,14 +665,14 @@ const CodeShare = {
       let std = 0;
       let mean = 0;
 
-      if(storageBroca > 0) {
+      if (storageBroca > 0) {
         const N = Object.keys(sbroca).length
         mean = storageBroca / N
         let total = 0;
         for (const acc in sbroca) {
           total += Math.pow(sbroca[acc] - mean, 2)
         }
-        std = ParseInt(Math.sqrt(total / N))
+        std = parseInt(Math.sqrt(total / N))
       }
       // half of rewards go to storage providers, half to delegators
       if (totalVBroca > 0) {
@@ -736,52 +736,59 @@ const CodeShare = {
       Dstd = parseInt(Math.sqrt(Dsum / Dnum))
       // Adjust storage based on delegation and power
       for (const acc in sbroca) {
-        if(Delegations[acc] > Dmean + Dstd) {
+        if (Delegations[acc] > Dmean + Dstd) {
           sbroca[acc] = parseInt(sbroca[acc] * 1.5)
         } else if (Delegations[acc] < Dmean - Dstd) {
           sbroca[acc] = parseInt(sbroca[acc] * 0.66)
         }
-        if(sbroca[acc] > mean + std) sbroca[acc] = parseInt(sbroca[acc] * 1.5)
+        if (sbroca[acc] > mean + std) sbroca[acc] = parseInt(sbroca[acc] * 1.5)
         else if (sbroca[acc] < mean - std) sbroca[acc] = parseInt(sbroca[acc] * 0.66)
       }
-    //re sum sBroca
-    let sBrocaTotal = 0;
-    for (const acc in sbroca) {
-      sBrocaTotal += sbroca[acc]
-    }
-    let cummulativeSpkReward = 0;
-    let cummulativeBrocaReward = 0;
-    for (const acc in sbroca) {
-      thisSpkReward = parseInt(SpkDelegationRewards * sbroca[acc] / sBrocaTotal)
-      thisBrocaReward = parseInt(BrocaDelegationRewards * sbroca[acc] / sBrocaTotal)
-      if(thisSpkReward > 0 || thisBrocaReward > 0) {
-
-        const toSelfSpk = parseIint(thisSpkReward * pow[acc] /Delegations[acc] )
-        thisSpkReward -= toSelfSpk
-        cspk[acc] += toSelfSpk
-        cummulativeSpkReward += toSelfSpk
-        const toSelfBroca = parseInt(thisBrocaReward * pow[acc] /Delegations[acc] )
-        thisBrocaReward -= toSelfBroca
-        cbroca[acc] += toSelfBroca
-        cummulativeBrocaReward += toSelfBroca
-        for (const acc2 in granted[acc]) {
-          if(acc2 != acc && granted[acc][acc2] > 0 && acc2 != 't') {
-            const toOtherSpk = parseInt(thisSpkReward * granted[acc][acc2] / Delegations[acc] )
-            cspk[acc2] = cspk[acc2] ? cspk[acc2] + toOtherSpk : toOtherSpk
-            cummulativeSpkReward += toOtherSpk
-            const toOtherBroca = parseInt(thisBrocaReward * granted[acc][acc2] / Delegations[acc] )
-            cbroca[acc2] = cbroca[acc2] ? cbroca[acc2] + toOtherBroca : toOtherBroca
-            cummulativeBrocaReward += toOtherBroca
+      //re sum sBroca
+      let sBrocaTotal = 0;
+      for (const acc in sbroca) {
+        sBrocaTotal += sbroca[acc]
+      }
+      let cummulativeSpkReward = 0;
+      let cummulativeBrocaReward = 0;
+      for (const acc in sbroca) {
+        thisSpkReward = parseInt(SpkDelegationRewards * sbroca[acc] / sBrocaTotal)
+        thisBrocaReward = parseInt(BrocaDelegationRewards * sbroca[acc] / sBrocaTotal)
+        if (thisSpkReward > 0 || thisBrocaReward > 0) {
+          if (Delegations[acc] > 0) {
+            let toSelfSpk = parseInt(thisSpkReward * pow[acc] / Delegations[acc])
+            thisSpkReward -= toSelfSpk
+            cummulativeSpkReward += toSelfSpk
+            let toSelfBroca = parseInt(thisBrocaReward * pow[acc] / Delegations[acc])
+            thisBrocaReward -= toSelfBroca
+            cummulativeBrocaReward += toSelfBroca
+            for (const acc2 in granted[acc]) {
+              if (acc2 != acc && granted[acc][acc2] > 0 && acc2 != 't') {
+                let toOtherSpk = parseInt(thisSpkReward * granted[acc][acc2] / Delegations[acc])
+                cummulativeSpkReward += toOtherSpk
+                const thirtyPercent = parseInt(toOtherSpk * 0.3)
+                toOtherSpk -= thirtyPercent
+                cspk[acc2] = cspk[acc2] ? cspk[acc2] + toOtherSpk : toOtherSpk
+                toSelfSpk += thirtyPercent
+                let toOtherBroca = parseInt(thisBrocaReward * granted[acc][acc2] / Delegations[acc])
+                cummulativeBrocaReward += toOtherBroca
+                const thirtyPercentBroca = parseInt(toOtherBroca * 0.3)
+                toOtherBroca -= thirtyPercentBroca
+                cbroca[acc2] = cbroca[acc2] ? cbroca[acc2] + toOtherBroca : toOtherBroca
+                toSelfBroca += thirtyPercentBroca
+              }
+            }
           }
+          cbroca[acc] += toSelfBroca
+          cspk[acc] += toSelfSpk
         }
       }
-    }
-    if(cummulativeSpkReward < SpkDelegationRewards) {
-      spk.u += (SpkDelegationRewards - cummulativeSpkReward)
-    }
-    if(cummulativeBrocaReward < BrocaDelegationRewards) {
-      lbroca.u += (BrocaDelegationRewards - cummulativeBrocaReward)
-    }
+      if (cummulativeSpkReward < SpkDelegationRewards) {
+        spk.u += (SpkDelegationRewards - cummulativeSpkReward)
+      }
+      if (cummulativeBrocaReward < BrocaDelegationRewards) {
+        lbroca.u += (BrocaDelegationRewards - cummulativeBrocaReward)
+      }
 
       // Update SPK balances in daops
       daops.push({ type: 'put', path: ['spk', 'ra'], data: 0 });
