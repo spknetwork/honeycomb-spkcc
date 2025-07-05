@@ -755,12 +755,14 @@ const CodeShare = {
       for (const acc in sbroca) {
         thisSpkReward = parseInt(SpkDelegationRewards * sbroca[acc] / sBrocaTotal)
         thisBrocaReward = parseInt(BrocaDelegationRewards * sbroca[acc] / sBrocaTotal)
+        let toSelfBroca = 0;
+        let toSelfSpk = 0;
         if (thisSpkReward > 0 || thisBrocaReward > 0) {
           if (Delegations[acc] > 0) {
-            let toSelfSpk = parseInt(thisSpkReward * pow[acc] / Delegations[acc])
+            toSelfSpk = parseInt(thisSpkReward * pow[acc] / Delegations[acc])
             thisSpkReward -= toSelfSpk
             cummulativeSpkReward += toSelfSpk
-            let toSelfBroca = parseInt(thisBrocaReward * pow[acc] / Delegations[acc])
+            toSelfBroca = parseInt(thisBrocaReward * pow[acc] / Delegations[acc])
             thisBrocaReward -= toSelfBroca
             cummulativeBrocaReward += toSelfBroca
             for (const acc2 in granted[acc]) {
@@ -804,7 +806,7 @@ const CodeShare = {
       const spkReport = `*****\n### SPK Network Report\n` +
         `* ${(newSPK / 1000).toFixed(3)} SPK minted today.\n` +
         `* ${SpkRewardedServices > BrocaRewardedServices ? SpkRewardedServices : BrocaRewardedServices} accounts rewarded for storage and validation.\n` +
-        `* Network utilization: ${(stats.utilization / 100).toFixed(2)}%\n` +
+        `* Network utilization: ${(stats.utilization / 10000).toFixed(2)}%\n` +
         (stats.total_bytes ? `* ${fancyBytes(stats.total_bytes)} stored in network.\n` : '') +
         (stats.total_files ? `* ${stats.total_files} files in network.\n` : '') +
         `*****\n`;
