@@ -318,7 +318,7 @@ const CodeShare = {
     } else if (Status === "Validating Proof") {
       if (config.mode == 'verbose') console.log('Validating Proof', { data })
     } else if (Status === "Valid") {
-      if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
+      if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID].npid) {
         // Process the elapsed time and calculate z-score
         if (data.Elapsed) {
           const elapsedMs = CodeShare.msIzer(data.Elapsed)
@@ -588,6 +588,10 @@ const CodeShare = {
       let totalPowered = 0;
       let totalGranted = 0;
       let storageBroca = 0;
+      
+      for (const acc in ubroca) {
+        vbroca[acc] = vbroca[acc] ? vbroca[acc] + ubroca[acc] : ubroca[acc]
+      }
 
       for (const acc in vbroca) {
         totalVBroca += vbroca[acc] || 0;
@@ -782,8 +786,8 @@ const CodeShare = {
               }
             }
           }
-          cbroca[acc] += toSelfBroca
-          cspk[acc] += toSelfSpk
+          cbroca[acc] = cbroca[acc] ? cbroca[acc] + toSelfBroca : toSelfBroca
+          cspk[acc] = cspk[acc] ? cspk[acc] + toSelfSpk : toSelfSpk
         }
       }
       if (cummulativeSpkReward < SpkDelegationRewards) {
@@ -798,7 +802,7 @@ const CodeShare = {
       daops.push({ type: 'put', path: ['stats'], data: stats });
       daops.push({ type: 'put', path: ['cspk'], data: cspk });
       daops.push({ type: 'put', path: ['cbroca'], data: cbroca });
-      daops.push({ type: 'put', path: ['vbroca'], data: brocaAccounts });
+      daops.push({ type: 'put', path: ['ubroca'], data: brocaAccounts });
       daops.push({ type: 'put', path: ['lbroca', 'u'], data: lbroca.u });
       daops.push({ type: 'put', path: ['spk', 'u'], data: spk.u });
 
