@@ -2167,8 +2167,8 @@ export const feed_publish = (tx, pc, runtimeContext) => {
 
     // Only accept price feed from witnesses who signed at least 4 blocks
     if (witnessCount >= 4) {
-      const base = naizer(tx.exchange_rate.base)
-      const quote = naizer(tx.exchange_rate.quote)
+      const base = feedPriceNIAzer(tx.exchange_rate.base)
+      const quote = feedPriceNIAzer(tx.exchange_rate.quote)
       console.log(base, quote)
       const hivePerHbd = parseFloat((quote.amount.amount / base.amount.amount)).toFixed(3);
 
@@ -2264,20 +2264,7 @@ function nai(obj) {
 }
 function naizer(obj) {
   if (typeof obj.amount != "string") return obj;
-  else if (typeof obj == "string") { //feed prices
-    const nai = obj.split(" ")[1] == "HIVE" ? "@@000000021" : "@@000000013";
-    const amount = parseInt(
-      parseFloat(obj.split(" ")[0]) * 1000
-    ).toString();
-    const precision = 3;
-    obj.amount = {
-      amount,
-      nai,
-      precision,
-    };
-    console.log(obj)
-    return obj;
-  } else {
+  else {
     const nai =
       obj.amount.split(" ")[1] == "HIVE" ? "@@000000021" : "@@000000013";
     const amount = parseInt(
@@ -2289,6 +2276,26 @@ function naizer(obj) {
       nai,
       precision,
     };
+    return obj;
+  }
+}
+
+function feedPriceNIAzer(obj) {
+  if (typeof obj.amount != "string") { //feed prices
+    console.log('not string', obj)
+    const nai = obj.split(" ")[1] == "HIVE" ? "@@000000021" : "@@000000013";
+    const amount = parseInt(
+      parseFloat(obj.split(" ")[0]) * 1000
+    ).toString();
+    const precision = 3;
+    obj.amount = {
+      amount,
+      nai,
+      precision,
+    };
+    return obj;
+  } else {
+    console.log('string', obj)
     return obj;
   }
 }
