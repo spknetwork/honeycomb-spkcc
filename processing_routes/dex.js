@@ -2170,7 +2170,7 @@ export const feed_publish = (tx, pc, runtimeContext) => {
       const base = feedPriceNIAzer(tx.exchange_rate.base)
       const quote = feedPriceNIAzer(tx.exchange_rate.quote)
       console.log(base, quote)
-      const hivePerHbd = parseFloat((quote.amount.amount / base.amount.amount)).toFixed(3);
+      const hivePerHbd = parseFloat((quote.amount / base.amount)).toFixed(3);
 
       // Store price feed with block number for staleness checking
       priceFeeds[publisher] = {
@@ -2288,7 +2288,7 @@ function feedPriceNIAzer(obj) {
       parseFloat(obj.split(" ")[0]) * 1000
     ).toString();
     const precision = 3;
-    NAI.amount = {
+    NAI = {
       amount,
       nai,
       precision,
