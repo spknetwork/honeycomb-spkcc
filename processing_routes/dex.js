@@ -2169,13 +2169,13 @@ export const feed_publish = (tx, pc, runtimeContext) => {
       if (witnessCount >= 4) {
         const base = naizer(tx.exchange_rate.base)
         const quote = naizer(tx.exchange_rate.quote)
-          
-          const hivePerHbd = quote.amount / base.amount;
+          console.log(base, quote)
+          const hivePerHbd = parseFloat((quote.amount / base.amount)).toFixed(3);
           
           // Store price feed with block number for staleness checking
           priceFeeds[publisher] = {
               hivePerHbd: hivePerHbd,
-              block: pc[2][2], // Current block number from pc context
+              block: tx.block_num, // Current block number from pc context
               witnessCount: witnessCount
           };
           
