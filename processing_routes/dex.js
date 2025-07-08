@@ -2169,7 +2169,7 @@ export const feed_publish = (tx, pc, runtimeContext) => {
       if (witnessCount >= 4) {
         const base = naizer(tx.exchange_rate.base)
         const quote = naizer(tx.exchange_rate.quote)
-        
+
           const hivePerHbd = parseFloat((quote.amount.amount / base.amount.amount)).toFixed(3);
           
           // Store price feed with block number for staleness checking
@@ -2214,7 +2214,7 @@ export const feed_publish = (tx, pc, runtimeContext) => {
                   hivePerHbd: medianHivePerHbd,
                   hbdPrice: 1.0, // HBD is designed to be $1 USD
                   hivePrice: 1.0 / medianHivePerHbd, // HIVE price in HBD
-                  lastUpdate: pc[2][2], // Block number
+                  lastUpdate: tx.block_num, // Block number
                   activePriceFeeds: activePrices.length
               };
           }
