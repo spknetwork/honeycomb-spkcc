@@ -2263,6 +2263,7 @@ function nai(obj) {
     }`;
 }
 function naizer(obj) {
+  console.log(obj)
   if (typeof obj.amount != "string") return obj;
   else if (typeof obj == "string"){ //feed prices
     const nai = obj.split(" ")[1] == "HIVE" ? "@@000000021" : "@@000000013";
