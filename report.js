@@ -3,11 +3,12 @@ import { plasma, VERSION } from './index.mjs'
 import { RAM } from './routes/api.js'
 import fetch from 'node-fetch'
 import { CodeShare } from './hot-loader.js'
+import { getPathObj } from './getPathObj.js'
 
 //tell the hive your state, this is asynchronous with IPFS return... 
 export function report(plas, con, additional = {}) {
-    return new Promise((resolve, reject) => {
-        con.then(r => {
+    return new Promise( async (resolve, reject) => {
+        const [r, stats] = await Promise.all([con, getPathObj(['stats'])])
             const context = { config, fetch }
             let reportFunction = null;
             
@@ -38,8 +39,8 @@ export function report(plas, con, additional = {}) {
                 reportFunction(plas, con, RAM.Pending, context).then(customReport => {
                     console.log('reportFunction', customReport)
                     let report = {
-                        hash: plas.hashLastIBlock,
-                        block: plas.hashBlock,
+                        hash: stats.pendingHash,
+                        block: stats.pendingBlock,
                         stash: plas.privHash,
                         ipfs_id: plas.id,
                         version: VERSION
@@ -113,7 +114,6 @@ export function report(plas, con, additional = {}) {
                     [0, 0], op
                 ])
             }
-        })
     })
 }
 

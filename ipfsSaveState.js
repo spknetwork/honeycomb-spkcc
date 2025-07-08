@@ -5,6 +5,7 @@ export const ipfsHash = (num, buffer) => {
   return new Promise( async (resolve, reject) => {
     const hash = await createHash(buffer);
     console.log(num + `:Hash: ${hash}`);
+    console.log(plasma)
     plasma.hashLastIBlock = hash
     plasma.hashBlock = num
     store.batch([
@@ -12,6 +13,11 @@ export const ipfsHash = (num, buffer) => {
         type: "put",
         path: ['stats', 'pendingHash'],
         data: hash
+      },
+      {
+        type: "put",
+        path: ['stats', 'pendingBlock'],
+        data: num
       }
     ], [resolve, reject, {hash, num}])
   });
