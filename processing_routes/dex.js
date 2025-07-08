@@ -2203,7 +2203,7 @@ export const feed_publish = (tx, pc, runtimeContext) => {
               let medianHivePerHbd;
               if (activePrices.length % 2 === 0) {
                   // Even number of prices - average the two middle values
-                  medianHivePerHbd = (activePrices[medianIndex - 1] + activePrices[medianIndex]) / 2;
+                  medianHivePerHbd = (parseFloat(activePrices[medianIndex - 1]) + parseFloat(activePrices[medianIndex])) / 2;
               } else {
                   // Odd number of prices - take the middle value
                   medianHivePerHbd = activePrices[medianIndex];
@@ -2211,9 +2211,9 @@ export const feed_publish = (tx, pc, runtimeContext) => {
               
               // Update stats with median prices
               stats.priceFeed = {
-                  hivePerHbd: medianHivePerHbd,
-                  hbdPrice: 1.0, // HBD is designed to be $1 USD
-                  hivePrice: 1.0 / medianHivePerHbd, // HIVE price in HBD
+                  hivePerHbd: medianHivePerHbd.toFixed(4),
+                  hbdPrice: 1, // HBD is designed to be $1 USD
+                  hivePrice: parseFloat(1.0 / medianHivePerHbd).toFixed(4), // HIVE price in HBD
                   lastUpdate: tx.block_num, // Block number
                   activePriceFeeds: activePrices.length
               };
