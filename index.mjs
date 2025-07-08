@@ -345,7 +345,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
     processor.on('scp_vote', HR.scp_vote);
     processor.onOperation('account_update', HR.account_update);
     processor.onOperation('comment', HR.comment);
-    processor.on('feed_publish', HR.feed_publish);
+    processor.onOperation('feed_publish', HR.feed_publish);
     processor.on('queueForDaily', HR.q4d)
     processor.on('nomention', HR.nomention)
     if (config.features.pob) {
