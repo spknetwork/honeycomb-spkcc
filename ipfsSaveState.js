@@ -4,6 +4,7 @@ import { of as createHash } from "ipfs-only-hash";
 export const ipfsHash = (num, buffer) => {
   return new Promise( async (resolve, reject) => {
     const hash = await createHash(buffer);
+    console.log(num + `:Hash: ${hash}`);
     plasma.hashLastIBlock = hash
     plasma.hashBlock = num
     store.batch([
