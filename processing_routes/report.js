@@ -3,6 +3,7 @@ import { ipfsPeerConnect } from "../ipfsSaveState.js"
 
 export const report = (json, from, active, pc) => {
     store.get(['markets', 'node', from], function(e, a) {
+        if(!json.block_num) console.log(json)
         if (!e) {
             var b = a
             if (from == b.self && active) {

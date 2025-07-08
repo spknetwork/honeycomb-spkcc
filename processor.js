@@ -366,6 +366,7 @@ export function hiveState (
               timestamp: v[4].timestamp,
               block_id: v[4].block_id,
               block_number: num,
+              witness: v[4].witness,
             })
               .then((r) => {
                 pc[0](pc[2]);

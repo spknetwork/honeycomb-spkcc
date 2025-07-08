@@ -2027,7 +2027,6 @@ export const witness_mod = async function (bn, prand, stats, realTime, runtimeCo
     }
     const [witness] = await Promise.all([getPathObj(["witness"])])
     witness[`${bn % 100}`] = bh.witness
-    console.log(`witness_mod: Storing witness ${bh.witness} at block ${bn} (slot ${bn % 100})`);
     store.batch([{ type: "put", path: ["witness"], data: witness }], [resolve, reject])
   })
 }
