@@ -678,7 +678,6 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                         plasma.hashSecIBlock = plasma.hashLastIBlock
                         plasma.hashLastIBlock = pla.hashLastIBlock
                         plasma.hashBlock = pla.hashBlock
-                        
                         // Notify Honeygraph of checkpoint
                         if (block.honeygraphClient) {
                           block.honeygraphClient.sendCheckpoint(num, pla.hashLastIBlock);
