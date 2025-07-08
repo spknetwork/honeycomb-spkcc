@@ -1233,7 +1233,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
         } else if (typeof i == "function") {
           console.log("Requesting Blocks from:", config.clientURL);
           store.get([], function (e, returns) {
-            i(returns)
+            ipfsHash(n,b,i, returns)
           })
         }
       })

@@ -1,23 +1,40 @@
 import { ipfs, store, plasma } from "./index.mjs"
 import { of as createHash } from "ipfs-only-hash";
 
-export const ipfsHash = (num, buffer) => {
-  return new Promise( async (resolve, reject) => {
+export const ipfsHash = (num, buffer, initiator = null, state = null) => {
+  return new Promise(async (resolve, reject) => {
     const hash = await createHash(buffer);
     plasma.hashLastIBlock = hash
     plasma.hashBlock = num
-    store.batch([
-      {
-        type: "put",
-        path: ['stats', 'pendingHash'],
-        data: hash
-      },
-      {
-        type: "put",
-        path: ['stats', 'pendingBlock'],
-        data: num
-      }
-    ], [resolve, reject, {hash, num}])
+    if (initiator && state) {
+      state.stats.pendingHash = hash
+      state.stats.pendingBlock = num
+      store.batch([
+        {
+          type: "put",
+          path: ['stats', 'pendingHash'],
+          data: hash
+        },
+        {
+          type: "put",
+          path: ['stats', 'pendingBlock'],
+          data: num
+        }
+      ], [initiator, reject, state])
+    } else {
+      store.batch([
+        {
+          type: "put",
+          path: ['stats', 'pendingHash'],
+          data: hash
+        },
+        {
+          type: "put",
+          path: ['stats', 'pendingBlock'],
+          data: num
+        }
+      ], [resolve, reject, { hash, num }])
+    }
   });
 }
 
