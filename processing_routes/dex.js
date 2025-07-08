@@ -2020,7 +2020,7 @@ export const release = (from, txid, bn, tx_id) => {
 
 //change stats to msheld {}
 export const witness_mod = async function (bn, prand, stats, realTime, runtimeContext, bh) {
-  return new Promise( async (resolve, reject) => {
+  return new Promise(async (resolve, reject) => {
     if (!bh || !bh.witness) {
       console.log('witness_mod: Missing block header or witness', { bn, bh });
       return resolve();
@@ -2141,98 +2141,98 @@ export const feed_publish = (tx, pc, runtimeContext) => {
   //     quote: string (e.g. "3.500 HIVE")
   //   }
   // }
-  
+
   const { store, getPathObj } = runtimeContext;
   const publisher = tx.publisher;
-  
+
   // Get witness rolling buffer and price feeds
   let promises = [
-      getPathObj(['witness']), // Rolling witness buffer (last 100 blocks)
-      getPathObj(['priceFeeds']), // Current price feeds
-      getPathObj(['stats']) // Stats object
+    getPathObj(['witness']), // Rolling witness buffer (last 100 blocks)
+    getPathObj(['priceFeeds']), // Current price feeds
+    getPathObj(['stats']) // Stats object
   ];
-  
-  Promise.all(promises).then(mem => {
-      const witnessBuffer = mem[0] || {};
-      const priceFeeds = mem[1] || {};
-      const stats = mem[2] || {};
-      
-      // Count how many blocks this publisher has witnessed in last 100 blocks
-      let witnessCount = 0;
-      for (let key in witnessBuffer) {
-          if (witnessBuffer[key] === publisher) {
-              witnessCount++;
-          }
-      }
-      
-      // Only accept price feed from witnesses who signed at least 4 blocks
-      if (witnessCount >= 4) {
-        const base = naizer(tx.exchange_rate.base)
-        const quote = naizer(tx.exchange_rate.quote)
 
-          const hivePerHbd = parseFloat((quote.amount.amount / base.amount.amount)).toFixed(3);
-          
-          // Store price feed with block number for staleness checking
-          priceFeeds[publisher] = {
-              hivePerHbd: hivePerHbd,
-              block: tx.block_num, // Current block number from pc context
-              witnessCount: witnessCount
-          };
-          
-          // Clean stale price feeds (from non-consensus witnesses)
-          const consensusWitnesses = {};
-          for (let key in witnessBuffer) {
-              const witness = witnessBuffer[key];
-              consensusWitnesses[witness] = (consensusWitnesses[witness] || 0) + 1;
-          }
-          
-          // Remove price feeds from witnesses not in consensus (< 4 blocks)
-          for (let witness in priceFeeds) {
-              if ((consensusWitnesses[witness] || 0) < 4) {
-                  delete priceFeeds[witness];
-              }
-          }
-          
-          // Calculate median price if we have enough feeds
-          const activePrices = Object.values(priceFeeds).map(feed => feed.hivePerHbd);
-          if (activePrices.length >= 3) {
-              // Sort prices to find median
-              activePrices.sort((a, b) => a - b);
-              const medianIndex = Math.floor(activePrices.length / 2);
-              
-              let medianHivePerHbd;
-              if (activePrices.length % 2 === 0) {
-                  // Even number of prices - average the two middle values
-                  medianHivePerHbd = (parseFloat(activePrices[medianIndex - 1]) + parseFloat(activePrices[medianIndex])) / 2;
-              } else {
-                  // Odd number of prices - take the middle value
-                  medianHivePerHbd = activePrices[medianIndex];
-              }
-              
-              // Update stats with median prices
-              stats.priceFeed = {
-                  hivePerHbd: medianHivePerHbd.toFixed(4),
-                  hbdPrice: 1, // HBD is designed to be $1 USD
-                  hivePrice: parseFloat(1.0 / medianHivePerHbd).toFixed(4), // HIVE price in HBD
-                  lastUpdate: tx.block_num, // Block number
-                  activePriceFeeds: activePrices.length
-              };
-          }
-          
-          // Store updated data
-          const ops = [
-              { type: 'put', path: ['priceFeeds'], data: priceFeeds },
-              { type: 'put', path: ['stats'], data: stats }
-          ];
-          
-          store.batch(ops, pc);
-      } else {
-          // Publisher hasn't signed enough blocks, ignore their price feed
-          pc[0](pc[2]);
+  Promise.all(promises).then(mem => {
+    const witnessBuffer = mem[0] || {};
+    const priceFeeds = mem[1] || {};
+    const stats = mem[2] || {};
+
+    // Count how many blocks this publisher has witnessed in last 100 blocks
+    let witnessCount = 0;
+    for (let key in witnessBuffer) {
+      if (witnessBuffer[key] === publisher) {
+        witnessCount++;
       }
+    }
+
+    // Only accept price feed from witnesses who signed at least 4 blocks
+    if (witnessCount >= 4) {
+      const base = naizer(tx.exchange_rate.base)
+      const quote = naizer(tx.exchange_rate.quote)
+      console.log(base, quote)
+      const hivePerHbd = parseFloat((quote.amount.amount / base.amount.amount)).toFixed(3);
+
+      // Store price feed with block number for staleness checking
+      priceFeeds[publisher] = {
+        hivePerHbd: hivePerHbd,
+        block: tx.block_num, // Current block number from pc context
+        witnessCount: witnessCount
+      };
+
+      // Clean stale price feeds (from non-consensus witnesses)
+      const consensusWitnesses = {};
+      for (let key in witnessBuffer) {
+        const witness = witnessBuffer[key];
+        consensusWitnesses[witness] = (consensusWitnesses[witness] || 0) + 1;
+      }
+
+      // Remove price feeds from witnesses not in consensus (< 4 blocks)
+      for (let witness in priceFeeds) {
+        if ((consensusWitnesses[witness] || 0) < 4) {
+          delete priceFeeds[witness];
+        }
+      }
+
+      // Calculate median price if we have enough feeds
+      const activePrices = Object.values(priceFeeds).map(feed => feed.hivePerHbd);
+      if (activePrices.length >= 3) {
+        // Sort prices to find median
+        activePrices.sort((a, b) => a - b);
+        const medianIndex = Math.floor(activePrices.length / 2);
+
+        let medianHivePerHbd;
+        if (activePrices.length % 2 === 0) {
+          // Even number of prices - average the two middle values
+          medianHivePerHbd = (parseFloat(activePrices[medianIndex - 1]) + parseFloat(activePrices[medianIndex])) / 2;
+        } else {
+          // Odd number of prices - take the middle value
+          medianHivePerHbd = activePrices[medianIndex];
+        }
+
+        // Update stats with median prices
+        stats.priceFeed = {
+          hivePerHbd: medianHivePerHbd.toFixed(4),
+          hbdPrice: 1, // HBD is designed to be $1 USD
+          hivePrice: parseFloat(1.0 / medianHivePerHbd).toFixed(4), // HIVE price in HBD
+          lastUpdate: tx.block_num, // Block number
+          activePriceFeeds: activePrices.length
+        };
+      }
+
+      // Store updated data
+      const ops = [
+        { type: 'put', path: ['priceFeeds'], data: priceFeeds },
+        { type: 'put', path: ['stats'], data: stats }
+      ];
+
+      store.batch(ops, pc);
+    } else {
+      // Publisher hasn't signed enough blocks, ignore their price feed
+      pc[0](pc[2]);
+    }
   }).catch(e => {
-      console.error('Error processing feed_publish:', e);
-      pc[1](e);
+    console.error('Error processing feed_publish:', e);
+    pc[1](e);
   });
 }
 
@@ -2263,20 +2263,20 @@ function nai(obj) {
     }`;
 }
 function naizer(obj) {
-  console.log(obj)
   if (typeof obj.amount != "string") return obj;
-  else if (typeof obj == "string"){ //feed prices
+  else if (typeof obj == "string") { //feed prices
     const nai = obj.split(" ")[1] == "HIVE" ? "@@000000021" : "@@000000013";
-  const amount = parseInt(
-    parseFloat(obj.split(" ")[0]) * 1000
-  ).toString();
-  const precision = 3;
-  obj.amount = {
-    amount,
-    nai,
-    precision,
-  };
-  return obj;
+    const amount = parseInt(
+      parseFloat(obj.split(" ")[0]) * 1000
+    ).toString();
+    const precision = 3;
+    obj.amount = {
+      amount,
+      nai,
+      precision,
+    };
+    console.log(obj)
+    return obj;
   } else {
     const nai =
       obj.amount.split(" ")[1] == "HIVE" ? "@@000000021" : "@@000000013";
