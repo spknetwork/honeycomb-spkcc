@@ -13,7 +13,33 @@ export var block = {
   ops: [],
   root: '',
   prev_root: '',
-  chain: []
+  chain: [],
+  opIndex: 0,
+  honeygraphClient: null,
+  
+  // Hook for Dgraph integration
+  trackOperation: function(op) {
+    // Skip 'W' write markers
+    if (op === 'W') return;
+    
+    // Parse stringified operations
+    let operation;
+    try {
+      operation = typeof op === 'string' ? JSON.parse(op) : op;
+    } catch (e) {
+      return; // Skip invalid operations
+    }
+    
+    // Track operation with index
+    operation.index = this.opIndex++;
+    operation.blockNum = plasma.hashBlock || 0;
+    operation.forkHash = plasma.hashLastIBlock || null;
+    
+    // Send to honeygraph if connected
+    if (this.honeygraphClient && this.honeygraphClient.isConnected()) {
+      this.honeygraphClient.trackOperation(operation);
+    }
+  }
 }
 export var status = {
   cleaner: [],
@@ -138,7 +164,7 @@ import { NFT, Chron, Watchdog, Log, dehydrateCodeShare, dehydrateCustomEvery } f
 import { enforce } from "./enforce.js"
 import { voter } from "./voter.js"
 import { report, sig_submit, osig_submit } from "./report.js"
-import { ipfsSaveState } from "./ipfsSaveState.js"
+import { ipfsSaveState, ipfsHash } from "./ipfsSaveState.js"
 import { dao, Liquidity } from "./dao.js"
 import { tally } from "./tally.js"
 import { release } from './lil_ops.js'
@@ -536,7 +562,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                 const realTime = API.RAM.behind < 50 ? true : false
                 try {
                   for (var func of Every) {
-                    await func(num, prand, stats, realTime, runtimeContext);
+                    await func(num, prand, stats, realTime, runtimeContext, bh);
                   }
                 } catch (error) {
                   console.log(error)
@@ -636,6 +662,38 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                 if (num % 100 === 99) {
                   if (config.features.liquidity) promises.push(Liquidity());
                 }
+                if (num % 100 === 1 && !block.root) {
+                  block.root = 'pending'
+                  block.chain = []
+                  block.ops = []
+                  block.opIndex = 0  // Reset operation index for new block
+                  store.get([], function (err, obj) {
+                    const blockState = Buffer.from(stringify([num + 1, obj]))
+                    promises.push(ipfsHash(num,blockState))
+                    ipfsSaveState(num, blockState, ipfs)
+                      .then(pla => {
+                        //console.log({ pla })
+                        TXID.saveNumber = pla.hashBlock
+                        block.root = pla.hashLastIBlock
+                        plasma.hashSecIBlock = plasma.hashLastIBlock
+                        plasma.hashLastIBlock = pla.hashLastIBlock
+                        plasma.hashBlock = pla.hashBlock
+                        
+                        // Notify Honeygraph of checkpoint
+                        if (block.honeygraphClient) {
+                          block.honeygraphClient.sendCheckpoint(num, pla.hashLastIBlock);
+                        }
+                      })
+                      .catch(e => { console.log(e) })
+    
+                  })
+                } else if (num % 100 === 1) {
+                  const blockState = Buffer.from(stringify([num + 1, block]))
+                  block.ops = []
+                  block.opIndex = 0  // Reset operation index
+                  promises.push(ipfsHash(num,blockState))
+                  issc(num, blockState, null, 0, 0)
+                }
                 if ((num - 2) % 3000 === 0) {
                   promises.push(voter());
                 }
@@ -643,30 +701,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                 Promise.all(promises).then(() => resolveEvery(resolve(pc)))
               })
             }
-            if (num % 100 === 1 && !block.root) {
-              block.root = 'pending'
-              block.chain = []
-              block.ops = []
-              store.get([], function (err, obj) {
-                const blockState = Buffer.from(stringify([num + 1, obj]))
-
-                ipfsSaveState(num, blockState, ipfs)
-                  .then(pla => {
-                    //console.log({ pla })
-                    TXID.saveNumber = pla.hashBlock
-                    block.root = pla.hashLastIBlock
-                    plasma.hashSecIBlock = plasma.hashLastIBlock
-                    plasma.hashLastIBlock = pla.hashLastIBlock
-                    plasma.hashBlock = pla.hashBlock
-                  })
-                  .catch(e => { console.log(e) })
-
-              })
-            } else if (num % 100 === 1) {
-              const blockState = Buffer.from(stringify([num + 1, block]))
-              block.ops = []
-              issc(num, blockState, null, 0, 0)
-            }
+            
             if (config.active && processor.isStreaming()) {
               store.get(['escrow', config.username], function (e, a) {
                 if (!e) {

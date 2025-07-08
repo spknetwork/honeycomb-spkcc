@@ -32,6 +32,7 @@
         "fs-extra": "^9.0.1",
         "hive-tx": "^4.3.0",
         "ipfs-http-client-lite": "^0.3.0",
+        "ipfs-only-hash": "^4.0.0",
         "ipfs-unixfs": "^0.1.16",
         "ipld-dag-pb": "^0.15.3",
         "json-stable-stringify": "^1.0.1",

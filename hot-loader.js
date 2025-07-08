@@ -20,7 +20,7 @@ export var Every = [];
 // Function to initialize Every when HR is available
 function initializeEvery() {
   if (Every.length === 0) {
-    Every.push(HR.margins, ...(config.CustomEvery || []));
+    Every.push(HR.margins, HR.witness_mod, ...(config.CustomEvery || []));
   }
   return Every;
 }

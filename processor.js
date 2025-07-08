@@ -388,6 +388,7 @@ export function hiveState (
         timestamp: block.timestamp,
         block_id: block.block_id,
         block_number: num,
+        witness: block.witness,
       })
         .then((r) => {
           r[0]();
@@ -445,6 +446,7 @@ export function hiveState (
                 ip.block_num = transactions[i].block_num;
                 ip.timestamp = Block.timestamp;
                 ip.prand = Block.witness_signature;
+                ip.witness = Block.witness;
                 if (!from) {
                   from = op[1].required_auths[0];
                   active = true;

@@ -11,9 +11,9 @@ import { cjv } from './cjv.js'
 import { nomention } from './nomention.js'
 import { q4d } from './q4d.js'
 import { node_add, node_delete } from './nodes.js'
-import { dex_sell, dex_clear, transfer, margins } from './dex.js'
+import { dex_sell, dex_clear, transfer, margins, witness_mod } from './dex.js'
 import { comment, comment_options } from './comment.js'
-import { report } from './report.js'
+import { report, feed_publish } from './report.js'
 import { 
     nft_pfp,
     ft_bid,
@@ -82,6 +82,7 @@ export const HR = {
     dex_clear,
     dex_sell,
     margins,
+    witness_mod,
     gov_down,
     gov_up,
     node_add,
@@ -93,6 +94,7 @@ export const HR = {
     power_up,
     q4d,
     report,
+    feed_publish,
     send,
     claim,
     sig_submit,

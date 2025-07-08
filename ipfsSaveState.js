@@ -1,4 +1,20 @@
-import { ipfs } from "./index.mjs"
+import { ipfs, store, plasma } from "./index.mjs"
+import { of as createHash } from "ipfs-only-hash";
+
+export const ipfsHash = (num, buffer) => {
+  return new Promise( async (resolve, reject) => {
+    const hash = await createHash(buffer);
+    plasma.hashLastIBlock = hash
+    plasma.hashBlock = num
+    store.batch([
+      {
+        type: "put",
+        path: ['stats', 'pendingHash'],
+        data: hash
+      }
+    ], [resolve, reject, {hash, num}])
+  });
+}
 
 export const ipfsSaveState = (blocknum, buffer, ipfsc, tries) => {
   return new Promise((resolve, reject) => {
@@ -13,8 +29,8 @@ export const ipfsSaveState = (blocknum, buffer, ipfsc, tries) => {
         }
         console.log(blocknum + `:Saved: ${hash}`);
         resolve({
-          hashLastIBlock: hash,
-          hashBlock: blocknum,
+          hashLastIBlockSaved: hash,
+          hashBlockSaved: blocknum,
         });
       } else {
         reject(err);

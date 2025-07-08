@@ -7,6 +7,9 @@ const username = ENV.account || 'disregardfiat';
 const active = ENV.active || '';
 const follow = ENV.follow || 'disregardfiat';
 const poav_address = ENV.POA_URL || ""
+const poaStatsWindowSize = ENV.POA_STATS_WINDOW || 1000 // Number of recent measurements to keep for statistics
+const poaMinMeasurements = ENV.POA_MIN_MEASUREMENTS || 10 // Minimum measurements before calculating z-scores
+const troleEndpoint = ENV.TROLE_ENDPOINT || 'https://ipfs.dlux.io' // Trole service endpoint for fetching node health scores
 const msowner = ENV.msowner || '';
 const mspublic = ENV.mspublic || '';
 const memoKey = ENV.memo || '';
@@ -139,37 +142,362 @@ const CustomEvery = [
 ]
 
 const CodeShare = {
-  reportFunction: function (val, plas, con, proofs = {}) {
-    return new Promise((resolve, reject) => {
-      function msIzer(timer) {
-        var ms = 0
-        // regex to match m but not ms
-        var minuteD = timer.split(/m(?![s])/g)
-        if (minuteD.length > 1) {
-          var minutes = minuteD[0]
-          timer = minuteD[1]
-          const dotSplit = minutes.split(".")
-          if (dotSplit.length > 1) {
-            ms += parseInt(dotSplit[0]) * 60000
-            ms = parseInt(dotSplit[1] * 60) * 1000
-          } else {
-            ms += parseInt(dotSplit[0]) * 60000
+  // Initialize WebSocket connection pool
+  initPoAPool: function (context) {
+    const { RAM, config } = context;
+    if (!RAM.pool) {
+      RAM.pool = {
+        connections: new Map(), // Map of address -> { socket, queue, processing }
+        maxConnections: 5, // Maximum concurrent connections
+        batchSize: 100, // Maximum validations per batch
+        batchTimeout: 3000 // Milliseconds to wait before sending partial batch (increased from 1s to 3s)
+      };
+    }
+  },
+
+  // Get or create a pooled connection
+  getPooledConnection: function (address, context) {
+    const { RAM, WebSocket, config } = context;
+    CodeShare.initPoAPool(context);
+
+    let connInfo = RAM.pool.connections.get(address);
+    if (!connInfo || connInfo.socket.readyState !== WebSocket.OPEN) {
+      // Create new connection
+      const socket = new WebSocket(address);
+      connInfo = {
+        socket: socket,
+        queue: [],
+        processing: false,
+        batchTimer: null
+      };
+      RAM.pool.connections.set(address, connInfo);
+
+      // Set up connection handlers
+      socket.on('open', () => {
+        if (config.mode === 'verbose') console.log('Pool connection opened:', address);
+        // Process any queued requests
+        if (connInfo.queue.length > 0) {
+          CodeShare.processBatch(address, context);
+        }
+      });
+
+      socket.on('message', (event) => {
+        const response = event instanceof Buffer ? JSON.parse(event.toString('utf8')) :
+          (event.utf8Data ? JSON.parse(event.utf8Data) : JSON.parse(event));
+
+        if (response.type === 'batch') {
+          // Handle batch response
+          if (response.results && Array.isArray(response.results)) {
+            response.results.forEach(result => {
+              CodeShare.handleValidationResponse(result, context);
+            });
           }
+        } else {
+          // Handle single response (backwards compatibility)
+          CodeShare.handleValidationResponse(response, context);
         }
-        // regex to match s but not ms
-        var secondD = timer.split(/(?<![m])s/g)
-        if (secondD.length > 1) {
-          var seconds = secondD[0]
-          timer = secondD[1]
-          ms += parseInt(parseFloat(seconds) * 1000)
-        }
-        // regex to match ms
-        var millisecondD = timer.split(/ms/g)
-        if (millisecondD.length > 1) {
-          ms += parseInt(millisecondD[0])
-        }
-        return ms
+      });
+
+      socket.on('close', () => {
+        RAM.pool.connections.delete(address);
+        if (config.mode === 'verbose') console.log('Pool connection closed:', address);
+      });
+
+      socket.on('error', (err) => {
+        console.error('Pool connection error:', address, err);
+        RAM.pool.connections.delete(address);
+      });
+    }
+
+    return connInfo;
+  },
+
+  // Queue validation request for batch processing
+  queueValidation: function (request, context) {
+    const { RAM, config } = context;
+    const address = `${config.poav_address}/validate`;
+    const connInfo = CodeShare.getPooledConnection(address, context);
+
+    // Add to queue
+    connInfo.queue.push(request);
+
+    // Clear existing timer
+    if (connInfo.batchTimer) {
+      clearTimeout(connInfo.batchTimer);
+    }
+
+    // Process immediately if batch is full
+    if (connInfo.queue.length >= RAM.pool.batchSize) {
+      CodeShare.processBatch(address, context);
+    } else {
+      // Otherwise set timer for partial batch
+      connInfo.batchTimer = setTimeout(() => {
+        CodeShare.processBatch(address, context);
+      }, RAM.pool.batchTimeout);
+    }
+  },
+
+  // Process a batch of validations
+  processBatch: function (address, context) {
+    const { RAM, config, WebSocket } = context;
+    const connInfo = RAM.pool.connections.get(address);
+
+    if (!connInfo || connInfo.processing || connInfo.queue.length === 0) {
+      return;
+    }
+
+    connInfo.processing = true;
+    const batch = connInfo.queue.splice(0, RAM.pool.batchSize);
+
+    if (connInfo.socket.readyState === WebSocket.OPEN) {
+      // Send batch request
+      connInfo.socket.send(JSON.stringify({
+        type: 'batch',
+        validations: batch
+      }));
+
+      if (config.mode === 'verbose') {
+        console.log(`Sent batch of ${batch.length} validations`);
       }
+    } else {
+      // Re-queue if connection not ready
+      connInfo.queue.unshift(...batch);
+    }
+
+    connInfo.processing = false;
+  },
+
+  // Handle individual validation response
+  handleValidationResponse: function (data, context) {
+    const { config, RAM, CodeShare } = context;
+
+    // Extract validation info from response - handle both old and new formats
+    let Name, CID, bn, Status;
+
+    // Check if it's the new format with explicit fields
+    if (data.Name && data.CID && data.bn !== undefined) {
+      Name = data.Name;
+      CID = data.CID;
+      bn = data.bn;
+      Status = data.Status;
+    } else {
+      // Try to extract from context/pending requests
+      // This handles the old format messages during validation
+      if (config.mode === 'verbose') console.log('Invalid response format:', data);
+      return;
+    }
+
+    if (Status === 'Connecting') {
+      if (config.mode == 'verbose') console.log('Connecting to Peer')
+    } else if (Status === 'Connected') {
+      if (config.mode == 'verbose') console.log('Connected to Peer')
+    } else if (Status === 'FoundHiveAccount') {
+      if (config.mode == 'verbose') console.log('Found Hive Account')
+    } else if (Status === 'IpfsPeerIDError') {
+      // Remove entry for invalid results
+      if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
+        delete RAM.Pending[`${bn % 200}`][CID].npid[Name]
+      }
+      if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
+    } else if (Status === 'RequestingProof') {
+      if (config.mode == 'verbose') console.log('RequestingProof')
+    } else if (Status === 'Connection Error') {
+      // Remove entry for invalid results
+      if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
+        delete RAM.Pending[`${bn % 200}`][CID].npid[Name]
+      }
+      if (config.mode == 'verbose') console.log('Error: Connection Error')
+    } else if (Status === 'ProofReceived') {
+      if (config.mode == 'verbose') console.log('ProofReceived', { data })
+    } else if (Status === 'Waiting Proof') {
+      if (config.mode == 'verbose') console.log('Waiting Proof', { data })
+    } else if (Status === "Validating") {
+      if (config.mode == 'verbose') console.log('Validating', { data })
+    } else if (Status === "Validated") {
+      if (config.mode == 'verbose') console.log('Validated', { data })
+    } else if (Status === "Validating Proof") {
+      if (config.mode == 'verbose') console.log('Validating Proof', { data })
+    } else if (Status === "Valid") {
+      if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID].npid) {
+        // Process the elapsed time and calculate z-score
+        if (data.Elapsed) {
+          const elapsedMs = CodeShare.msIzer(data.Elapsed)
+
+          // Add measurement to rolling statistics
+          CodeShare.addPoAMeasurement(Name, elapsedMs, context)
+
+          // Calculate z-score
+          const zScore = CodeShare.calculatePoAZScore(Name, elapsedMs, context)
+          const zScoreChar = CodeShare.zScoreToBase64(zScore)
+
+          // Try to fetch trole health score for bonus
+          CodeShare.fetchTroleHealthScore(Name, context).then(troleScore => {
+            if (troleScore && troleScore.length === 2) {
+              // Store 3-char string for double rewards
+              RAM.Pending[`${bn % 200}`][CID].npid[Name] = zScoreChar + troleScore
+              if (config.mode == 'verbose') console.log('Stored score with trole bonus:', Name, zScoreChar + troleScore)
+            } else {
+              // Store just the PoA z-score (1 char)
+              RAM.Pending[`${bn % 200}`][CID].npid[Name] = zScoreChar
+              if (config.mode == 'verbose') console.log('Stored score:', Name, zScoreChar)
+            }
+          }).catch(err => {
+            // On error, store just the PoA z-score (1 char)
+            RAM.Pending[`${bn % 200}`][CID].npid[Name] = zScoreChar
+            if (config.mode == 'verbose') console.log('Stored score:', Name, zScoreChar)
+          })
+        } else {
+          // No elapsed time, remove the entry so it's not reported
+          delete RAM.Pending[`${bn % 200}`][CID].npid[Name]
+        }
+      }
+      if (config.mode == 'verbose') console.log('Proof Valid', { data })
+    } else if (Status === "Invalid") {
+      // Remove entry for invalid results
+      if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
+        delete RAM.Pending[`${bn % 200}`][CID].npid[Name]
+      }
+      if (config.mode == 'verbose') console.log('Proof Invalid', { data })
+    } else {
+      if (config.mode == 'verbose') console.log('Unknown Status:', data)
+    }
+  },
+
+  // Initialize PoA statistics in RAM if not exists
+  initPoAStats: function (context) {
+    const { RAM, config } = context;
+    if (!RAM.poaStats) {
+      RAM.poaStats = {
+        windowSize: config.poaStatsWindowSize || 1000,
+        measurements: {} // node -> array of latencies
+      };
+    }
+  },
+
+  // Add measurement to rolling statistics
+  addPoAMeasurement: function (node, latency, context) {
+    const { RAM } = context;
+    CodeShare.initPoAStats(context);
+
+    if (!RAM.poaStats.measurements[node]) {
+      RAM.poaStats.measurements[node] = [];
+    }
+
+    const measurements = RAM.poaStats.measurements[node];
+    measurements.push(latency);
+
+    // Keep only the most recent measurements
+    if (measurements.length > RAM.poaStats.windowSize) {
+      measurements.shift();
+    }
+  },
+
+  // Get statistics for a node
+  getPoAStatistics: function (node, context) {
+    const { RAM } = context;
+    CodeShare.initPoAStats(context);
+
+    const measurements = RAM.poaStats.measurements[node];
+
+    if (!measurements || measurements.length < 2) {
+      return null;
+    }
+
+    // Calculate mean
+    const mean = measurements.reduce((sum, val) => sum + val, 0) / measurements.length;
+
+    // Calculate standard deviation
+    const variance = measurements.reduce((sum, val) => sum + Math.pow(val - mean, 2), 0) / measurements.length;
+    const stdDev = Math.sqrt(variance);
+
+    return { mean, stdDev, count: measurements.length };
+  },
+
+  // Calculate z-score for a measurement
+  calculatePoAZScore: function (node, latency, context) {
+    const stats = CodeShare.getPoAStatistics(node, context);
+
+    if (!stats || stats.stdDev === 0) {
+      return 0; // Return normal if insufficient data
+    }
+
+    return (latency - stats.mean) / stats.stdDev;
+  },
+
+  // Convert time string to milliseconds
+  msIzer: function (timer) {
+    var ms = 0
+    // regex to match m but not ms
+    var minuteD = timer.split(/m(?![s])/g)
+    if (minuteD.length > 1) {
+      var minutes = minuteD[0]
+      timer = minuteD[1]
+      const dotSplit = minutes.split(".")
+      if (dotSplit.length > 1) {
+        ms += parseInt(dotSplit[0]) * 60000
+        ms += parseInt(dotSplit[1] * 60) * 1000
+      } else {
+        ms += parseInt(dotSplit[0]) * 60000
+      }
+    }
+    // regex to match s but not ms
+    var secondD = timer.split(/(?<![m])s/g)
+    if (secondD.length > 1) {
+      var seconds = secondD[0]
+      timer = secondD[1]
+      ms += parseInt(parseFloat(seconds) * 1000)
+    }
+    // regex to match ms
+    var millisecondD = timer.split(/ms/g)
+    if (millisecondD.length > 1) {
+      ms += parseInt(millisecondD[0])
+    }
+    return ms
+  },
+  zScoreToBase64: function (zScore) {
+    const clampedZ = Math.max(-3.2, Math.min(3.1, zScore));
+    const position = Math.round((clampedZ / 0.1) + 32);
+    const finalPosition = Math.max(0, Math.min(63, position));
+    return "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+="[finalPosition];
+  },
+  base64ToZScore: function (char) {
+    const position = "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+=".indexOf(char);
+
+    if (position === -1) {
+      throw new Error(`Invalid base64 character: ${char}`);
+    }
+    const zScore = (position - 32) * 0.1;
+
+    return zScore;
+  },
+  fetchTroleHealthScore: async function (nodeName, context) {
+    const { config } = context;
+    const endpoint = config.troleEndpoint || 'https://ipfs.dlux.io';
+
+    try {
+      const fetchFn = context.fetch || fetch;
+      const response = await fetchFn(`${endpoint}/node-health/${nodeName}`, {
+        headers: {
+          'X-Health-Check': 'true'
+        },
+        timeout: 5000
+      });
+
+      if (response.ok) {
+        const text = await response.text();
+        if (text && text.length === 2) {
+          return text;
+        }
+      }
+    } catch (error) {
+      if (config.mode == 'verbose') console.log(`Failed to fetch trole health score for ${nodeName}:`, error.message);
+    }
+    return '';
+  },
+  reportFunction: function (plas, con, proofs, context) {
+    return new Promise((resolve, reject) => {
+      var val = []
+      if (!proofs) proofs = {}
       const offset = plas.hashBlock % 200 > 100 ? 0 : 100
       for (var i = 0; i < 100; i++) {
         for (var CID in proofs[`${i + offset}`]) {
@@ -180,21 +508,356 @@ const CodeShare = {
           } catch (e) { continue }
           if (nodes.length) {
             for (var j = 0; j < nodes.length; j++) {
-              if (proofs[`${i + offset}`][CID].npid[nodes[j]] && proofs[`${i + offset}`][CID].npid[nodes[j]].Elapsed) formated.push([nodes[j], msIzer(proofs[`${i + offset}`][CID].npid[nodes[j]].Elapsed)])
+              const scoreStr = proofs[`${i + offset}`][CID].npid[nodes[j]]
+              if (scoreStr && typeof scoreStr === 'string' && scoreStr.length >= 1) {
+                formated.push([nodes[j], scoreStr])
+              }
             }
             if (formated.length > 2) val.push(formated)
-
           }
         }
         if (JSON.stringify(val).length > 7800) break
       }
-      resolve(val)
+      resolve({ v: val })
     })
   },
+  tallyFunction: function (num, stats, context) {
+    return new Promise((resolve, reject) => {
+      const { getPathNum } = context;
+      const promises = [
+        getPathNum(["spk", "ra"]),
+        getPathNum(["spk", "t"]),
+        getPathNum(["spow", "t"])
+      ];
+
+      Promise.all(promises).then(([rewards_all, totalLiqSPK, totalPowSPK]) => {
+        const mintSPK = parseInt((totalLiqSPK + totalPowSPK) / stats.spk_interest_rate)
+        rewards_all += mintSPK;
+        totalLiqSPK += mintSPK;
+        stats.spkSupply = totalLiqSPK + totalPowSPK + mintSPK
+
+        // Prepare operations to save the updated data
+        const ops = [];
+
+        if (mintSPK > 0) {
+          ops.push({ type: "put", path: ["spk", "ra"], data: rewards_all });
+          ops.push({ type: "put", path: ["spk", "t"], data: totalLiqSPK });
+          ops.push({ type: "put", path: ["stats", "spkSupply"], data: stats.spkSupply });
+        }
+        resolve({ ops });
+      }).catch(error => {
+        console.error('Error in tallyFunction:', error);
+        resolve({}); // Return empty result on error
+      });
+    })
+  },
+  daoFunction: async function (num, runtimeContext, daoData) {
+    const { getPathObj, getPathNum, Config } = runtimeContext;
+    const { reportNodes, daops, stats, balances, data } = daoData;
+
+    // Helper function for formatting bytes
+    const fancyBytes = (bytes) => {
+      if (bytes < 1024) return bytes + ' B';
+      const units = ['KB', 'MB', 'GB', 'TB'];
+      let i = -1;
+      do {
+        bytes /= 1024;
+        i++;
+      } while (bytes >= 1024 && i < units.length - 1);
+      return bytes.toFixed(1) + ' ' + units[i];
+    };
+
+    try {
+      // Fetch SPK/BROCA specific data
+      const [vbroca, sbroca, ubroca, spk, cspk, powBal, cbroca, lbroca, granted, pow] = await Promise.all([
+        getPathObj(['vbroca']),
+        getPathObj(['sbroca']),
+        getPathObj(['ubroca']),
+        getPathObj(['spk']),
+        getPathObj(['cspk']),
+        getPathNum(['bpow', 't']),
+        getPathObj(['cbroca']),
+        getPathObj(['lbroca']),
+        getPathObj(['granted']),
+        getPathObj(['pow'])
+      ]);
+
+      // Calculate total verified BROCA (not collateral BROCA)
+      let totalVBroca = 0;
+      let brocaAccounts = {};
+      let totalPowered = 0;
+      let totalGranted = 0;
+      let storageBroca = 0;
+      
+      for (const acc in ubroca) {
+        vbroca[acc] = vbroca[acc] ? vbroca[acc] + ubroca[acc] : ubroca[acc]
+      }
+
+      for (const acc in vbroca) {
+        totalVBroca += vbroca[acc] || 0;
+        brocaAccounts[acc] = vbroca[acc] || 0;
+      }
+
+      for (const acc in sbroca) {
+        totalVBroca += sbroca[acc] || 0;
+        brocaAccounts[acc] = sbroca[acc] || 0;
+        storageBroca += sbroca[acc] || 0;
+      }
+
+      for (const acc in ubroca) {
+        totalVBroca += ubroca[acc] || 0;
+        brocaAccounts[acc] = ubroca[acc] || 0;
+      }
+      daops.push({ type: 'del', path: ['sbroca'] });
+      daops.push({ type: 'del', path: ['ubroca'] });
+      daops.push({ type: 'del', path: ['vbroca'] });
+
+      for (const acc in brocaAccounts) {
+        totalPowered += pow[acc] || 0;
+      }
+
+      for (const acc in brocaAccounts) {
+        totalPowered += granted[acc]?.t || 0;
+        totalGranted += granted[acc]?.t || 0;
+      }
+
+      // Minted
+      const newSPK = spk.ra
+      let newBroca = 0
+      // Calculate network utilization
+      const totalPower = powBal || 0;
+      stats.vals_target = stats.vals_target || 10;
+      if (totalPower > 0) {
+        //validations completed per day * percent to check normal/ (3(copies of files ) * target validations per day * total files) * 10000
+        const valUtilization = parseInt(((stats.vals_per_day * 100) / (3 * stats.vals_target * stats.total_files)) * 10000);
+        // normal percent to bytes
+        stats.utilization = parseInt((valUtilization * ((stats.total_bytes / stats.channel_bytes) / ((864000 / stats.broca_refill) * powBal / 1000))) / 10000)
+        stats.broca_daily_ema = stats.broca_daily_ema ?
+          parseInt((stats.broca_daily_ema * 3 + stats.utilization) / 4) :
+          stats.utilization;
+      }
+      stats.vals_per_day = 0
+
+      // Dynamic interest rate adjustment based on utilization
+      const targetUtilization = 5000; // 50%
+      const utilizationDiff = stats.broca_daily_ema - targetUtilization;
+
+      if (utilizationDiff > 0) {
+        newBroca = parseInt((utilizationDiff / targetUtilization) * powBal)
+      } else { // up to 10% clawback
+        stats.broca_clawback = parseInt(Math.abs(utilizationDiff / targetUtilization) * 1000)
+      }
+      // Initialize SPK object if needed
+      if (!spk.u) spk.u = 0;
+      spk.ra = 0
+
+      // Update SPK balances
+      stats.spk_minted_today = newSPK
+      stats.broca_minted_today = newBroca
+      spk.u += newSPK; // unissued SPK for distribution
+
+      // Storage provider rewards distribution
+      const SpkDelegationRewards = parseInt(spk.u * 0.5)
+      const SpkStorageRewards = spk.u - SpkDelegationRewards
+      const BrocaDelegationRewards = parseInt((lbroca.u + newBroca) * 0.5)
+      const BrocaStorageRewards = (lbroca.u + newBroca) - BrocaDelegationRewards
+      let SpkStorageDist = 0;
+      let BrocaStorageDist = 0;
+      let spkShares = {};
+      let brocaShares = {};
+      let SpkRewardedServices = 0;
+      let BrocaRewardedServices = 0;
+      let std = 0;
+      let mean = 0;
+
+      if (storageBroca > 0) {
+        const N = Object.keys(sbroca).length
+        mean = storageBroca / N
+        let total = 0;
+        for (const acc in sbroca) {
+          total += Math.pow(sbroca[acc] - mean, 2)
+        }
+        std = parseInt(Math.sqrt(total / N))
+      }
+      // half of rewards go to storage providers, half to delegators
+      if (totalVBroca > 0) {
+        spk.u = 0; // Reset unissued after distribution
+        lbroca.u = 0;
+
+        for (const acc in brocaAccounts) {
+          let rewarded = false;
+          if (brocaAccounts[acc] > 0) {
+            const SpkShare = parseInt(SpkStorageRewards * brocaAccounts[acc] / totalVBroca);
+            let mod = SpkStorageRewards * brocaAccounts[acc] % totalVBroca
+            if (SpkShare > 0) {
+              if (!cspk[acc]) cspk[acc] = 0;
+              cspk[acc] += SpkShare;
+              spkShares[acc] = SpkShare;
+              SpkStorageDist += SpkShare;
+              SpkRewardedServices++;
+              rewarded = true;
+            }
+            const BrocaShare = parseInt(BrocaStorageRewards * brocaAccounts[acc] / totalVBroca);
+            const bmod = BrocaStorageRewards * brocaAccounts[acc] % totalVBroca
+            if (bmod < mod) {
+              mod = bmod
+            }
+            if (BrocaShare > 0) {
+              if (!lbroca[acc]) lbroca[acc] = 0;
+              lbroca[acc] += BrocaShare;
+              brocaShares[acc] = BrocaShare;
+              BrocaStorageDist += BrocaShare;
+              BrocaRewardedServices++;
+              rewarded = true;
+            }
+            if (rewarded) { // If we rewarded, we need to update the brocaAccounts to the lowest remainder
+              brocaAccounts[acc] = mod
+            }
+          }
+        }
+        // Handle any remainder
+        if (SpkStorageRewards > SpkStorageDist && SpkRewardedServices > 0) {
+          spk.u += (SpkStorageRewards - SpkStorageDist);
+        }
+        if (BrocaStorageRewards > BrocaStorageDist && BrocaRewardedServices > 0) {
+          lbroca.u += (BrocaStorageRewards - BrocaStorageDist);
+        }
+      }
+      let Dtotal = 0;
+      let Dnum = 0;
+      let Dsum = 0;
+      let Dstd = 0;
+      let Dmean = 0;
+      let Delegations = {}
+      for (const acc in brocaAccounts) {
+        Delegations[acc] = (granted[acc]?.t || 0) + (pow[acc] || 0)
+        Dtotal += Delegations[acc]
+        Dnum++
+      }
+      Dmean = Dtotal / Dnum
+      for (const acc in Delegations) {
+        Dsum += Math.pow(Delegations[acc] - Dmean, 2)
+      }
+      Dstd = parseInt(Math.sqrt(Dsum / Dnum))
+      // Adjust storage based on delegation and power
+      for (const acc in sbroca) {
+        if (Delegations[acc] > Dmean + Dstd) {
+          sbroca[acc] = parseInt(sbroca[acc] * 1.5)
+        } else if (Delegations[acc] < Dmean - Dstd) {
+          sbroca[acc] = parseInt(sbroca[acc] * 0.66)
+        }
+        if (sbroca[acc] > mean + std) sbroca[acc] = parseInt(sbroca[acc] * 1.5)
+        else if (sbroca[acc] < mean - std) sbroca[acc] = parseInt(sbroca[acc] * 0.66)
+      }
+      //re sum sBroca
+      let sBrocaTotal = 0;
+      for (const acc in sbroca) {
+        sBrocaTotal += sbroca[acc]
+      }
+      let cummulativeSpkReward = 0;
+      let cummulativeBrocaReward = 0;
+      for (const acc in sbroca) {
+        thisSpkReward = parseInt(SpkDelegationRewards * sbroca[acc] / sBrocaTotal)
+        thisBrocaReward = parseInt(BrocaDelegationRewards * sbroca[acc] / sBrocaTotal)
+        let toSelfBroca = 0;
+        let toSelfSpk = 0;
+        if (thisSpkReward > 0 || thisBrocaReward > 0) {
+          if (Delegations[acc] > 0) {
+            toSelfSpk = parseInt(thisSpkReward * pow[acc] / Delegations[acc])
+            thisSpkReward -= toSelfSpk
+            cummulativeSpkReward += toSelfSpk
+            toSelfBroca = parseInt(thisBrocaReward * pow[acc] / Delegations[acc])
+            thisBrocaReward -= toSelfBroca
+            cummulativeBrocaReward += toSelfBroca
+            for (const acc2 in granted[acc]) {
+              if (acc2 != acc && granted[acc][acc2] > 0 && acc2 != 't') {
+                let toOtherSpk = parseInt(thisSpkReward * granted[acc][acc2] / Delegations[acc])
+                cummulativeSpkReward += toOtherSpk
+                const thirtyPercent = parseInt(toOtherSpk * 0.3)
+                toOtherSpk -= thirtyPercent
+                cspk[acc2] = cspk[acc2] ? cspk[acc2] + toOtherSpk : toOtherSpk
+                toSelfSpk += thirtyPercent
+                let toOtherBroca = parseInt(thisBrocaReward * granted[acc][acc2] / Delegations[acc])
+                cummulativeBrocaReward += toOtherBroca
+                const thirtyPercentBroca = parseInt(toOtherBroca * 0.3)
+                toOtherBroca -= thirtyPercentBroca
+                cbroca[acc2] = cbroca[acc2] ? cbroca[acc2] + toOtherBroca : toOtherBroca
+                toSelfBroca += thirtyPercentBroca
+              }
+            }
+          }
+          cbroca[acc] = cbroca[acc] ? cbroca[acc] + toSelfBroca : toSelfBroca
+          cspk[acc] = cspk[acc] ? cspk[acc] + toSelfSpk : toSelfSpk
+        }
+      }
+      if (cummulativeSpkReward < SpkDelegationRewards) {
+        spk.u += (SpkDelegationRewards - cummulativeSpkReward)
+      }
+      if (cummulativeBrocaReward < BrocaDelegationRewards) {
+        lbroca.u += (BrocaDelegationRewards - cummulativeBrocaReward)
+      }
+
+      // Update SPK balances in daops
+      daops.push({ type: 'put', path: ['spk', 'ra'], data: 0 });
+      daops.push({ type: 'put', path: ['stats'], data: stats });
+      daops.push({ type: 'put', path: ['cspk'], data: cspk });
+      daops.push({ type: 'put', path: ['cbroca'], data: cbroca });
+      daops.push({ type: 'put', path: ['ubroca'], data: brocaAccounts });
+      daops.push({ type: 'put', path: ['lbroca', 'u'], data: lbroca.u });
+      daops.push({ type: 'put', path: ['spk', 'u'], data: spk.u });
+
+      // Create SPK report section
+      const spkReport = `*****\n### SPK Network Report\n` +
+        `* ${(newSPK / 1000).toFixed(3)} SPK minted today.\n` +
+        `* ${SpkRewardedServices > BrocaRewardedServices ? SpkRewardedServices : BrocaRewardedServices} accounts rewarded for storage and validation.\n` +
+        `* Network utilization: ${(stats.utilization / 10000).toFixed(2)}%\n` +
+        (stats.total_bytes ? `* ${fancyBytes(stats.total_bytes)} stored in network.\n` : '') +
+        (stats.total_files ? `* ${stats.total_files} files in network.\n` : '') +
+        `*****\n`;
+
+      // Add SPK report node
+      reportNodes.spkNetwork = {
+        order: 0.5, // After header, before content rewards
+        content: spkReport,
+        data: {
+          newSPK,
+          totalVBroca,
+          powBal,
+          spkShares,
+          utilization: stats.utilization
+        }
+      };
+
+      // Add validator performance section if there's data
+      if (stats.val_count && stats.val_count > 0) {
+        const valReport = `### Validator Performance\n` +
+          `* ${stats.val_count} total validations today.\n` +
+          `* ${stats.val_successful || 0} successful validations.\n` +
+          `* ${((stats.val_successful || 0) / stats.val_count * 100).toFixed(1)}% success rate.\n` +
+          `*****\n`;
+
+        reportNodes.validatorPerformance = {
+          order: 3.5, // After daily accounting
+          content: valReport,
+          data: {
+            total: stats.val_count,
+            successful: stats.val_successful || 0
+          }
+        };
+      }
+
+      return { reportNodes, daops };
+
+    } catch (error) {
+      console.error('Error in daoFunction:', error);
+      // Return unchanged data on error
+      return { reportNodes, daops };
+    }
+  },
   PoA: {
-    Check: function (b, rand, stats, val, cBroca, vBroca, pc, context) {
+    Check: async function (b, rand, stats, val, vBroca, sBroca, pc, context) {
       const { getPathObj, CodeShare, Base58, config, Base64, store } = context
-      var promises = []
+      var promises = [], ops = []
       for (var i = 0; i < b.report.v.length; i++) {
         const [gte, lte] = CodeShare.PoA.getRange(rand[b.report.v[i][1]], b.self, val, stats, context)
         const rev = b.report.v[i][0].split("").reverse().join("")
@@ -216,19 +879,19 @@ const CodeShare = {
           }
         }
         if (promises.length) Promise.all(promises).then(contracts => {
-          const oldTotal = stats.val_tot_ms || 0
-          const oldCount = stats.val_count || 0
-          const oldMean = parseInt(oldTotal / oldCount)
-          const oldStdDevNum = stats.val_std_dev_num || parseInt((Math.pow(oldTotal - oldMean, 2)) * 1000)
-          const oldStdDev = parseInt(Math.sqrt(oldStdDevNum / (oldCount * 1000)))
-          var newStdDevNum = oldStdDevNum
-          var newCount = oldCount
-          var newTotal = oldTotal
+          var newCount = stats.val_count || 0
+          var totalValidations = stats.val_total || 0
+          var dailyVals = stats.vals_per_day || 0
+          var successfulValidations = stats.val_successful || 0
+          var ops = []
           for (var i = 0; i < contracts.length; i++) {
             var reward = 0
             try {
-              reward = parseInt((contracts[i].p * contracts[i].r * contracts[i].df[b.report.v[i][0]]) / (contracts[i].u * 3))
-              if (config.mode == 'verbose') console.log({ contract: contracts[i], reward })
+              // Calculate reward using .v/.u ratio for verification confidence
+              const verificationRatio = (contracts[i].v || 0) / (contracts[i].u || 1)
+              // Base reward calculation with verification ratio modifier
+              reward = parseInt((contracts[i].p * contracts[i].r * contracts[i].df[b.report.v[i][0]] * verificationRatio) / (contracts[i].u * 3))
+              if (config.mode == 'verbose') console.log({ contract: contracts[i], verificationRatio, reward })
             } catch (e) {
               if (config.mode == 'verbose') console.log(e)
               continue
@@ -250,18 +913,49 @@ const CodeShare = {
               }
             }
             var accepted = {}
+            // Process node results - data now comes as 1-3 character strings
             for (var j = 2; j < b.report.v[i].length; j++) {
-              if (b.report.v[i][j][1] > 0 && typeof b.report.v[i][j][1] == 'number' && b.report.v[i][j][1] < 240000) {
-                newCount++
-                newTotal += b.report.v[i][j][1]
-                const delta = b.report.v[i][j][1] - oldMean
-                newStdDevNum = parseInt(newStdDevNum + (Math.pow(b.report.v[i][j][1] - oldMean, 2) * 1000))
-                if (Math.abs(delta) < 2 * oldStdDev) {
-                  paid++
-                  accepted[b.report.v[i][j][0]] = { a: b.report.v[i][j][0], r: 2, p: 0 }
-                } else if (Math.abs(delta) < 3 * oldStdDev) {
-                  paid++
-                  accepted[b.report.v[i][j][0]] = { a: b.report.v[i][j][0], r: 1, p: 0 }
+              const nodeName = b.report.v[i][j][0]
+              const scoreStr = b.report.v[i][j][1]
+
+              // scoreStr should be 1-3 characters: PoA z-score (1 char) + optional Trole scores (2 chars)
+              if (scoreStr && typeof scoreStr == 'string' && scoreStr.length >= 1) {
+                try {
+                  // Extract the PoA z-score (first character)
+                  const poaZScoreChar = scoreStr[0]
+                  const poaZScore = CodeShare.base64ToZScore(poaZScoreChar)
+
+                  // Check if we have trole scores for double rewards
+                  const hasTroleBonus = scoreStr.length >= 3
+
+                  newCount++
+
+                  // Reward based on z-score performance
+                  // Within ±2 standard deviations = full reward (r: 2)
+                  // Within ±3 standard deviations = partial reward (r: 1)
+                  // Beyond ±3 standard deviations = no reward
+                  if (Math.abs(poaZScore) < 2) {
+                    paid++
+                    accepted[nodeName] = {
+                      a: nodeName,
+                      r: 2,
+                      p: 0,
+                      z: poaZScore,
+                      bonus: hasTroleBonus // Track if they get double rewards
+                    }
+                  } else if (Math.abs(poaZScore) < 3) {
+                    paid++
+                    accepted[nodeName] = {
+                      a: nodeName,
+                      r: 1,
+                      p: 0,
+                      z: poaZScore,
+                      bonus: hasTroleBonus // Track if they get double rewards
+                    }
+                  }
+                  // Nodes beyond ±3 SD get no reward
+                } catch (e) {
+                  if (config.mode == 'verbose') console.log('Error decoding z-score:', e)
                 }
               }
             }
@@ -281,19 +975,55 @@ const CodeShare = {
             }
             acc.sort((a, b) => a.p - b.p)
             for (var j = 0; j < acc.length; j++) {
-              if (j < contracts[i].p) cBroca[acc[j].a] = cBroca[acc[j].a] ? cBroca[acc[j].a] + reward : reward
-              else cBroca[acc[j].a] = cBroca[acc[j].a] ? cBroca[acc[j].a] + parseInt(reward / Math.pow(j - 1 - contracts[i].p, 2)) : parseInt(reward / Math.pow(j - 1 - contracts[i].p, 2))
+              // Calculate base reward
+              let nodeReward
+              if (j < contracts[i].p) {
+                nodeReward = reward
+              } else {
+                nodeReward = parseInt(reward / Math.pow(j - 1 - contracts[i].p, 2))
+              }
+
+              // Double the reward if node has trole bonus (3-char string)
+              if (acc[j].bonus) {
+                nodeReward = nodeReward * 2
+              }
+
+              sBroca[acc[j].a] = sBroca[acc[j].a] ? sBroca[acc[j].a] + nodeReward : nodeReward
             }
-            if (paid) vBroca[b.self] = vBroca[b.self] ? vBroca[b.self] + (2 * reward) : (2 * reward)
+            if (paid) {
+              vBroca[b.self] = vBroca[b.self] ? vBroca[b.self] + (2 * reward) : (2 * reward)
+              successfulValidations += paid
+
+              // Update contract verification score based on validation success
+              const successRate = paid / (b.report.v[i].length - 2) // success rate for this validation
+
+              // Adjust contract .v field based on success rate
+              if (contracts[i]) {
+                const currentV = contracts[i].v || contracts[i].u / 2
+                // Move .v towards .u for high success rates, towards 0 for low rates
+                const targetV = contracts[i].u * successRate
+                const adjustment = 0.5 // 10% adjustment per validation
+                contracts[i].v = Math.round(currentV + (targetV - currentV) * adjustment)
+                contracts[i].lastValidated = b.report.block
+
+                ops.push({
+                  type: "put",
+                  path: ['contract', contractIDs[i].split(',')[0], contractIDs[i].split(',')[1]],
+                  data: contracts[i]
+                })
+              }
+            }
+            totalValidations += (b.report.v[i].length - 2) // Subtract 2 for CID and block number
           }
           delete b.report.v
-          stats.val_tot_ms = newTotal
           stats.val_count = newCount
-          stats.val_std_dev_num = newStdDevNum
-          var ops = [{ type: "put", path: ["markets", "node", b.self], data: b },
-          { type: "put", path: ["stats"], data: stats }]
+          stats.val_total = totalValidations
+          stats.val_successful = successfulValidations
+          stats.vals_per_day = dailyVals
+          ops.push({ type: "put", path: ["markets", "node", b.self], data: b })
+          ops.push({ type: "put", path: ["stats"], data: stats })
           if (Object.keys(vBroca).length) ops.push({ type: "put", path: ["vbroca"], data: vBroca })
-          if (Object.keys(cBroca).length) ops.push({ type: "put", path: ["cbroca"], data: cBroca })
+          if (Object.keys(sBroca).length) ops.push({ type: "put", path: ["sbroca"], data: sBroca })
           store.batch(ops, pc)
         })
         else store.batch([{ type: "put", path: ["markets", "node", b.self], data: b }], pc)
@@ -355,11 +1085,9 @@ const CodeShare = {
                         toVerify[dfKeys[j]].i = i
                         toVerify[dfKeys[j]].v = 0
                         toVerify[dfKeys[j]].npid = {}
+                        toVerify[dfKeys[j]].sizes = {} // Store reported file sizes
+                        // Don't pre-populate npid - only add nodes when they successfully validate
                         for (var node in toVerify[dfKeys[j]].n) {
-                          toVerify[dfKeys[j]].npid[toVerify[dfKeys[j]].n[node]] = {
-                            Message: 0,
-                            Elapsed: 0
-                          }
                           k.push([dfKeys[j], toVerify[dfKeys[j]].n[node]])
                           if (config.mode == 'verbose') console.log('toVerify', toVerify[dfKeys[j]].n[node])
                           promises.push(getPathObj(['service', 'IPFS', toVerify[dfKeys[j]].n[node]]))
@@ -427,7 +1155,7 @@ const CodeShare = {
       }
       var gt = Base58.fromNumber(Number(r % 7427658739644928n))
       while (gt.length < 9) {
-        gt = gt + '1'
+        gt = gt + '1'  // Pad at the end (reverting to previous strategy)
       }
       return gt
     },
@@ -439,7 +1167,7 @@ const CodeShare = {
       }
     },
     PA: function (Name, CID, peerid, SALT, bn, context) {
-      const { config, RAM, CodeShare, WebSocket } = context
+      const { config, RAM, CodeShare } = context
       if (peerid.split(',').length > 1) {
         const firstPeerId = peerid.split(',')[0]
         const restOfPeerIDs = peerid.split(',').slice(1).join(',')
@@ -448,135 +1176,36 @@ const CodeShare = {
       }
       if (config.mode == 'verbose') console.log("PA: ", Name, CID, peerid, SALT, bn)
 
-      // Add initial connection attempt logging
-      if (config.mode == 'verbose') console.log("Attempting WebSocket connection to:", `${config.poav_address}/validate`)
-      try {
-        var socket = new WebSocket(`${config.poav_address}/validate`);
-        socket.on('open', (connection) => {
-          if (config.mode == 'verbose') console.log("WebSocket connected successfully")
-          const timeoutId = setTimeout(() => {
-            if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name] && !RAM.Pending[`${bn % 200}`][CID].npid[Name].Status) {
-              RAM.Pending[`${bn % 200}`][CID].npid[Name] = { Status: 'Invalid', Message: 'Timeout' }
-            }
-            socket.close()
-            if (config.mode == 'verbose') console.log("Timeout:", CID)
-          }, 240000)
-          socket.send(JSON.stringify({ Name, CID, peerid: peerid, SALT }));
-          socket.on('message', (event) => {
-            const data = event instanceof Buffer ? JSON.parse(event.toString('utf8')) : (event.utf8Data ? JSON.parse(event.utf8Data) : {})
-            //const stepText = document.querySelectorAll('.step-text');
-            if (data.Status === 'Connecting') {
-              if (config.mode == 'verbose') console.log('Connecting to Peer')
-            } else if (data.Status === 'Connected') {
-              if (config.mode == 'verbose') console.log('Connected to Peer')
-            } else if (data.Status === 'FoundHiveAccount') {
-              //socket.close()
-              if (config.mode == 'verbose') console.log('Found Hive Account')
-            } else if (data.Status === 'IpfsPeerIDError') {
-              if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
-                RAM.Pending[`${bn % 200}`][CID].npid[Name] = { Status: 'Invalid', Message: 'IpfsPeerIDError' }
-              }
-              socket.close()
-              if (config.mode == 'verbose') console.log('Error: Invalid Peer ID')
-            } else if (data.Status === 'RequestingProof') {
-              if (config.mode == 'verbose') console.log('RequestingProof')
-            } else if (data.Status === 'Connection Error') {
-              if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
-                RAM.Pending[`${bn % 200}`][CID].npid[Name] = { Status: 'Invalid', Message: 'ConnectionError' }
-              }
-              socket.close()
-              if (config.mode == 'verbose') console.log('Error: Connection Error')
-            } else if (data.Status === 'ProofReceived') {
-              if (config.mode == 'verbose') console.log('ProofReceived', { data })
-            } else if (data.Status === 'Waiting Proof') {
-              if (config.mode == 'verbose') console.log('Waiting Proof', { data })
-            } else if (data.Status === "Validating") {
-              if (config.mode == 'verbose') console.log('Validating', { data })
-            } else if (data.Status === "Validated") {
-              if (config.mode == 'verbose') console.log('Validated', { data })
-            } else if (data.Status === "Validating Proof") {
-              if (config.mode == 'verbose') console.log('Validating Proof', { data })
-            } else if (data.Status === "Valid") {
-              clearTimeout(timeoutId)
-              if (RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name] && !RAM.Pending[`${bn % 200}`][CID].npid[Name].Message) RAM.Pending[`${bn % 200}`][CID].npid[Name] = data
-              if (config.mode == 'verbose') console.log('Proof Valid', { data })
-              socket.close()
-            } else if (data.Status === "Invalid") {
-              clearTimeout(timeoutId)
-              if (RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
-                RAM.Pending[`${bn % 200}`][CID].npid[Name] = data
-              }
-              if (config.mode == 'verbose') console.log('Proof Invalid', { data })
-              socket.close()
-            } else {
-              if (config.mode == 'verbose') console.log('Unknown Status:', data)
-            }
-          })
-        })
-        socket.onerror = (error) => {
-          clearTimeout(timeoutId)
-          if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
-            RAM.Pending[`${bn % 200}`][CID].npid[Name] = { Status: 'Invalid', Message: 'WebSocketError: ' + error.toString() }
-          }
-          if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
-        };
+      // Queue the validation request for batch processing
+      const validationRequest = {
+        Name,
+        CID,
+        peerid,
+        SALT,
+        bn,
+        timestamp: Date.now(),
+        validator: config.username || config.leader || 'spk-test' // Include validator identity
+      };
 
-        if (config.mode == 'verbose') console.log("WebSocket connection initiated")
-      } catch (error) {
-        if (RAM.Pending[`${bn % 200}`] && RAM.Pending[`${bn % 200}`][CID] && RAM.Pending[`${bn % 200}`][CID]?.npid?.[Name]) {
-          RAM.Pending[`${bn % 200}`][CID].npid[Name] = { Status: 'Invalid', Message: 'Exception: ' + error.toString() }
-        }
-        if (config.mode == 'verbose') console.log('Connect Error: ' + error.toString());
-      }
+      CodeShare.queueValidation(validationRequest, context);
     }
   },
-  Base64: {
-    glyphs64: "0123456789ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz+=",
-    fromNumber: function (number) {
-      if (
-        isNaN(Number(number)) ||
-        number === null ||
-        number === Number.POSITIVE_INFINITY
-      )
-        throw "The input is not valid";
-      if (number < 0) throw "Can't represent negative numbers now";
-      var char;
-      var residual = Math.floor(number);
-      var result = "";
-      while (true) {
-        char = residual % 64;
-        result = this.glyphs64.charAt(char) + result;
-        residual = Math.floor(residual / 64);
-        if (residual == 0) break;
-      }
-      return result;
-    },
-
-    toNumber: function (chars) {
-      var result = 0;
-      chars = chars.split("");
-      for (var e = 0; e < chars.length; e++) {
-        result = result * 64 + this.glyphs64.indexOf(chars[e]);
-      }
-      return result;
-    },
-  },
-  broca_calc: function (last = '0,0', pow, stats, bn, add = 0) {
-    if (typeof last != "string" || last === undefined || last === null) last = '0,0'
-    const last_calc = this.Base64.toNumber(last.split(',')[1])
+  broca_calc: function (last = '0,0', pow, stats, bn, add = 0, Base64) {
+    if (typeof last != "string" || last === undefined || last === null || !last.includes(',')) last = '0,0'
+    const last_calc = Base64.toNumber(last.split(',')[1])
     const accured = parseInt((parseFloat(stats.broca_refill) * (bn - last_calc)) / (pow * (stats.broca_daily_trend > 1000 ? stats.broca_daily_trend : 1000)))
     var total = parseInt(last.split(',')[0]) + accured + add
     if (total > (pow * 1000)) total = (pow * 1000)
-    return `${total},${this.Base64.fromNumber(bn)}`
+    return `${total},${Base64.fromNumber(bn)}`
   },
-  isValidMetadata: function (metadataString) {
+  isValidMetadata: function (metadataString, Base64) {
     let metaData = metadataString.split(',')
     const contractData = metaData[0]
     const metadata = metaData.splice(1)
     if (metadata.length % 4 !== 0) return false
     let firstChar = contractData.split('')[0]
     if (firstChar == '#' || firstChar == '|') firstChar = "1"
-    let simpleTest = this.Base64.toNumber(firstChar) + 1
+    let simpleTest = Base64.toNumber(firstChar) + 1
     if (typeof simpleTest !== 'number') return false
     let encryptionData = contractData.split('#')
     encryptionData[encryptionData.length - 1] = encryptionData[encryptionData.length - 1].split('|')[0]
@@ -645,17 +1274,103 @@ const CodeShare = {
         function b58ToNumber(str) {
           const glyphs58 = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
           var result = 0;
-      chars = chars.split("");
-      for (var e = 0; e < chars.length; e++) {
-        result = result * 58 + glyphs58.indexOf(chars[e]);
-      }
-      return result;
+          chars = chars.split("");
+          for (var e = 0; e < chars.length; e++) {
+            result = result * 58 + glyphs58.indexOf(chars[e]);
+          }
+          return result;
         }
         if (typeParts.length > 1 && !folderIndexMap.has(b58ToNumber(typeParts[1])) && typeParts[1] != "0") return false
         if (thumb && !ipfsPattern.test(thumb) && !urlPattern.test(thumb)) return false
         if (flagsCombined && !flagsPattern.test(flagsCombined)) return false
       }
       return true
+    }
+  },
+  Validator: {
+    addSPK: function (vals, valStr, add) {
+      // Inline valStr2Arr logic
+      var a = valStr.split('')
+      var votes = []
+      for (var i = 0; i < valStr.length; i++) {
+        var b = `${a[i]}`; i++; b = `${b}${a[i]}`; votes.push(b)
+      }
+      votes = [...new Set(votes)]
+
+      // Inline addVote logic
+      for (var i = 0; i < votes.length; i++) {
+        const weight = parseInt(add * (30 - i))
+        if (typeof vals[votes[i]] == "number") vals[votes[i]] += weight
+      }
+      return vals
+    },
+    removeSpk: function (vals, valStr, minus) {
+      // Inline valStr2Arr logic
+      var a = valStr.split('')
+      var votes = []
+      for (var i = 0; i < valStr.length; i++) {
+        var b = `${a[i]}`; i++; b = `${b}${a[i]}`; votes.push(b)
+      }
+      votes = [...new Set(votes)]
+
+      // Inline removeVote logic
+      for (var i = 0; i < votes.length; i++) {
+        const weight = parseInt(minus * (30 - i))
+        if (typeof vals[votes[i]] == "number") vals[votes[i]] -= weight
+      }
+      return vals
+    },
+    changeVote: function (vals, oldVotes, newVotes, spk) {
+      // Remove old votes - inline valStr2Arr logic
+      var a = oldVotes.split('')
+      var votes = []
+      for (var i = 0; i < oldVotes.length; i++) {
+        var b = `${a[i]}`; i++; b = `${b}${a[i]}`; votes.push(b)
+      }
+      votes = [...new Set(votes)]
+
+      // Inline removeVote logic
+      for (var i = 0; i < votes.length; i++) {
+        const weight = parseInt(spk * (30 - i))
+        if (typeof vals[votes[i]] == "number") vals[votes[i]] -= weight
+      }
+
+      // Add new votes - inline valStr2Arr logic
+      a = newVotes.split('')
+      votes = []
+      for (var i = 0; i < newVotes.length; i++) {
+        var b = `${a[i]}`; i++; b = `${b}${a[i]}`; votes.push(b)
+      }
+      votes = [...new Set(votes)]
+
+      // Inline addVote logic
+      for (var i = 0; i < votes.length; i++) {
+        const weight = parseInt(spk * (30 - i))
+        if (typeof vals[votes[i]] == "number") vals[votes[i]] += weight
+      }
+      return vals
+    },
+    removeVote: function (vals, voteArr, spk) {
+      for (var i = 0; i < voteArr.length; i++) {
+        const weight = parseInt(spk * (30 - i))
+        if (typeof vals[voteArr[i]] == "number") vals[voteArr[i]] -= weight
+      }
+      return vals
+    },
+    addVote: function (vals, voteArr, spk) {
+      for (var i = 0; i < voteArr.length; i++) {
+        const weight = parseInt(spk * (30 - i))
+        if (typeof vals[voteArr[i]] == "number") vals[voteArr[i]] += weight
+      }
+      return vals
+    },
+    valStr2Arr: function (valStr = "") {
+      var vals = []
+      var a = valStr.split('')
+      for (var i = 0; i < valStr.length; i++) {
+        var b = `${a[i]}`; i++; b = `${b}${a[i]}`; vals.push(b)
+      }
+      return [...new Set(vals)]
     }
   }
 }
@@ -670,15 +1385,15 @@ const CustomJsonProcessing = [
       var pRand = getPathObj(['rand'])
       var pStats = getPathObj(['stats'])
       let pVal = getPathObj(['val'])
-      let PcBroca = getPathObj(['cbroca'])
       let PvBroca = getPathObj(['vbroca'])
-      Promise.all([pReport, pRand, pStats, pVal, PcBroca, PvBroca]).then(mem => {
-        var b = mem[0], rand = mem[1], stats = mem[2], val = mem[3], cBroca = mem[4]
+      let PsBroca = getPathObj(['sbroca'])
+      Promise.all([pReport, pRand, pStats, pVal, PvBroca, PsBroca]).then(mem => {
+        var b = mem[0], rand = mem[1], stats = mem[2], val = mem[3], vBroca = mem[4], sBroca = mem[5]
         if (from == b.self && active) {
           b.report = json
           delete b.report.timestamp
           if (b.report.v) {
-            CodeShare.PoA.Check(b, rand, stats, val, cBroca, mem[5], pc, context)
+            CodeShare.PoA.Check(b, rand, stats, val, vBroca, sBroca, pc, context)
           } else {
             var ops = [
               { type: 'put', path: ['markets', 'node', from], data: b }
@@ -837,30 +1552,7 @@ const CustomJsonProcessing = [
     type: "on",
     op: "spk_power_up",
     func: function (json, from, active, pc, context) {
-      const { store, config, getPathObj, getPathNum, postToDiscord, Base64 } = context
-      const Validator = {
-        addSPK: function (vals, valStr, add) {
-          var votes = this.valStr2Arr(valStr)
-          vals = this.addVote(vals, votes, add)
-          return vals
-        },
-        addVote: function (vals, voteArr, spk) {
-          for (var i = 0; i < voteArr.length; i++) {
-            const weight = parseInt(spk * (30 - i))
-            if (typeof vals[voteArr[i]] == "number") vals[voteArr[i]] += weight
-          }
-          return vals
-        },
-        valStr2Arr: function (valStr = "") {
-          var vals = []
-          var a = valStr.split('')
-          for (var i = 0; i < valStr.length; i++) {
-            var b = `${a[i]}`; i++; b = `${b}${a[i]}`; vals.push(b)
-          }
-          return [...new Set(vals)]
-        },
-
-      }
+      const { store, config, getPathObj, getPathNum, postToDiscord, Base64, CodeShare } = context
       var amount = parseInt(json.amount),
         lpp = getPathNum(["spk", from]),
         tpowp = getPathNum(["spow", "t"]),
@@ -889,7 +1581,7 @@ const CustomJsonProcessing = [
               else if (ago <= (stats.spk_cycle_length * 8)) lastVote = lastVote - parseInt(dif * ((stats.spk_cycle_length * 4) - ago))
               else lastVote = lastVote + parseInt(dif * stats.spk_cycle_length * 4)
               if (valStr) {
-                vals = Validator.addSPK(vals, valStr, amount)
+                vals = context.CodeShare.Validator.addSPK(vals, valStr, amount)
               }
               daostring = Base64.fromNumber(lastVote) + ',' + valStr
             } else {
@@ -1042,7 +1734,7 @@ const CustomJsonProcessing = [
             lbal = typeof lb != "number" ? 0 : lb,
             pbal = typeof pow != "number" ? 0 : pow,
             ops = [];
-          const broca = CodeShare.broca_calc(typeof broca_string == 'string' ? broca_string : '0,0', pbal, stats, json.block_num)
+          const broca = CodeShare.broca_calc(typeof broca_string == 'string' ? broca_string : '0,0', pbal, stats, json.block_num, 0, Base64)
           const cur_broca = parseInt(broca.split(',')[0]) || 0
           if (amount <= lbal && active) {
             ops.push({
@@ -1298,7 +1990,7 @@ const CustomJsonProcessing = [
     type: "on",
     op: "spk_val_vote",
     func: function (json, from, active, pc, context) {
-      const { store, getPathObj, getPathNum } = context
+      const { store, getPathObj, getPathNum, CodeShare } = context
       var ops = []
       if (active) {
         var powp = getPathNum(["spow", from]),
@@ -1315,7 +2007,7 @@ const CustomJsonProcessing = [
             votes = votes.replace(/[^0-9A-Za-z+=]/g, '')
             if (votes.length > 60) votes = votes.substring(0, 59)
             if (spk_power) {
-              vals = Validator.changeVote(vals, daoStringArr[1], votes, spk_power)
+              vals = context.CodeShare.Validator.changeVote(vals, daoStringArr[1], votes, spk_power)
               const msg = `@${from}| VV:${json.votes}`;
               ops.push({
                 type: "put",
@@ -1486,7 +2178,7 @@ const CustomJsonProcessing = [
             ops = [],
             err = '' //no log no broca?
           if (typeof broca != "string") broca = '0,0'
-          let brocaString = CodeShare.broca_calc(broca, pow, stats, json.block_num)
+          let brocaString = CodeShare.broca_calc(broca, pow, stats, json.block_num, 0, Base64)
           broca = parseInt(broca.split(',')[0])
           if (typeof template.i != "string") err += `Contract doesn't exist.`
           if (typeof authF != 'string') err += `@${from} hasn't registered a public key. `
@@ -1611,7 +2303,7 @@ const CustomJsonProcessing = [
                 } catch (e) {
                   console.log("Error parsing metadata:", e);
                 }
-                if (json.m && typeof json.m === 'string' && CodeShare.isValidMetadata(json.m) && metadata_size == metadata_size_verification) {
+                if (json.m && typeof json.m === 'string' && CodeShare.isValidMetadata(json.m, Base64) && metadata_size == metadata_size_verification) {
                   proffer.m = json.m;
                   proffer.m = stringify(proffer.m);
                 }
@@ -1652,7 +2344,7 @@ const CustomJsonProcessing = [
                   const broca_refund = proffer.r - parseInt((total / proffer.a) * proffer.r);
                   proffer.r -= broca_refund;
                   proffer.u = total;
-                  proffer.v = parseInt(total/2);
+                  proffer.v = parseInt(total / 2);
 
                   if (!num) {
                     err = `${json.id}-No Files`;
@@ -1676,7 +2368,7 @@ const CustomJsonProcessing = [
                     ops.push({
                       type: "put",
                       path: ["broca", json.f],
-                      data: CodeShare.broca_calc(broca, bpow, stats, json.block_num, broca_refund)
+                      data: CodeShare.broca_calc(broca, bpow, stats, json.block_num, broca_refund, Base64)
                     });
                     ops.push({
                       type: "put",
@@ -1887,8 +2579,8 @@ const CustomJsonProcessing = [
             ops = [],
             err = '';
 
-            brocaString = CodeShare.broca_calc(brocaString, bpow, stats, json.block_num)
-            broca = parseInt(brocaString.split(',')[0])
+          brocaString = CodeShare.broca_calc(brocaString, bpow, stats, json.block_num, 0, Base64)
+          broca = parseInt(brocaString.split(',')[0])
           // Validate metadata if provided
           if (json.m && typeof json.m === 'string') {
             const cids = json.c.split(',');
@@ -1899,7 +2591,7 @@ const CustomJsonProcessing = [
             } catch (e) {
               err += 'Invalid metadata format. ';
             }
-            if (!CodeShare.isValidMetadata(json.m) || metadata_size !== metadata_size_verification) {
+            if (!CodeShare.isValidMetadata(json.m, Base64) || metadata_size !== metadata_size_verification) {
               err += 'Invalid metadata structure. ';
             }
           }
@@ -2096,7 +2788,7 @@ const CustomJsonProcessing = [
                 ops.push({
                   type: 'put',
                   path: ['broca', account],
-                  data: CodeShare.broca_calc(exts[refunds[account].i], exts[refunds[account].i + 1], stats, json.block_num, refunds[account].a)
+                  data: CodeShare.broca_calc(exts[refunds[account].i], exts[refunds[account].i + 1], stats, json.block_num, refunds[account].a, Base64)
                 })
               }
               var items = Object.keys(contract.df)//goods
@@ -2143,7 +2835,7 @@ const CustomJsonProcessing = [
               ops.push({
                 type: 'put',
                 path: ['broca', proffer.f],
-                data: CodeShare.broca_calc(exts[0], exts[1], stats, json.block_num, proffer.r)
+                data: CodeShare.broca_calc(exts[0], exts[1], stats, json.block_num, proffer.r, Base64)
               })
               ops.push({
                 type: "del",
@@ -2211,7 +2903,7 @@ const CustomJsonProcessing = [
                   }
                   complete_metadata += partial.chunks[i];
                 }
-                if (!CodeShare.isValidMetadata(complete_metadata) || complete_metadata.split(',').length !== metadata_size_verification) {
+                if (!CodeShare.isValidMetadata(complete_metadata, Base64) || complete_metadata.split(',').length !== metadata_size_verification) {
                   errors.push(`Invalid metadata format or size for contract ${json.id}`)
                   ops.push({
                     type: "del",
@@ -2236,7 +2928,7 @@ const CustomJsonProcessing = [
                 return
               }
             } else if (json.m && typeof json.m === "string") {
-              if (!CodeShare.isValidMetadata(json.m) || json.m.split(',').length !== metadata_size_verification) {
+              if (!CodeShare.isValidMetadata(json.m, Base64) || json.m.split(',').length !== metadata_size_verification) {
                 errors.push(`Invalid metadata format or size for contract ${json.id}`);
                 return
               }
@@ -2250,7 +2942,7 @@ const CustomJsonProcessing = [
                 errors.push(`Failed to apply diff for contract ${json.id}`)
                 return
               }
-              if (!CodeShare.isValidMetadata(newMetadata) || newMetadata.split(',').length !== metadata_size_verification) {
+              if (!CodeShare.isValidMetadata(newMetadata, Base64) || newMetadata.split(',').length !== metadata_size_verification) {
                 errors.push(`Invalid metadata format or size after diff for contract ${json.id}`);
                 return
               }
@@ -2291,7 +2983,7 @@ const CustomJsonProcessing = [
               }
               const metadata_size_verification = (Object.keys(contract.df).length * 4 + 1)
               if (update.m && typeof update.m === "string") {
-                if (!CodeShare.isValidMetadata(update.m) || update.m.split(',').length !== metadata_size_verification) {
+                if (!CodeShare.isValidMetadata(update.m, Base64) || update.m.split(',').length !== metadata_size_verification) {
                   errors.push(`Invalid metadata format or size for contract ${contractId}`);
                   //console.log(!isValidMetadata(update.m), update.m.split(',').length, metadata_size_verification)
                   return
@@ -2302,7 +2994,7 @@ const CustomJsonProcessing = [
                 }
               } else if (update.diff && typeof update.diff === "string") {
                 const newMetadata = jsdiff.applyPatch(contract.m, update.diff)
-                if (!CodeShare.isValidMetadata(newMetadata) || newMetadata.split(',').length !== metadata_size_verification) {
+                if (!CodeShare.isValidMetadata(newMetadata, Base64) || newMetadata.split(',').length !== metadata_size_verification) {
                   errors.push(`Invalid metadata format or size for contract ${contractId}`);
                   //console.log(!isValidMetadata(newMetadata), newMetadata.split(',').length, metadata_size_verification)
                   return
@@ -2401,7 +3093,7 @@ const CustomJsonProcessing = [
                   getPathObj(["bpow", account]),
                   getPathObj(["stats"])
                 ]).then(([broca, bpow, stats]) => {
-                  const updatedBroca = CodeShare.broca_calc(broca, bpow, stats, block_num, refundAmount);
+                  const updatedBroca = CodeShare.broca_calc(broca, bpow, stats, block_num, refundAmount, Base64);
                   ops.push({
                     type: "put",
                     path: ["broca", account],
@@ -2605,7 +3297,7 @@ const CustomJsonProcessing = [
             contract = mem[3],
             ops = [],
             err = '', //no log no broca?
-            brocaString = CodeShare.broca_calc(broca, pow, stats, json.block_num),
+            brocaString = CodeShare.broca_calc(broca, pow, stats, json.block_num, 0, Base64),
             broca = parseInt(brocaString.split(',')[0])
           if (json.broca <= broca && contract.c == 3) {
             broca = broca - json.broca
@@ -8156,7 +8848,7 @@ const CustomChron = [
                 stats = mem[1],
                 ops = [],
                 bytes = 0,
-                broca = CodeShare.broca_calc(mem[2], mem[3], stats, num),
+                broca = CodeShare.broca_calc(mem[2], mem[3], stats, num, 0, Base64),
                 renew = contract.m ? (contract.m.indexOf('"') >= 0 ? Base64.toNumber(JSON.parse(contract.m)[0]) & 1 : Base64.toNumber(contract.m[0]) & 1) : 0
               if (contract.c == 3 && renew && parseInt(broca.split(',')[0]) > 100) {
                 processor.doOn('extend', {
@@ -8216,7 +8908,7 @@ const CustomChron = [
   {
     op: 'channel_check',
     func: function (b, passed, res, rej, num, prand, ints, bh, context) {
-      const { store, getPathObj, CodeShare } = context;
+      const { store, getPathObj, CodeShare, Base64 } = context;
       function channelCheck(promies, delkey, num, id, b) {
         return new Promise((resolve, reject) => {
           Promise.all(promies)
@@ -8259,7 +8951,7 @@ const CustomChron = [
                 ops.push({
                   type: "put",
                   path: ["broca", b.from],
-                  data: CodeShare.broca_calc(broca, bpow, stats, num, contract.r)
+                  data: CodeShare.broca_calc(broca, bpow, stats, num, contract.r, Base64)
                 });
               }
               ops.push({ type: "del", path: ["chrono", delkey] });
@@ -8643,6 +9335,9 @@ export var config = {
   featuresModelSpk,
   featuresModelBroca,
   poav_address,
+  poaStatsWindowSize,
+  poaMinMeasurements,
+  troleEndpoint,
   govToken,
   RAMreport,
   state,

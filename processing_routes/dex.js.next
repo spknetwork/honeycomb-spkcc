@@ -12,10 +12,551 @@ import {
 import { postToDiscord } from "../discord.js"
 import stringify from "json-stable-stringify"
 
+// LP Helper Functions
+
+// Calculate collateral loans when new funds arrive at multisig
+function calculateCollateralLoans(msHolders, newFunds, stats, runtimeContext) {
+  const { Config } = runtimeContext;
+  
+  // Calculate USD value of new funds
+  const hivePerHbd = stats.priceFeed?.hivePerHbd || 1.0;
+  const hiveUSD = 0.4; // Could get from price feed
+  const newFundsUSD = (newFunds.hive / 1000 * hiveUSD) + (newFunds.hbd / 1000);
+  
+  // Get current effective collateral (USD value)
+  const currentMSHeldUSD = ((stats.MSHeld.HIVE || 0) / 1000 * hiveUSD) + 
+                          ((stats.MSHeld.HBD || 0) / 1000);
+  
+  // Need collateral in SPOW tokens
+  const spowPrice = 0.001; // Could calculate from DEX
+  const totalNeededCollateral = (currentMSHeldUSD + newFundsUSD) / spowPrice * 1000; // in millitokens
+  
+  // Sort MS holders by current collateral
+  const sorted = Object.entries(msHolders)
+    .map(([account, weight]) => ({
+      account,
+      weight,
+      currentCollateral: stats.col?.[account] || 0,
+      loan: stats.collateralLoans?.[account] || 0
+    }))
+    .sort((a, b) => (a.currentCollateral + a.loan) - (b.currentCollateral + b.loan));
+  
+  // Calculate effective collateral (sum of lowest threshold holders)
+  const threshold = stats.ms.active_threshold;
+  let effectiveCollateral = 0;
+  for (let i = 0; i < threshold && i < sorted.length; i++) {
+    effectiveCollateral += sorted[i].currentCollateral + sorted[i].loan;
+  }
+  
+  // If we need more collateral, issue loans
+  const collateralGap = totalNeededCollateral - effectiveCollateral;
+  const loans = [];
+  
+  if (collateralGap > 0) {
+    // Distribute loans to bring lowest holders up
+    let remaining = collateralGap;
+    
+    for (let i = 0; i < threshold && remaining > 0; i++) {
+      const holder = sorted[i];
+      const target = sorted[threshold - 1].currentCollateral + sorted[threshold - 1].loan;
+      const needed = Math.max(0, target - (holder.currentCollateral + holder.loan));
+      const loanAmount = Math.min(needed, remaining);
+      
+      if (loanAmount > 0) {
+        loans.push({
+          account: holder.account,
+          amount: loanAmount,
+          previousLoan: holder.loan
+        });
+        remaining -= loanAmount;
+      }
+    }
+    
+    // If still need more, distribute evenly to threshold holders
+    if (remaining > 0) {
+      const perHolder = Math.ceil(remaining / threshold);
+      for (let i = 0; i < threshold && i < loans.length; i++) {
+        loans[i].amount += perHolder;
+      }
+    }
+  }
+  
+  return loans;
+}
+
+// Allow DEX operators to adopt uncollateralized ICO LP by providing collateral
+function adoptICOLP(runner, amount, stats, ico, pc, runtimeContext) {
+  const { getPathObj, getPathNum, store, Config } = runtimeContext;
+  
+  // Check if runner has enough governance tokens for collateral
+  const collateralRequired = parseInt(amount * stats.multiSigCollateral / stats.safetyLimit);
+  
+  Promise.all([
+    getPathNum([Config("govToken"), runner]),
+    getPathObj(['runners'])
+  ]).then(([runnerGov, runners]) => {
+    if (!runners[runner]) {
+      pc[0](pc[2]); // Not a runner
+      return;
+    }
+    
+    if (runnerGov < collateralRequired) {
+      pc[0](pc[2]); // Insufficient collateral
+      return;
+    }
+    
+    // Check available uncollateralized LP
+    const available = Math.min(amount, ico.uncollateralized || 0);
+    if (available <= 0) {
+      pc[0](pc[2]);
+      return;
+    }
+    
+    let ops = [];
+    
+    // Move from uncollateralized to collateralized pool
+    ico.uncollateralized -= available;
+    
+    // Update runner's LP stats
+    if (!stats.lpStats) stats.lpStats = {};
+    if (!stats.lpStats[runner]) stats.lpStats[runner] = { 
+      hive: 0, 
+      hbd: 0, 
+      adopted: 0,
+      feeMultiplier: 1 
+    };
+    
+    stats.lpStats[runner].adopted += available;
+    stats.lpStats[runner].hive += available; // HIVE from ICO
+    stats.lpStats[runner].feeMultiplier = 2; // 2x fees for adopted LP
+    
+    // Move ICO LP stats
+    stats.lpStats.ico.hive -= available;
+    stats.lpStats.ico.uncollateralized -= available;
+    
+    ops.push({ type: 'put', path: ['ico'], data: ico });
+    ops.push({ type: 'put', path: ['stats'], data: stats });
+    ops.push({
+      type: 'put',
+      path: ['feed', `${pc[2][2]}:adopt_lp`],
+      data: `${runner} adopted ${(available / 1000).toFixed(3)} HIVE of ICO LP`
+    });
+    
+    store.batch(ops, pc);
+  });
+}
+
+// Arbitrage HIVE/HBD based on DEX prices vs price feed
+function arbitrageHiveHbd(stats, dex, blockNum, context) {
+  const { store, Config } = context;
+  
+  // Get price feed data
+  const feedPrice = stats.priceFeed?.hivePerHbd;
+  if (!feedPrice) return { ops: [], arbitraged: false };
+  
+  // Get DEX prices for LARYNX
+  const hiveTick = parseFloat(dex.hive?.tick || 0);
+  const hbdTick = parseFloat(dex.hbd?.tick || 0);
+  
+  if (!hiveTick || !hbdTick) return { ops: [], arbitraged: false };
+  
+  // Calculate implied HIVE/HBD rate from DEX
+  // If 1 LARYNX = X HIVE and 1 LARYNX = Y HBD, then 1 HBD = X/Y HIVE
+  const dexHivePerHbd = hiveTick / hbdTick;
+  
+  // Calculate arbitrage opportunity
+  const priceDiff = Math.abs(dexHivePerHbd - feedPrice) / feedPrice;
+  const minProfitThreshold = 0.02; // 2% minimum profit after fees
+  
+  if (priceDiff < minProfitThreshold) {
+    return { ops: [], arbitraged: false };
+  }
+  
+  let ops = [];
+  
+  // Determine arbitrage direction and size
+  const maxArbitrageSize = Math.min(
+    stats.MSHeld?.HIVE || 0,
+    stats.MSHeld?.HBD || 0,
+    100000 // Max 100 HIVE/HBD per arbitrage
+  );
+  
+  if (maxArbitrageSize < 1000) { // Min 1 HIVE/HBD
+    return { ops: [], arbitraged: false };
+  }
+  
+  // Size the arbitrage based on profit opportunity
+  const arbitrageSize = parseInt(maxArbitrageSize * Math.min(priceDiff / 0.1, 1));
+  
+  if (dexHivePerHbd > feedPrice) {
+    // DEX values HIVE too high relative to HBD
+    // Strategy: Buy LARYNX with HBD, sell LARYNX for HIVE
+    
+    // Step 1: Calculate how much LARYNX we can buy with HBD
+    const hbdToSpend = arbitrageSize;
+    const larynxToBuy = parseInt(hbdToSpend / hbdTick);
+    
+    // Step 2: Calculate HIVE received from selling that LARYNX
+    const hiveToReceive = parseInt(larynxToBuy * hiveTick);
+    
+    // Step 3: Expected profit in HIVE terms
+    const expectedHive = hbdToSpend * feedPrice;
+    const profit = hiveToReceive - expectedHive;
+    
+    if (profit > 0) {
+      // Execute arbitrage
+      ops.push({
+        type: 'put',
+        path: ['msa', `arb_buy_larynx_hbd_${blockNum}`],
+        data: JSON.stringify(['limit_order_create', {
+          owner: Config("msaccount"),
+          orderid: blockNum % 1000000,
+          amount_to_sell: `${(hbdToSpend / 1000).toFixed(3)} HBD`,
+          min_to_receive: `${(larynxToBuy / 1000).toFixed(3)} ${Config("TOKEN")}`,
+          fill_or_kill: true,
+          expiration: `9999-12-31T23:59:59`
+        }])
+      });
+      
+      ops.push({
+        type: 'put',
+        path: ['msa', `arb_sell_larynx_hive_${blockNum}`],
+        data: JSON.stringify(['limit_order_create', {
+          owner: Config("msaccount"),
+          orderid: (blockNum + 1) % 1000000,
+          amount_to_sell: `${(larynxToBuy / 1000).toFixed(3)} ${Config("TOKEN")}`,
+          min_to_receive: `${(hiveToReceive / 1000).toFixed(3)} HIVE`,
+          fill_or_kill: true,
+          expiration: `9999-12-31T23:59:59`
+        }])
+      });
+    }
+  } else {
+    // DEX values HBD too high relative to HIVE
+    // Strategy: Buy LARYNX with HIVE, sell LARYNX for HBD
+    
+    const hiveToSpend = arbitrageSize;
+    const larynxToBuy = parseInt(hiveToSpend / hiveTick);
+    const hbdToReceive = parseInt(larynxToBuy * hbdTick);
+    
+    const expectedHbd = hiveToSpend / feedPrice;
+    const profit = hbdToReceive - expectedHbd;
+    
+    if (profit > 0) {
+      ops.push({
+        type: 'put',
+        path: ['msa', `arb_buy_larynx_hive_${blockNum}`],
+        data: JSON.stringify(['limit_order_create', {
+          owner: Config("msaccount"),
+          orderid: (blockNum + 2) % 1000000,
+          amount_to_sell: `${(hiveToSpend / 1000).toFixed(3)} HIVE`,
+          min_to_receive: `${(larynxToBuy / 1000).toFixed(3)} ${Config("TOKEN")}`,
+          fill_or_kill: true,
+          expiration: `9999-12-31T23:59:59`
+        }])
+      });
+      
+      ops.push({
+        type: 'put',
+        path: ['msa', `arb_sell_larynx_hbd_${blockNum}`],
+        data: JSON.stringify(['limit_order_create', {
+          owner: Config("msaccount"),
+          orderid: (blockNum + 3) % 1000000,
+          amount_to_sell: `${(larynxToBuy / 1000).toFixed(3)} ${Config("TOKEN")}`,
+          min_to_receive: `${(hbdToReceive / 1000).toFixed(3)} HBD`,
+          fill_or_kill: true,
+          expiration: `9999-12-31T23:59:59`
+        }])
+      });
+    }
+  }
+  
+  return { 
+    ops, 
+    arbitraged: ops.length > 0,
+    dexRate: dexHivePerHbd,
+    feedRate: feedPrice,
+    priceDiff: priceDiff,
+    size: arbitrageSize
+  };
+}
+
+// Balance LP holdings to target ratio (e.g., 50/50 for HIVE/HBD)
+function balanceLPHoldings(stats, dex, base, quote, targetRatio = 0.5, blockNum, context) {
+  const { store, Config } = context;
+  
+  // Initialize lpStats if needed
+  if (!stats.lpStats) stats.lpStats = {};
+  if (!stats.lpStats[Config("TOKEN")]) stats.lpStats[Config("TOKEN")] = { hive: 0, hbd: 0 };
+  
+  const lp = stats.lpStats[Config("TOKEN")];
+  const hivePerHbd = stats.priceFeed?.hivePerHbd || 1.0;
+  
+  // Calculate total value in HIVE terms
+  const totalHiveValue = (lp.hive || 0) + ((lp.hbd || 0) * hivePerHbd);
+  
+  if (totalHiveValue === 0) return { ops: [], rebalanced: false };
+  
+  // Target holdings in HIVE value
+  const targetHiveValue = totalHiveValue * targetRatio;
+  const targetHbdValue = totalHiveValue * (1 - targetRatio);
+  
+  // Current values
+  const currentHiveValue = lp.hive || 0;
+  const currentHbdValue = (lp.hbd || 0) * hivePerHbd;
+  
+  // Check if rebalancing needed
+  const imbalanceThreshold = 0.02;
+  const hiveRatio = currentHiveValue / totalHiveValue;
+  
+  if (Math.abs(hiveRatio - targetRatio) < imbalanceThreshold) {
+    return { ops: [], rebalanced: false };
+  }
+  
+  let ops = [];
+  
+  // Rebalance internally
+  if (currentHiveValue > targetHiveValue) {
+    // Too much HIVE, convert to HBD
+    const hiveToConvert = currentHiveValue - targetHiveValue;
+    const hbdToAdd = hiveToConvert / hivePerHbd;
+    
+    lp.hive -= hiveToConvert;
+    lp.hbd += hbdToAdd;
+  } else {
+    // Too much HBD, convert to HIVE
+    const hbdValueToConvert = currentHbdValue - targetHbdValue;
+    const hbdToConvert = hbdValueToConvert / hivePerHbd;
+    const hiveToAdd = hbdValueToConvert;
+    
+    lp.hbd -= hbdToConvert;
+    lp.hive += hiveToAdd;
+  }
+  
+  ops.push({ type: 'put', path: ['stats'], data: stats });
+  
+  return { 
+    ops, 
+    rebalanced: true,
+    beforeHive: currentHiveValue,
+    beforeHbd: currentHbdValue / hivePerHbd,
+    afterHive: lp.hive,
+    afterHbd: lp.hbd
+  };
+}
+
+function calculateLPLiquidity(stats, dex, pair, nextOrderPrice, currentTick, blockNum, lpBalance) {
+  // Get LP token balance for this pair
+  const lpTokenBalance = lpBalance
+  
+  // Get excess liquidity beyond safety limit
+  const currentHeld = stats.MSHeld?.[pair.toUpperCase()] || 0;
+  const allowedHeld = parseInt(stats.multiSigCollateral * parseFloat(currentTick));
+  const excessLiquidity = Math.max(0, currentHeld - allowedHeld);
+  
+  if (excessLiquidity <= 0 || lpTokenBalance <= 0) {
+    return { available: 0, price: 0 };
+  }
+  
+  // Calculate market conditions EMA (7 day) to adjust release rate
+  const marketVolume = calculateMarketEMA(dex[pair].his || {}, blockNum);
+  const baseReleaseRate = 0.1; // 10% base daily release
+  
+  // Adjust release rate based on market conditions
+  // Higher volume = higher release rate (more liquidity needed)
+  // Lower volume = lower release rate (conserve liquidity)
+  const volumeAdjustment = Math.min(2, Math.max(0.5, marketVolume.ratio));
+  const collateralRatio = stats.multiSigCollateral / stats.safetyLimit;
+  const adjustedRate = baseReleaseRate * Math.pow(collateralRatio, 0.5) * volumeAdjustment;
+  
+  // Calculate blocks per day (5 minute blocks = 288 per day)
+  const blocksPerDay = 288;
+  
+  // Calculate available liquidity for this block
+  const dailyRelease = parseInt(excessLiquidity * adjustedRate);
+  const blockRelease = parseInt(dailyRelease / blocksPerDay);
+  const availableNow = Math.min(blockRelease, excessLiquidity, lpTokenBalance);
+  
+  // Calculate LP price (slightly better than next order or at spread)
+  let lpPrice;
+  if (nextOrderPrice > 0) {
+    // Price between current tick and next order
+    lpPrice = currentTick + (nextOrderPrice - currentTick) * 0.5;
+  } else {
+    // No orders, provide at 1% above tick
+    lpPrice = currentTick * 1.01;
+  }
+  
+  // Convert to token amount
+  const availableTokens = parseInt(availableNow / lpPrice);
+  
+  return {
+    available: Math.min(availableTokens, lpTokenBalance),
+    price: lpPrice,
+    excessLiquidity,
+    dailyRelease,
+    blockRelease,
+    volumeAdjustment
+  };
+}
+
+// Calculate 7-day EMA of market volume
+function calculateMarketEMA(history, currentBlock) {
+  const blocksPerDay = 288;
+  const sevenDaysBlocks = blocksPerDay * 7;
+  const cutoffBlock = currentBlock - sevenDaysBlocks;
+  
+  let totalVolume = 0;
+  let tradeCount = 0;
+  let recentVolume = 0; // Last 24 hours
+  let recentCount = 0;
+  
+  for (const key in history) {
+    const trade = history[key];
+    if (trade.block >= cutoffBlock) {
+      totalVolume += trade.target_vol || 0;
+      tradeCount++;
+      
+      if (trade.block >= currentBlock - blocksPerDay) {
+        recentVolume += trade.target_vol || 0;
+        recentCount++;
+      }
+    }
+  }
+  
+  const avgDailyVolume = totalVolume / 7;
+  const ratio = avgDailyVolume > 0 ? recentVolume / avgDailyVolume : 1;
+  
+  return {
+    totalVolume,
+    avgDailyVolume,
+    recentVolume,
+    ratio,
+    tradeCount
+  };
+}
+
+function updateLPState(stats, pair, tokenAmount, pairAmount, blockNum, dexTick, lpBalance) {
+  // Update MS held amount
+  const pairUpper = pair.toUpperCase();
+  if (!stats.MSHeld) stats.MSHeld = {};
+  stats.MSHeld[pairUpper] = (stats.MSHeld[pairUpper] || 0) - pairAmount;
+  
+  lpBalance -= tokenAmount;
+  
+  // Track LP statistics
+  if (!stats.lpStats) stats.lpStats = {};
+  if (!stats.lpStats[pairUpper]) {
+    stats.lpStats[pairUpper] = {
+      volumeToday: 0,
+      tradestoday: 0,
+      lastTradeBlock: 0,
+      tvl: 0, // Total Value Locked
+      tokenBalance: 0,
+      pairBalance: 0
+    };
+  }
+  
+  stats.lpStats[pairUpper].volumeToday += pairAmount;
+  stats.lpStats[pairUpper].tradestoday += 1;
+  stats.lpStats[pairUpper].lastTradeBlock = blockNum;
+  
+  // Update TVL (Total Value Locked)
+  stats.lpStats[pairUpper].tokenBalance = lpBalance
+  stats.lpStats[pairUpper].pairBalance = stats.MSHeld[pairUpper] || 0;
+  // TVL = token balance * current price + pair balance
+  stats.lpStats[pairUpper].tvl = parseInt(
+    (stats.lpStats[pairUpper].tokenBalance * parseFloat(dexTick)) + 
+    stats.lpStats[pairUpper].pairBalance
+  );
+}
+
+function calculateLPLiquidityForBuy(stats, dex, pair, nextOrderPrice, currentTick, blockNum, lpBalance) {
+  // Get LP token balance for this pair
+  const lpTokenBalance = lpBalance
+  
+  if (lpTokenBalance <= 0) {
+    return { available: 0, price: 0 };
+  }
+  
+  // Get current HIVE/HBD balance
+  const currentHeld = stats.MSHeld?.[pair.toUpperCase()] || 0;
+  const allowedHeld = parseInt(stats.multiSigCollateral * currentTick);
+  
+  // LP should sell tokens when it has too much HIVE/HBD
+  // This helps rebalance the pool
+  if (currentHeld <= allowedHeld * 0.8) {
+    // Don't sell tokens if HIVE/HBD reserves are low
+    return { available: 0, price: 0 };
+  }
+  
+  // Calculate market conditions to adjust availability
+  const marketVolume = calculateMarketEMA(dex[pair].his || {}, blockNum);
+  const volumeAdjustment = Math.min(2, Math.max(0.5, marketVolume.ratio));
+  
+  // Calculate price (slightly lower than next order or at spread)
+  let lpPrice;
+  if (nextOrderPrice > 0) {
+    // Price between current tick and next order
+    lpPrice = currentTick - (currentTick - nextOrderPrice) * 0.5;
+  } else {
+    // No orders, provide at 1% below tick
+    lpPrice = currentTick * 0.99;
+  }
+  
+  // Limit available tokens based on daily rate and market conditions
+  const blocksPerDay = 288;
+  const baseReleaseRate = 0.1; // 10% base
+  const adjustedRate = baseReleaseRate * volumeAdjustment;
+  const maxDailyTokens = parseInt(lpTokenBalance * adjustedRate);
+  const blockTokens = parseInt(maxDailyTokens / blocksPerDay);
+  
+  return {
+    available: Math.min(blockTokens, lpTokenBalance),
+    price: lpPrice,
+    volumeAdjustment
+  };
+}
+
+function updateLPStateForBuy(stats, pair, tokenAmount, pairAmount, blockNum, dexTick, lpBalance) {
+  // Update MS held amount (receiving HIVE/HBD)
+  const pairUpper = pair.toUpperCase();
+  if (!stats.MSHeld) stats.MSHeld = {};
+  stats.MSHeld[pairUpper] = (stats.MSHeld[pairUpper] || 0) + pairAmount;
+  
+  lpBalance -= tokenAmount;
+  
+  // Track LP statistics
+  if (!stats.lpStats) stats.lpStats = {};
+  if (!stats.lpStats[pairUpper]) {
+    stats.lpStats[pairUpper] = {
+      volumeToday: 0,
+      tradestoday: 0,
+      lastTradeBlock: 0,
+      tvl: 0,
+      tokenBalance: 0,
+      pairBalance: 0
+    };
+  }
+  
+  stats.lpStats[pairUpper].volumeToday += tokenAmount;
+  stats.lpStats[pairUpper].tradestoday += 1;
+  stats.lpStats[pairUpper].lastTradeBlock = blockNum;
+  
+  // Update TVL
+  stats.lpStats[pairUpper].tokenBalance = lpBalance
+  stats.lpStats[pairUpper].pairBalance = stats.MSHeld[pairUpper] || 0;
+  stats.lpStats[pairUpper].tvl = parseInt(
+    (stats.lpStats[pairUpper].tokenBalance * parseFloat(dexTick)) + 
+    stats.lpStats[pairUpper].pairBalance
+  );
+}
+
 export const dex_sell = (json, from, active, pc) => {
   let PfromBal = getPathNum(["balances", from]),
     PStats = getPathObj(["stats"]),
     PSB = getPathObj(["dex", "hive"]),
+    PLPBalance = getPathNum(["balances", 'lp']), 
     order = {};
   if (parseInt(json.hive)) {
     order.type = "LIMIT";
@@ -47,11 +588,12 @@ export const dex_sell = (json, from, active, pc) => {
     (order.type = "MARKET"), delete order.rate;
   }
   order[Config("jsonTokenName")] = parseInt(json[Config("jsonTokenName")]);
-  Promise.all([PfromBal, PStats, PSB])
+  Promise.all([PfromBal, PStats, PSB, PLPBalance])
     .then((a) => {
       let bal = a[0],
         stats = a[1],
         dex = a[2],
+        lpBalance = a[3],
         ops = [],
         adds = [],
         his = {},
@@ -77,6 +619,93 @@ export const dex_sell = (json, from, active, pc) => {
             ? parseFloat(dex.buyBook.split("_")[0])
             : dex.tick;
           let item = dex.buyBook ? dex.buyBook.split("_")[1].split(",")[0] : "";
+          
+          // Check for LP liquidity between tick and next order
+          const lpLiquidity = calculateLPLiquidity(
+            stats, 
+            dex, 
+            order.pair, 
+            price, 
+            parseFloat(dex.tick),
+            json.block_num,
+            lpBalance
+          );
+          
+          // If LP can provide liquidity at current price level
+          if (lpLiquidity.available > 0 && (!item || lpLiquidity.price > price)) {
+            const lpAmount = Math.min(remaining, lpLiquidity.available);
+            const lpPairAmount = parseInt(lpAmount * lpLiquidity.price);
+            
+            if (lpPairAmount > 0) {
+              // Execute LP trade
+              filled += lpAmount;
+              remaining -= lpAmount;
+              pair += lpPairAmount;
+              dex.tick = lpLiquidity.price.toFixed(6);
+              
+              // Track LP trade
+              his[`${json.block_num}:${i}:${json.transaction_id}:LP`] = {
+                type: "sell",
+                block: json.block_num,
+                base_vol: lpAmount,
+                target_vol: lpPairAmount,
+                target: order.pair,
+                price: lpLiquidity.price,
+                id: json.transaction_id + i + "LP",
+                lp: true
+              };
+              
+              // Update LP state
+              updateLPState(stats, order.pair, lpAmount, lpPairAmount, json.block_num, parseFloat(dex.tick), lpBalance);
+              
+              // Create transfer for LP trade
+              const lpTransfer = [
+                "transfer",
+                {
+                  from: Config("msaccount"),
+                  to: from,
+                  amount:
+                    parseFloat(lpPairAmount / 1000).toFixed(3) +
+                    " " +
+                    order.pair.toUpperCase(),
+                  memo: `LP Fill:${json.transaction_id}`,
+                },
+              ];
+              
+              ops.push({
+                type: "put",
+                path: [
+                  "msa",
+                  `LP:${json.transaction_id}:${json.block_num}`,
+                ],
+                data: stringify(lpTransfer),
+              });
+              
+              let msg = `@${from} sold ${parseFloat(
+                parseInt(lpAmount) / 1000
+              ).toFixed(3)} ${Config("TOKEN")} to LP at ${lpLiquidity.price.toFixed(6)} ${order.pair.toUpperCase()}/${Config("TOKEN")}`;
+              
+              ops.push({
+                type: "put",
+                path: [
+                  "feed",
+                  `${json.block_num}:${json.transaction_id}.LP`,
+                ],
+                data: msg,
+              });
+              
+                ops.push({
+                  type: "put",
+                  path: ["balances", 'lp'],
+                  data: lpBalance
+                });
+              
+              
+              i++;
+              continue sell_loop;
+            }
+          }
+          
           //console.log({ json, item, price, order });
           if (
             item &&
@@ -404,93 +1033,63 @@ export const transfer = (json, pc) => {
     json.amount.nai == "@@000000021" &&
     json.from != Config("msaccount")
   ) {
-    //the ICO disribution... should be in multi sig account
+    // ICO funds go directly to multisig, issue collateral loans as needed
     const amount = parseInt(json.amount.amount);
-    var purchase,
-      Pstats = getPathObj(["stats"]),
-      Pbal = getPathNum(["balances", json.from]),
-      Pinv = getPathNum(["balances", "ri"]);
-    Promise.all([Pstats, Pbal, Pinv]).then(function (v) {
+    var Pstats = getPathObj(["stats"]),
+      Pms = getPathObj(["stats", "ms", "active_account_auths"]),
+      Pcol = getPathObj(["col"]),
+      Pspow = getPathObj([Config("govToken")]);
+    Promise.all([Pstats, Pms, Pcol, Pspow]).then(function (v) {
       var stats = v[0],
-        b = v[1],
-        i = v[2],
+        msHolders = v[1],
+        col = v[2] || {},
+        spow = v[3] || {},
         ops = [];
-      if (!stats.outOnBlock) {
-        purchase = parseInt((amount / stats.icoPrice) * 1000);
-        if (purchase < i) {
-          i -= purchase;
-          b += purchase;
-          const msg = `@${json.from}| bought ${parseFloat(
-            purchase / 1000
-          ).toFixed(3)} ${Config("TOKEN")} with ${parseFloat(
-            amount / 1000
-          ).toFixed(3)} HIVE`;
-          if (Config("hookurl") || Config("status"))
-            postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
-          ops = [
-            {
-              type: "put",
-              path: ["feed", `${json.block_num}:${json.transaction_id}`],
-              data: msg,
-            },
-            { type: "put", path: ["balances", json.from], data: b },
-            { type: "put", path: ["balances", "ri"], data: i },
-          ];
-          if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-          store.batch(ops, pc);
-        } else {
-          b += i;
-          const left = purchase - i;
-          stats.outOnBlock = json.block_num;
-          const msg = `@${json.from}| bought ALL ${parseFloat(
-            parseInt(purchase - left)
-          ).toFixed(3)} ${Config("TOKEN")} with ${parseFloat(
-            parseInt(amount) / 1000
-          ).toFixed(3)} HIVE. And bid in the over-auction`;
-          if (Config("hookurl") || Config("status"))
-            postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
-          ops = [
-            {
-              type: "put",
-              path: ["ico", `${json.block_num}`, json.from],
-              data: parseInt((amount * left) / purchase),
-            },
-            { type: "put", path: ["balances", json.from], data: b },
-            { type: "put", path: ["balances", "ri"], data: 0 },
-            { type: "put", path: ["stats"], data: stats },
-            {
-              type: "put",
-              path: ["feed", `${json.block_num}:${json.transaction_id}`],
-              data: msg,
-            },
-          ];
-          if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-          store.batch(ops, pc);
-        }
-      } else {
-        const msg = `@${json.from}| bought ALL ${parseFloat(
-          parseInt(purchase - left)
-        ).toFixed(3)} ${Config("TOKEN")} with ${parseFloat(
-          parseInt(amount) / 1000
-        ).toFixed(3)} HIVE. And bid in the over-auction`;
-        if (Config("hookurl") || Config("status"))
-          postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
-        ops = [
-          {
-            type: "put",
-            path: ["ico", `${json.block_num}`, json.from],
-            data: parseInt(amount),
-          },
-          {
-            type: "put",
-            path: ["feed", `${json.block_num}:${json.transaction_id}`],
-            data: msg,
-          },
-        ];
-        if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-        store.batch(ops, pc);
-      }
-    });
+      
+      // Update MSHeld
+      stats.MSHeld.HIVE = (stats.MSHeld.HIVE || 0) + amount;
+      
+      // Calculate if we need collateral loans
+      const newFunds = { hive: amount, hbd: 0 };
+      const loans = calculateCollateralLoans(msHolders, newFunds, stats, { Config });
+      
+      // Issue loans
+      if (!stats.collateralLoans) stats.collateralLoans = {};
+      if (!stats.originalLoans) stats.originalLoans = {};
+      if (!stats.loansPaid) stats.loansPaid = {};
+      
+      loans.forEach(loan => {
+        // Give SPOW tokens as loan
+        spow[loan.account] = (spow[loan.account] || 0) + loan.amount;
+        
+        // Track the loan
+        stats.collateralLoans[loan.account] = (stats.collateralLoans[loan.account] || 0) + loan.amount;
+        stats.originalLoans[loan.account] = (stats.originalLoans[loan.account] || 0) + loan.amount;
+        
+        // Update collateral tracking
+        col[loan.account] = (col[loan.account] || 0) + loan.amount;
+        
+        ops.push({ type: 'put', path: [Config("govToken"), loan.account], data: spow[loan.account] });
+      });
+      
+      // Update state
+      ops.push({ type: 'put', path: ['stats'], data: stats });
+      ops.push({ type: 'put', path: ['col'], data: col });
+      
+      const msg = `@${json.from}| sent ${parseFloat(amount / 1000).toFixed(3)} HIVE to ICO. ` +
+        (loans.length > 0 ? `Collateral loans issued: ${loans.map(l => `${l.account}: ${(l.amount/1000).toFixed(0)} SPOW`).join(', ')}` : '');
+      
+      ops.push({
+        type: 'put',
+        path: ['feed', `${json.block_num}:${json.transaction_id}`],
+        data: msg
+      });
+      
+      if (Config("hookurl") || Config("status"))
+        postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
+      
+      if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
+      store.batch(ops, pc);
   } else if (
     (Config("features").dex || Config("features").nft) &&
     json.to == Config("msaccount") &&
@@ -1149,12 +1748,14 @@ export const transfer = (json, pc) => {
         let pDEX = getPathObj(["dex", order.pair]),
           pBal = getPathNum(["balances", json.from]),
           pInv = getPathNum(["balances", "ri"]),
-          pStats = getPathObj(["stats"]);
-        Promise.all([pDEX, pBal, pInv, pStats]).then((mem) => {
+          pStats = getPathObj(["stats"]),
+          pLPBalance = getPathNum(["balances", 'lp']);
+        Promise.all([pDEX, pBal, pInv, pStats, pLPBalance]).then((mem) => {
           let dex = mem[0],
             bal = mem[1],
             inv = mem[2],
             stats = mem[3],
+            lpBalance = mem[4],
             filled = 0,
             remaining = order.amount,
             ops = [],
@@ -1173,6 +1774,72 @@ export const transfer = (json, pc) => {
             let item = "";
             if (price) item = dex.sellBook.split("_")[1].split(",")[0];
             else price = dex.tick;
+            
+            // Check for LP liquidity for buy orders (LP acts as seller)
+            const lpLiquidity = calculateLPLiquidityForBuy(
+              stats, 
+              dex, 
+              order.pair, 
+              price ? parseFloat(price) : 0, 
+              parseFloat(dex.tick),
+              json.block_num,
+              lpBalance
+            );
+            
+            // If LP can sell tokens at current price level
+            if (lpLiquidity.available > 0 && (!item || lpLiquidity.price < parseFloat(price))) {
+              // Calculate how much HIVE/HBD is needed
+              const lpHiveNeeded = parseInt(lpLiquidity.available * lpLiquidity.price);
+              const lpHiveAmount = Math.min(remaining, lpHiveNeeded);
+              const lpTokenAmount = parseInt(lpHiveAmount / lpLiquidity.price);
+              
+              if (lpTokenAmount > 0) {
+                // Execute LP trade
+                filled += lpTokenAmount;
+                bal += lpTokenAmount;
+                remaining -= lpHiveAmount;
+                dex.tick = lpLiquidity.price.toFixed(6);
+                
+                // Track LP trade
+                his[`${json.block_num}:${i}:${json.transaction_id}:LP`] = {
+                  type: "buy",
+                  block: json.block_num,
+                  base_vol: lpTokenAmount,
+                  target_vol: lpHiveAmount,
+                  target: order.pair,
+                  price: lpLiquidity.price,
+                  id: json.transaction_id + i + "LP",
+                  lp: true
+                };
+                
+                // Update LP state (LP is selling tokens, receiving HIVE/HBD)
+                updateLPStateForBuy(stats, order.pair, lpTokenAmount, lpHiveAmount, json.block_num, parseFloat(dex.tick), lpBalance);
+                
+                let msg = `@${json.from} bought ${parseFloat(
+                  parseInt(lpTokenAmount) / 1000
+                ).toFixed(3)} ${Config("TOKEN")} from LP at ${lpLiquidity.price.toFixed(6)} ${order.pair.toUpperCase()}/${Config("TOKEN")}`;
+                
+                ops.push({
+                  type: "put",
+                  path: [
+                    "feed",
+                    `${json.block_num}:${json.transaction_id}.LP`,
+                  ],
+                  data: msg,
+                });
+                
+                  ops.push({
+                    type: "put",
+                    path: ["balances", 'lp'],
+                    data: lpBalance
+                  });
+                
+                
+                i++;
+                continue;
+              }
+            }
+            
             //console.log("Matching...", { order, price, item });
             if (
               item &&
@@ -2019,22 +2686,14 @@ export const release = (from, txid, bn, tx_id) => {
 };
 
 //change stats to msheld {}
-export const witness_mod = async function (bn, prand, stats, realTime, runtimeContext, bh) {
-  return new Promise( async (resolve, reject) => {
-    const [witness] = await Promise.all([getPathObj(["witness"])])
-    witness[`${bn % 100}`] = bh.witness
-    store.batch([{ type: "put", path: ["witness"], data: witness }], [resolve, reject])
-  })
-}
 
-export const margins = function (bn) {
+export const margins = function (bn, prand, stats, realTime, context, witness) {
   return new Promise((resolve, reject) => {
     var Pstats = getPathObj(["stats"]),
       Pdex = getPathObj(["dex"]),
       Pmsa = getPathObj(["msa"]),
-      Pmss = getPathObj(["mss"]),
-      Pwitness = getPathObj(["witness"]);
-    Promise.all([Pstats, Pdex, Pmsa, Pmss, Pwitness]).then((mem) => {
+      Pmss = getPathObj(["mss"]);
+    Promise.all([Pstats, Pdex, Pmsa, Pmss]).then((mem) => {
       var stats = mem[0],
         dex = mem[1],
         msa = mem[2],
@@ -2067,16 +2726,34 @@ export const margins = function (bn) {
               }
             });
         }
-      var allowedHive = parseInt(
+      var baseAllowedHive = parseInt(
         stats.multiSigCollateral * parseFloat(dex.hive.tick)
       ),
-        allowedHBD = parseInt(
+        baseAllowedHBD = parseInt(
           stats.multiSigCollateral * parseFloat(dex.hbd.tick)
-        ),
+        );
+        
+      // Adjust allowed amounts based on LP activity
+      let lpAdjustmentHive = 0;
+      let lpAdjustmentHBD = 0;
+      
+      if (stats.lpStats) {
+        // Allow more holding if LP is actively providing liquidity
+        if (stats.lpStats.HIVE && stats.lpStats.HIVE.tradestoday > 0) {
+          lpAdjustmentHive = parseInt(baseAllowedHive * 0.2); // 20% buffer for active LP
+        }
+        if (stats.lpStats.HBD && stats.lpStats.HBD.tradestoday > 0) {
+          lpAdjustmentHBD = parseInt(baseAllowedHBD * 0.2); // 20% buffer for active LP
+        }
+      }
+      
+      var allowedHive = baseAllowedHive + lpAdjustmentHive,
+        allowedHBD = baseAllowedHBD + lpAdjustmentHBD,
         changed = [],
         promises = [];
+        
       if (stats.MSHeld.HIVE > allowedHive)
-        console.log(stats.MSHeld.HIVE, { allowedHive });
+        console.log(stats.MSHeld.HIVE, { allowedHive, lpAdjustmentHive });
       if (stats.MSHeld.HIVE > allowedHive) {
         var p = dex.hive.buyBook.split(","),
           price = p[p.length - 1].split("_")[0],
@@ -2115,14 +2792,49 @@ export const margins = function (bn) {
           }
         }
       }
-      if (promises.length > 0) {
-        Promise.all(promises).then(() => {
-          if (!changed.length) resolve("Pruned");
-          else removeItems(changed, resolve);
+      // Check if we should balance LP holdings and arbitrage
+      let lpOps = [];
+      if (stats.priceFeed && stats.priceFeed.hivePerHbd) {
+        // First, check for arbitrage opportunities
+        const arbResult = arbitrageHiveHbd(stats, dex, bn, context);
+        if (arbResult.arbitraged) {
+          lpOps = lpOps.concat(arbResult.ops);
+          console.log(`Arbitrage opportunity: DEX rate ${arbResult.dexRate.toFixed(3)} vs Feed rate ${arbResult.feedRate.toFixed(3)}, size: ${arbResult.size}`);
+        }
+        
+        // Then balance HIVE/HBD LP at 50/50
+        const hiveHbdBalance = balanceLPHoldings(stats, dex, 'HIVE', 'HBD', 0.5, bn, context);
+        if (hiveHbdBalance.rebalanced) {
+          lpOps = lpOps.concat(hiveHbdBalance.ops);
+        }
+      }
+      
+      // Execute LP rebalancing if needed
+      if (lpOps.length > 0) {
+        store.batch(lpOps, (err) => {
+          if (err) console.error('LP rebalancing error:', err);
+          // Continue with original logic
+          if (promises.length > 0) {
+            Promise.all(promises).then(() => {
+              if (!changed.length) resolve("Pruned and LP balanced");
+              else removeItems(changed, resolve);
+            });
+          } else {
+            if (!changed.length) resolve("LP balanced");
+            else removeItems(changed, resolve);
+          }
         });
       } else {
-        if (!changed.length) resolve("No pruning");
-        else removeItems(changed, resolve);
+        // Original logic if no LP rebalancing needed
+        if (promises.length > 0) {
+          Promise.all(promises).then(() => {
+            if (!changed.length) resolve("Pruned");
+            else removeItems(changed, resolve);
+          });
+        } else {
+          if (!changed.length) resolve("No pruning");
+          else removeItems(changed, resolve);
+        }
       }
     });
   });
