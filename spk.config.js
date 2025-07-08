@@ -1549,8 +1549,9 @@ const CustomJsonProcessing = [
       let pVal = getPathObj(['val'])
       let PvBroca = getPathObj(['vbroca'])
       let PsBroca = getPathObj(['sbroca'])
-      Promise.all([pReport, pRand, pStats, pVal, PvBroca, PsBroca]).then(mem => {
-        var b = mem[0], rand = mem[1], stats = mem[2], val = mem[3], vBroca = mem[4], sBroca = mem[5]
+      let Pservices = getPathObj(['services'])
+      Promise.all([pReport, pRand, pStats, pVal, PvBroca, PsBroca, Pservices]).then(mem => {
+        var b = mem[0], rand = mem[1], stats = mem[2], val = mem[3], vBroca = mem[4], sBroca = mem[5], services = mem[6]
         if (from == b.self && active) {
           b.report = json
           delete b.report.timestamp
