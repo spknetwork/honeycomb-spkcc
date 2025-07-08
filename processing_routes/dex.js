@@ -2021,8 +2021,13 @@ export const release = (from, txid, bn, tx_id) => {
 //change stats to msheld {}
 export const witness_mod = async function (bn, prand, stats, realTime, runtimeContext, bh) {
   return new Promise( async (resolve, reject) => {
+    if (!bh || !bh.witness) {
+      console.log('witness_mod: Missing block header or witness', { bn, bh });
+      return resolve();
+    }
     const [witness] = await Promise.all([getPathObj(["witness"])])
     witness[`${bn % 100}`] = bh.witness
+    console.log(`witness_mod: Storing witness ${bh.witness} at block ${bn} (slot ${bn % 100})`);
     store.batch([{ type: "put", path: ["witness"], data: witness }], [resolve, reject])
   })
 }

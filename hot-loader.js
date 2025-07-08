@@ -20,7 +20,11 @@ export var Every = [];
 // Function to initialize Every when HR is available
 function initializeEvery() {
   if (Every.length === 0) {
+    console.log('Initializing Every array with HR functions...');
+    console.log('HR.margins:', typeof HR.margins, HR.margins ? 'exists' : 'missing');
+    console.log('HR.witness_mod:', typeof HR.witness_mod, HR.witness_mod ? 'exists' : 'missing');
     Every.push(HR.margins, HR.witness_mod, ...(config.CustomEvery || []));
+    console.log('Every array initialized with', Every.length, 'functions');
   }
   return Every;
 }
@@ -396,7 +400,7 @@ export function customInit(api, chron, processor, codeShareDefsFromChain, everyD
     
     // Ensure Every is initialized before using HR.margins
     initializeEvery();
-    const newEvery = [HR.margins]; // Always start with HR.margins
+    const newEvery = [HR.margins, HR.witness_mod]; // Always start with HR.margins and HR.witness_mod
     
     // If we have definitions from chain, rehydrate them
     if (everyDefsFromChain && Array.isArray(everyDefsFromChain)) {
@@ -431,10 +435,10 @@ export function customInit(api, chron, processor, codeShareDefsFromChain, everyD
       }
     } else {
       // If no definitions from chain and Every already has more than just margins, preserve it
-      if (Every && Every.length > 1) {
+      if (Every && Every.length > 2) {
         console.log('Preserving existing Every array with', Every.length, 'functions');
-        // Copy existing functions except margins (first one)
-        for (let i = 1; i < Every.length; i++) {
+        // Copy existing functions except HR.margins and HR.witness_mod (first two)
+        for (let i = 2; i < Every.length; i++) {
           newEvery.push(Every[i]);
         }
       } else if (config.CustomEvery && Array.isArray(config.CustomEvery)) {

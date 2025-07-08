@@ -554,6 +554,7 @@ const CodeShare = {
   daoFunction: async function (num, runtimeContext, daoData) {
     const { getPathObj, getPathNum, Config } = runtimeContext;
     const { reportNodes, daops, stats, balances, data } = daoData;
+    
 
     // Helper function for formatting bytes
     const fancyBytes = (bytes) => {
@@ -568,8 +569,26 @@ const CodeShare = {
     };
 
     try {
-      // Fetch SPK/BROCA specific data
-      const [vbroca, sbroca, ubroca, spk, cspk, powBal, cbroca, lbroca, granted, pow] = await Promise.all([
+      // Extract inflation tokens and fees if customDAO is enabled
+      let inflationTokens = 0;
+      let dexFeesLarynx = 0;
+      let dexFeesSPK = 0;
+      let dexFeesBROCA = 0;
+      
+      if (Config.features && Config.features.customDAO) {
+        // Get the daily inflation from bals.ra
+        inflationTokens = balances.ra || 0;
+        
+        // Get accumulated DEX fees
+        dexFeesLarynx = balances.rn || 0;
+        
+        // Clear these balances as we'll redistribute them
+        balances.ra = 0;
+        balances.rn = 0;
+      }
+      
+      // Fetch SPK/BROCA specific data and auction data
+      const [vbroca, sbroca, ubroca, spk, cspk, powBal, cbroca, lbroca, granted, pow, auction] = await Promise.all([
         getPathObj(['vbroca']),
         getPathObj(['sbroca']),
         getPathObj(['ubroca']),
@@ -579,7 +598,8 @@ const CodeShare = {
         getPathObj(['cbroca']),
         getPathObj(['lbroca']),
         getPathObj(['granted']),
-        getPathObj(['pow'])
+        getPathObj(['pow']),
+        getPathObj(['auction'])
       ]);
 
       // Calculate total verified BROCA (not collateral BROCA)
@@ -589,6 +609,12 @@ const CodeShare = {
       let totalGranted = 0;
       let storageBroca = 0;
       
+      // Initialize earnings tracking
+      if (!stats.sS) stats.sS = 0; // storage SPK earned
+      if (!stats.vS) stats.vS = 0; // validation SPK earned
+      if (!stats.sB) stats.sB = 0; // storage BROCA earned
+      if (!stats.vB) stats.vB = 0; // validation BROCA earned
+      
       for (const acc in ubroca) {
         vbroca[acc] = vbroca[acc] ? vbroca[acc] + ubroca[acc] : ubroca[acc]
       }
@@ -596,12 +622,16 @@ const CodeShare = {
       for (const acc in vbroca) {
         totalVBroca += vbroca[acc] || 0;
         brocaAccounts[acc] = vbroca[acc] || 0;
+        // Track validation BROCA earnings
+        stats.vB += vbroca[acc] || 0;
       }
 
       for (const acc in sbroca) {
         totalVBroca += sbroca[acc] || 0;
         brocaAccounts[acc] = sbroca[acc] || 0;
         storageBroca += sbroca[acc] || 0;
+        // Track storage BROCA earnings
+        stats.sB += sbroca[acc] || 0;
       }
 
       for (const acc in ubroca) {
@@ -644,23 +674,46 @@ const CodeShare = {
 
       if (utilizationDiff > 0) {
         newBroca = parseInt((utilizationDiff / targetUtilization) * powBal)
+        stats.broca_clawback = 0
       } else { // up to 10% clawback
         stats.broca_clawback = parseInt(Math.abs(utilizationDiff / targetUtilization) * 1000)
       }
       // Initialize SPK object if needed
       if (!spk.u) spk.u = 0;
+      if(!spk.l) spk.l = 0;
+      if(!lbroca.u) lbroca.u = 0;
       spk.ra = 0
+      
+      dexFeesSPK = spk.u || 0;
+      dexFeesBROCA = lbroca.u || 0;
+      
+      let totalBrocaRewards = 0;
+      let totalSpkRewards = 0;
+      const totalDEXFees = data.nodeRewards?.t || 0;
+      for (const acc in data.nodeRewards) {
+        if(data.nodeRewards[acc] > 0 && acc != 't') {
+          const ratio = data.nodeRewards[acc]/totalDEXFees
+          const spkShare = parseInt(dexFeesSPK * ratio)
+          const brocaShare = parseInt(dexFeesBROCA * ratio)
+          cspk[acc] = cspk[acc] ? cspk[acc] + spkShare : spkShare
+          cbroca[acc] = cbroca[acc] ? cbroca[acc] + brocaShare : brocaShare
+          totalSpkRewards += spkShare
+          totalBrocaRewards += brocaShare
+        }
+      }
+      spk.u -= totalSpkRewards
+      lbroca.u -= totalBrocaRewards
 
       // Update SPK balances
       stats.spk_minted_today = newSPK
       stats.broca_minted_today = newBroca
-      spk.u += newSPK; // unissued SPK for distribution
+      spk.l += newSPK; // unissued SPK for distribution
 
       // Storage provider rewards distribution
-      const SpkDelegationRewards = parseInt(spk.u * 0.5)
-      const SpkStorageRewards = spk.u - SpkDelegationRewards
-      const BrocaDelegationRewards = parseInt((lbroca.u + newBroca) * 0.5)
-      const BrocaStorageRewards = (lbroca.u + newBroca) - BrocaDelegationRewards
+      const SpkDelegationRewards = parseInt(spk.l * 0.5)
+      const SpkStorageRewards = spk.l - SpkDelegationRewards
+      const BrocaDelegationRewards = parseInt((lbroca.l + newBroca) * 0.5)
+      const BrocaStorageRewards = (lbroca.l + newBroca) - BrocaDelegationRewards
       let SpkStorageDist = 0;
       let BrocaStorageDist = 0;
       let spkShares = {};
@@ -681,8 +734,8 @@ const CodeShare = {
       }
       // half of rewards go to storage providers, half to delegators
       if (totalVBroca > 0) {
-        spk.u = 0; // Reset unissued after distribution
-        lbroca.u = 0;
+        spk.l = 0; // Reset unissued after distribution
+        lbroca.l = 0;
 
         for (const acc in brocaAccounts) {
           let rewarded = false;
@@ -696,6 +749,13 @@ const CodeShare = {
               SpkStorageDist += SpkShare;
               SpkRewardedServices++;
               rewarded = true;
+              
+              // Track storage vs validation SPK earnings
+              if (sbroca[acc]) {
+                stats.sS += SpkShare; // storage SPK
+              } else if (vbroca[acc]) {
+                stats.vS += SpkShare; // validation SPK
+              }
             }
             const BrocaShare = parseInt(BrocaStorageRewards * brocaAccounts[acc] / totalVBroca);
             const bmod = BrocaStorageRewards * brocaAccounts[acc] % totalVBroca
@@ -717,10 +777,10 @@ const CodeShare = {
         }
         // Handle any remainder
         if (SpkStorageRewards > SpkStorageDist && SpkRewardedServices > 0) {
-          spk.u += (SpkStorageRewards - SpkStorageDist);
+          spk.l += (SpkStorageRewards - SpkStorageDist);
         }
         if (BrocaStorageRewards > BrocaStorageDist && BrocaRewardedServices > 0) {
-          lbroca.u += (BrocaStorageRewards - BrocaStorageDist);
+          lbroca.l += (BrocaStorageRewards - BrocaStorageDist);
         }
       }
       let Dtotal = 0;
@@ -791,20 +851,90 @@ const CodeShare = {
         }
       }
       if (cummulativeSpkReward < SpkDelegationRewards) {
-        spk.u += (SpkDelegationRewards - cummulativeSpkReward)
+        spk.l += (SpkDelegationRewards - cummulativeSpkReward)
       }
       if (cummulativeBrocaReward < BrocaDelegationRewards) {
-        lbroca.u += (BrocaDelegationRewards - cummulativeBrocaReward)
+        lbroca.l += (BrocaDelegationRewards - cummulativeBrocaReward)
+      }
+
+      // Process auction pool distribution
+      let auctionDistributed = 0;
+      let auctionParticipants = 0;
+      let totalAuctionHive = 0;
+      const auctionShares = {};
+      let left = 0;
+      
+      if (stats.inAuction && stats.inAuction > 0) {
+        // Calculate total HIVE in auction from all participants
+        for (const acc in auction) {
+          if (auction[acc] > 0) {
+            totalAuctionHive += auction[acc];
+          }
+        }
+        
+        // If there's HIVE in the auction pool, distribute proportional LARYNX
+        if (totalAuctionHive > 0 && inflationTokens > 0) {
+          // Allocate a portion of daily inflation to auction participants
+          // Using 10% of daily inflation for auction rewards
+          const auctionReward = inflationTokens
+          inflationTokens = 0; // Reduce remaining inflation
+          
+          if (auctionReward > 0) {
+          for (const acc in auction) {
+            if (auction[acc] > 0) {
+              const share = parseInt(auctionReward * auction[acc] / totalAuctionHive);
+              if (share > 0) {
+                if (!balances[acc]) balances[acc] = 0;
+                balances[acc] += share;
+                auctionShares[acc] = share;
+                auctionDistributed += share;
+                auctionParticipants++;
+                
+                // Update balance in daops
+                daops.push({ type: 'put', path: ['balances', acc], data: balances[acc] });
+                daops.push({ type: 'del', path: ['auction', acc] });
+              }
+            }
+
+          }
+          }
+          left = auctionReward - auctionDistributed
+          // Reset auction stats
+          stats.inAuction = 0;
+          
+          // Store accumulated HIVE for market operations
+          if (!stats.auctionHive) stats.auctionHive = 0;
+          stats.auctionHive += totalAuctionHive;
+          
+          // Set up market operations based on clawback status
+          // Split into 288 parts (5-minute intervals over 24 hours)
+          if (!stats.marketOpsHive) stats.marketOpsHive = 0;
+          stats.marketOpsHive += totalAuctionHive;
+          
+          // Determine which token to buy based on clawback
+          if (stats.broca_clawback > 0) {
+            // When clawback is active, buy BROCA to burn
+            stats.marketOpsTarget = 'BROCA';
+          } else {
+            // When no clawback, buy SPK to burn
+            stats.marketOpsTarget = 'SPK';
+          }
+          
+          // Calculate per-interval amount (executed in tallyFunction)
+          stats.marketOpsPerInterval = parseInt(stats.marketOpsHive / 288);
+
+        }
       }
 
       // Update SPK balances in daops
-      daops.push({ type: 'put', path: ['spk', 'ra'], data: 0 });
-      daops.push({ type: 'put', path: ['stats'], data: stats });
+      daops.push({ type: 'put', path: ['spk', 'ra'], data: left });
       daops.push({ type: 'put', path: ['cspk'], data: cspk });
       daops.push({ type: 'put', path: ['cbroca'], data: cbroca });
       daops.push({ type: 'put', path: ['ubroca'], data: brocaAccounts });
       daops.push({ type: 'put', path: ['lbroca', 'u'], data: lbroca.u });
+      daops.push({ type: 'put', path: ['lbroca', 'l'], data: lbroca.l });
       daops.push({ type: 'put', path: ['spk', 'u'], data: spk.u });
+      daops.push({ type: 'put', path: ['spk', 'l'], data: spk.l });
 
       // Create SPK report section
       const spkReport = `*****\n### SPK Network Report\n` +
@@ -828,6 +958,26 @@ const CodeShare = {
         }
       };
 
+      // Add auction pool section if there was distribution
+      if (auctionParticipants > 0) {
+        const auctionReport = `### Auction Pool Distribution\n` +
+          `* ${auctionParticipants} participants rewarded.\n` +
+          `* ${(auctionDistributed / 1000).toFixed(3)} LARYNX distributed.\n` +
+          `* ${(totalAuctionHive / 1000).toFixed(3)} HIVE collected for market operations.\n` +
+          `*****\n`;
+        
+        reportNodes.auctionPool = {
+          order: 0.6, // After SPK network report
+          content: auctionReport,
+          data: {
+            participants: auctionParticipants,
+            distributed: auctionDistributed,
+            hiveCollected: totalAuctionHive,
+            shares: auctionShares
+          }
+        };
+      }
+
       // Add validator performance section if there's data
       if (stats.val_count && stats.val_count > 0) {
         const valReport = `### Validator Performance\n` +
@@ -846,7 +996,7 @@ const CodeShare = {
         };
       }
 
-      return { reportNodes, daops };
+      return { reportNodes, daops, stats, balances };
 
     } catch (error) {
       console.error('Error in daoFunction:', error);
@@ -855,10 +1005,18 @@ const CodeShare = {
     }
   },
   PoA: {
-    Check: async function (b, rand, stats, val, vBroca, sBroca, pc, context) {
+    Check: async function (b, rand, stats, val, vBroca, sBroca, services, pc, context) {
       const { getPathObj, CodeShare, Base58, config, Base64, store } = context
       var promises = [], ops = []
+      
+      // Initialize service validation tracking on services object if not exists
+      if (!services[b.self]) services[b.self] = {}
+      if (!services[b.self].V) services[b.self].V = { Q: 0, W: 0 }
+      
       for (var i = 0; i < b.report.v.length; i++) {
+        // Track query for each validation attempt
+        services[b.self].V.Q++;
+        
         const [gte, lte] = CodeShare.PoA.getRange(rand[b.report.v[i][1]], b.self, val, stats, context)
         const rev = b.report.v[i][0].split("").reverse().join("")
         if (config.mode == 'verbose') console.log('lottery:', gte, rev.substr(0, 9), lte)
@@ -929,6 +1087,9 @@ const CodeShare = {
                   const hasTroleBonus = scoreStr.length >= 3
 
                   newCount++
+                  
+                  // Track win (response received) for this validation
+                  services[b.self].V.W++;
 
                   // Reward based on z-score performance
                   // Within ±2 standard deviations = full reward (r: 2)
@@ -1024,6 +1185,7 @@ const CodeShare = {
           ops.push({ type: "put", path: ["stats"], data: stats })
           if (Object.keys(vBroca).length) ops.push({ type: "put", path: ["vbroca"], data: vBroca })
           if (Object.keys(sBroca).length) ops.push({ type: "put", path: ["sbroca"], data: sBroca })
+          if (Object.keys(services).length) ops.push({ type: "put", path: ["services"], data: services })
           store.batch(ops, pc)
         })
         else store.batch([{ type: "put", path: ["markets", "node", b.self], data: b }], pc)
@@ -1387,13 +1549,14 @@ const CustomJsonProcessing = [
       let pVal = getPathObj(['val'])
       let PvBroca = getPathObj(['vbroca'])
       let PsBroca = getPathObj(['sbroca'])
-      Promise.all([pReport, pRand, pStats, pVal, PvBroca, PsBroca]).then(mem => {
-        var b = mem[0], rand = mem[1], stats = mem[2], val = mem[3], vBroca = mem[4], sBroca = mem[5]
+      let Pservices = getPathObj(['services'])
+      Promise.all([pReport, pRand, pStats, pVal, PvBroca, PsBroca, Pservices]).then(mem => {
+        var b = mem[0], rand = mem[1], stats = mem[2], val = mem[3], vBroca = mem[4], sBroca = mem[5], services = mem[6]
         if (from == b.self && active) {
           b.report = json
           delete b.report.timestamp
           if (b.report.v) {
-            CodeShare.PoA.Check(b, rand, stats, val, vBroca, sBroca, pc, context)
+            CodeShare.PoA.Check(b, rand, stats, val, vBroca, sBroca, services, pc, context)
           } else {
             var ops = [
               { type: 'put', path: ['markets', 'node', from], data: b }
