@@ -1165,7 +1165,7 @@ const CodeShare = {
                 const targetV = contracts[i].u * successRate
                 const adjustment = 0.5 // 10% adjustment per validation
                 contracts[i].v = Math.round(currentV + (targetV - currentV) * adjustment)
-                contracts[i].lastValidated = b.report.block
+                contracts[i].lastValidated = b.report.block || stats.lastIBlock
 
                 ops.push({
                   type: "put",
