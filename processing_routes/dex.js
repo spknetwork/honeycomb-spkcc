@@ -2264,7 +2264,19 @@ function nai(obj) {
 }
 function naizer(obj) {
   if (typeof obj.amount != "string") return obj;
-  else {
+  else if (typeof obj == "string"){ //feed prices
+    const nai = obj.split(" ")[1] == "HIVE" ? "@@000000021" : "@@000000013";
+  const amount = parseInt(
+    parseFloat(obj.split(" ")[0]) * 1000
+  ).toString();
+  const precision = 3;
+  obj.amount = {
+    amount,
+    nai,
+    precision,
+  };
+  return obj;
+  } else {
     const nai =
       obj.amount.split(" ")[1] == "HIVE" ? "@@000000021" : "@@000000013";
     const amount = parseInt(
