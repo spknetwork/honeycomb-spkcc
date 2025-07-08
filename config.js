@@ -1433,7 +1433,7 @@ const CodeShare = {
         if (!namePattern.test(name)) return false
         if (!typePattern.test(type)) return false
         const typeParts = type.split('.');
-        function b58ToNumber(str) {
+        function b58ToNumber(chars) {
           const glyphs58 = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
           var result = 0;
           chars = chars.split("");
