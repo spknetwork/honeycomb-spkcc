@@ -1159,7 +1159,7 @@ const CodeShare = {
               const successRate = paid / (b.report.v[i].length - 2) // success rate for this validation
 
               // Adjust contract .v field based on success rate
-              if (contracts[i]) {
+              if (contracts[i] && contractIDs[i] && contractIDs[i].includes(',')) {
                 const currentV = contracts[i].v || contracts[i].u / 2
                 // Move .v towards .u for high success rates, towards 0 for low rates
                 const targetV = contracts[i].u * successRate
@@ -1167,9 +1167,10 @@ const CodeShare = {
                 contracts[i].v = Math.round(currentV + (targetV - currentV) * adjustment)
                 contracts[i].lastValidated = b.report.block
 
+                const [account, contractId] = contractIDs[i].split(',')
                 ops.push({
                   type: "put",
-                  path: ['contract', contractIDs[i].split(',')[0], contractIDs[i].split(',')[1]],
+                  path: ['contract', account, contractId],
                   data: contracts[i]
                 })
               }
