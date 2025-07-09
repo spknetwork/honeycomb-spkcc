@@ -2206,7 +2206,7 @@ export const feed_publish = (tx, pc, runtimeContext) => {
           medianHivePerHbd = (parseFloat(activePrices[medianIndex - 1]) + parseFloat(activePrices[medianIndex])) / 2;
         } else {
           // Odd number of prices - take the middle value
-          medianHivePerHbd = activePrices[medianIndex];
+          medianHivePerHbd = parseFloat(activePrices[medianIndex]);
         }
 
         // Update stats with median prices
