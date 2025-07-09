@@ -21,7 +21,11 @@ export const tally = (num, plasma, isStreaming, runtimeContext) => {
             Prpow = getPathObj([Config("govToken")]),
             Prqueue = getPathObj(["queue"]),
             Ppending = getPathObj(["pendingpayment"]),
-            Pmss = getPathObj(["mss"]);
+            Pmss = getPathObj(["mss"]),
+            PhiveTick = getPathNum(["dex", "hive", "tick"]),
+            PhbdTick = getPathNum(["dex", "hbd", "tick"]),
+            PhivePool = getPathObj(["dex", "hive", "pool"]),
+            PhbdPool = getPathObj(["dex", "hbd", "pool"]);
         Promise.all([
             Prunners,
             Pnode,
@@ -32,6 +36,10 @@ export const tally = (num, plasma, isStreaming, runtimeContext) => {
             Prqueue,
             Ppending,
             Pmss,
+            PhiveTick,
+            PhbdTick,
+            PhivePool,
+            PhbdPool
         ]).then(function (v) {
             deleteObjs([["runners"], ["queue"], ["pendingpayment"]])
                 .then((empty) => {
@@ -43,7 +51,11 @@ export const tally = (num, plasma, isStreaming, runtimeContext) => {
                         rgov = v[5],
                         pending = v[7],
                         mssp = v[8],
-                        ms = [9],
+                        ms = v[9],
+                        hiveTick = v[10],
+                        hbdTick = v[11],
+                        hivePool = v[12],
+                        hbdPool = v[13],
                         signatures = [],
                         tally = {
                             agreements: {
@@ -96,52 +108,58 @@ export const tally = (num, plasma, isStreaming, runtimeContext) => {
                     var promises = []; //[oracle(oracleArr, num)]
                     if (runners[Config("username")] && mss.expiration)
                         verify(mss, signatures, stats.ms.active_threshold);
+                    // Calculate weighted votes based on collateral
+                    let weightedTally = {};
+                    let totalWeight = 0;
+                    
                     for (var runner in runners) {
                         tally.agreements.votes++;
-                        if (tally.agreements.hashes[runner]) {
+                        if (tally.agreements.hashes[runner] && runners[runner].g) {
+                            let weight = runners[runner].g; // Use actual collateral as weight
+                            totalWeight += weight;
+                            
+                            if (!weightedTally[tally.agreements.hashes[runner]]) {
+                                weightedTally[tally.agreements.hashes[runner]] = 0;
+                            }
+                            weightedTally[tally.agreements.hashes[runner]] += weight;
+                            
+                            // Still track simple count for backwards compatibility
                             tally.agreements.tally[tally.agreements.hashes[runner]]++;
                         }
                     }
-                    let threshhold = tally.agreements.votes;
-                    let altThreshhold = tally.agreements.votes -
-                      (stats.chaos > tally.agreements.votes / 3 ? parseInt((stats.chaos + tally.agreements.votes)/tally.agreements.votes) : parseInt(tally.agreements.votes / 3));
-                    if (Object.keys(runners).length > threshhold)
-                        threshhold = Object.keys(runners).length;
-                    for (var hash in tally.agreements.hashes) {
-                        if (
-                            tally.agreements.tally[tally.agreements.hashes[hash]] >
-                            threshhold / 2
-                        ) {
-                            consensus = tally.agreements.hashes[hash];
+                    
+                    // Find consensus based on weighted majority
+                    let thresholdWeight = totalWeight / 2;
+                    let altThresholdWeight = totalWeight - 
+                        (stats.chaos > totalWeight / 3 ? parseInt((stats.chaos * totalWeight) / tally.agreements.votes) : parseInt(totalWeight / 3));
+                    
+                    for (var hash in weightedTally) {
+                        if (weightedTally[hash] > thresholdWeight) {
+                            consensus = hash;
                             break;
                         }
                     }
-                    var owners = 0;
+                    
+                    // Verify multisig owners support consensus (using weighted check)
+                    var ownersWeight = 0;
                     for (var owner in stats.ms.active_account_auths) {
-                        if (nodes[owner].report.hash == consensus) {
-                            owners++;
+                        if (nodes[owner] && nodes[owner].report && nodes[owner].report.hash == consensus) {
+                            ownersWeight += stats.ms.active_account_auths[owner];
                         }
                     }
-                    if (owners < stats.ms.active_threshold) consensus = undefined; //ensure owners are part of consensus branch
+                    if (ownersWeight < stats.ms.active_threshold) consensus = undefined; //ensure owners are part of consensus branch
                     if (!consensus && stats.chaos) {
                         //lower consensus threshold to owners in case of non-agreement
-                        for (var hash in tally.agreements.hashes) {
-                            if (
-                                tally.agreements.tally[tally.agreements.hashes[hash]] >
-                                altThreshhold / 2
-                            ) {
-                                var owners = 0;
-                                for (var owner in stats.ms
-                                    .active_account_auths) {
-                                    if (
-                                        nodes[owner]?.report.hash ==
-                                        tally.agreements.hashes[hash]
-                                    ) {
-                                        owners++;
+                        for (var hash in weightedTally) {
+                            if (weightedTally[hash] > altThresholdWeight / 2) {
+                                var ownersWeight = 0;
+                                for (var owner in stats.ms.active_account_auths) {
+                                    if (nodes[owner]?.report?.hash == hash) {
+                                        ownersWeight += stats.ms.active_account_auths[owner];
                                     }
                                 }
-                                if (owners >= stats.ms.active_threshold) {
-                                    consensus = tally.agreements.hashes[hash];
+                                if (ownersWeight >= stats.ms.active_threshold) {
+                                    consensus = hash;
                                     break;
                                 }
                             }
@@ -173,60 +191,55 @@ export const tally = (num, plasma, isStreaming, runtimeContext) => {
                                 election[node] = new_queue[node];
                             }
                         }
-                        //concerns, size of multi-sig transactions
-                        //minimum to outweight large initial stake holders
-                        //adjust size of runners group based on stake
-                        let low_sum = 0,
-                            last_bal = 0,
-                            highest_low_sum = 0,
-                            optimal_number = 0;
-                        counting_array.sort((a, b) => b - a);
-                        for (var j = 9; j < counting_array.length || j == 25; j++) {
-                            low_sum = 0;
-                            for (var i = parseInt(j / 2) + 1; i < j; i++) {
-                                low_sum += counting_array[i];
-                                last_bal = counting_array[i];
-                            }
-                            if (low_sum > highest_low_sum) {
-                                highest_low_sum = low_sum;
-                                optimal_number = j;
-                                stats.gov_threshhold = last_bal;
+                        // With weighted multisig, we can be more inclusive
+                        // Set a reasonable minimum threshold for runner participation
+                        // The pick() function in dao.js will handle quality control
+                        stats.gov_threshhold = 100000; // 100 tokens minimum to be a runner
+                        
+                        // Count nodes meeting minimum threshold
+                        let qualifiedNodes = 0;
+                        for (var i = 0; i < counting_array.length; i++) {
+                            if (counting_array[i] >= stats.gov_threshhold) {
+                                qualifiedNodes++;
                             }
                         }
-                        if (Object.keys(still_running).length < 25) {
+                        if (Object.keys(still_running).length < 40) {
                             let winner = {
                                 node: "",
                                 g: 0,
                                 api: "",
                             };
                             for (var node in election) {
-                                if (election[node].g > winner.g) {
-                                    //disallow 0 bals in governance
+                                if (election[node].g > winner.g && election[node].g >= stats.gov_threshhold) {
+                                    // Must meet minimum threshold
                                     winner.node = node;
                                     winner.g = election[node].g;
                                     winner.api = election[node].domain;
                                 }
                             }
-                            //console.log({counting_array, low_sum, last_bal, still_running})
-                            stats.gov_threshhold = parseInt(
-                                (low_sum - last_bal) / (Object.keys(still_running).length / 2)
-                            );
-                            if (
-                                winner.node &&
-                                (winner.g > stats.gov_threshhold ||
-                                    Object.keys(still_running).length < 9)
-                            ) {
-                                //simple test to see if the election will benifit the runners collateral totals
+                            
+                            if (winner.node) {
+                                // Add the winner to runners
                                 still_running[winner.node] = new_queue[winner.node];
+                            } else if (Object.keys(still_running).length < 9) {
+                                // Emergency: if we have less than 9 runners, lower standards
+                                for (var node in election) {
+                                    if (election[node].g >= 10000) { // 10 tokens emergency minimum
+                                        still_running[node] = new_queue[node];
+                                        break;
+                                    }
+                                }
                             }
-                        } else {
-                            stats.gov_threshhold = "FULL";
                         }
                         let collateral = [];
                         let liq_rewards = [];
+                        let minCollateral = Number.MAX_SAFE_INTEGER;
                         for (var node in still_running) {
                             collateral.push(still_running[node].g);
                             liq_rewards.push(still_running[node].l || 100);
+                            if (still_running[node].g < minCollateral) {
+                                minCollateral = still_running[node].g;
+                            }
                         }
                         let liq_rewards_sum = 0;
                         for (var i = 0; i < liq_rewards.length; i++) {
@@ -235,13 +248,65 @@ export const tally = (num, plasma, isStreaming, runtimeContext) => {
                         stats.liq_reward = liq_rewards_sum / liq_rewards.length;
                         let MultiSigCollateral = 0;
                         collateral.sort((a, b) => b - a);
-                        highest_low_sum = 0;
+                        
+                        // Calculate total collateral
                         for (var i = 0; i < collateral.length; i++) {
                             MultiSigCollateral += collateral[i];
-                            if (i > collateral.length / 2) highest_low_sum += collateral[i];
                         }
+                        
+                        // Safety limit = active threshold * minimum collateral
+                        // This represents the maximum that can be spent by reaching threshold
+                        stats.safetyLimit = stats.ms.active_threshold * minCollateral;
+                        
+                        // Ensure minimum safety limit
+                        if (stats.safetyLimit < 1000) stats.safetyLimit = 1000;
+                        
                         stats.multiSigCollateral = MultiSigCollateral;
-                        stats.safetyLimit = highest_low_sum < 1000 ? 1000 : highest_low_sum;
+
+                        // Calculate safetyLimitHBD - safety limit in HBD value
+                        const hiveTickPrice = parseFloat(hiveTick || 0.1); // TOKEN/HIVE price
+                        const hbdTickPrice = parseFloat(hbdTick || 0.1); // TOKEN/HBD price
+
+                        if (hbdTickPrice > 0) {
+                            // Direct conversion using TOKEN/HBD price
+                            stats.safetyLimitHBD = Math.floor(stats.safetyLimit * hbdTickPrice);
+                        } else if (hiveTickPrice > 0 && stats.priceFeed && stats.priceFeed.hivePrice) {
+                            // Convert via HIVE price if HBD tick not available
+                            const hivePrice = parseFloat(stats.priceFeed.hivePrice || 0.217);
+                            const tokenPriceInHBD = hiveTickPrice * hivePrice;
+                            stats.safetyLimitHBD = Math.floor(stats.safetyLimit * tokenPriceInHBD);
+                        } else {
+                            // Fallback if no price data available
+                            stats.safetyLimitHBD = stats.safetyLimit; // 1:1 fallback
+                        }
+
+                        // Store pool data in stats for lightweight access
+                        stats.pools = {
+                            hive: hivePool || { token: 0, hive: 0 },
+                            hbd: hbdPool || { token: 0, hbd: 0 }
+                        };
+
+                        // Calculate arbitrage opportunity between HIVE and HBD markets
+                        if (hiveTickPrice > 0 && hbdTickPrice > 0 && stats.priceFeed && stats.priceFeed.hivePerHbd) {
+                            const hivePerHbd = parseFloat(stats.priceFeed.hivePerHbd || 4.608);
+                            // Expected HBD tick based on HIVE tick and HIVE/HBD rate
+                            const expectedHbdTick = hiveTickPrice * hivePerHbd;
+                            // Arbitrage percentage: positive means HBD market is overpriced
+                            stats.dexArbitrage = ((hbdTickPrice - expectedHbdTick) / expectedHbdTick * 100).toFixed(2);
+                        }
+
+                        // Calculate value balance metric - ratio of HIVE to HBD value in pools
+                        if (stats.pools && stats.priceFeed && stats.priceFeed.hivePerHbd) {
+                            const hivePerHbd = parseFloat(stats.priceFeed.hivePerHbd || 4.608);
+                            const hivePoolValueInHbd = (stats.pools.hive.hive || 0) / hivePerHbd + (stats.pools.hive.token || 0) * hbdTickPrice;
+                            const hbdPoolValue = (stats.pools.hbd.hbd || 0) + (stats.pools.hbd.token || 0) * hbdTickPrice;
+
+                            if (hbdPoolValue > 0) {
+                                // Value balance: 1.0 means equal value, >1 means more value in HIVE pool
+                                stats.dexValueBalance = (hivePoolValueInHbd / hbdPoolValue).toFixed(3);
+                            }
+                        }
+
                         stats.hashLastIBlock = stats.lastBlock;
                         stats.lastBlock = consensus;
                         for (var node in nodes) {
@@ -258,11 +323,14 @@ export const tally = (num, plasma, isStreaming, runtimeContext) => {
                             } catch (e) { }
                             if (getHash == stats.lastBlock) {
                                 nodes[node].yays++;
+                                nodes[node].CCR = (nodes[node].CCR || 0 ) + 1
                                 nodes[node].lastGood = num;
                             }
                         }
                         for (var node in still_running) {
                             nodes[node].wins++;
+                            nodes[node].CCR++
+                            if(stats.ms.active_account_auths[node]) nodes[node].CCR++
                         }
                     } else {
                         stats.chaos++;
@@ -340,32 +408,32 @@ export const tally = (num, plasma, isStreaming, runtimeContext) => {
                         // Custom tally processing
                         const context = runtimeContext
                         let tallyFunction = null;
-                        
-                        if(CodeShare.tallyFunction) {
-                            if(typeof CodeShare.tallyFunction === 'function') {
+
+                        if (CodeShare.tallyFunction) {
+                            if (typeof CodeShare.tallyFunction === 'function') {
                                 // Already rehydrated as a function
                                 tallyFunction = CodeShare.tallyFunction;
-                            } else if(typeof CodeShare.tallyFunction === 'string') {
+                            } else if (typeof CodeShare.tallyFunction === 'string') {
                                 // JSON string from chain - needs parsing and rehydration
                                 try {
                                     const tf = JSON.parse(CodeShare.tallyFunction);
-                                    if(tf && tf.body) {
+                                    if (tf && tf.body) {
                                         // Create function from body string
                                         const paramsArray = tf.params ? Object.values(tf.params) : [];
                                         tallyFunction = new Function(...paramsArray, tf.body);
                                     }
-                                } catch(e) {
+                                } catch (e) {
                                     console.error('Error parsing tallyFunction:', e);
                                 }
-                            } else if(typeof CodeShare.tallyFunction === 'object' && CodeShare.tallyFunction.body) {
+                            } else if (typeof CodeShare.tallyFunction === 'object' && CodeShare.tallyFunction.body) {
                                 const paramsArray = CodeShare.tallyFunction.params ? Object.values(CodeShare.tallyFunction.params) : [];
                                 tallyFunction = new Function(...paramsArray, CodeShare.tallyFunction.body);
                             }
                         }
-                        
-                        if(tallyFunction) {
+
+                        if (tallyFunction) {
                             tallyFunction(num, stats, context).then(customTallyResult => {
-                                if(customTallyResult && customTallyResult.ops) {
+                                if (customTallyResult && customTallyResult.ops) {
                                     ops = ops.concat(customTallyResult.ops);
                                 }
                                 store.batch(ops, [resolve, reject, newPlasma]);
@@ -588,37 +656,14 @@ export function isValidTxSig(trx, sig, key) {
     return valid
 }
 
-export function verify(trx, sig, at, active = true) {
-    if (trx?.operations?.[0][0] == "account_update") active = false
+export function verify(trx, sig, at) {
     return new Promise((resolve, reject) => {
         sendit(trx, sig, at);
 
         function sendit(tx, sg, t, f) {
             if (Config("mode") == 'verbose') console.log(sg)
             if (sg.length >= t || !f) {
-                var signatures = [];
-                if (active) {
-                    console.log('active')
-                    var k = [],
-                        l = Owners.numKeys();
-                    for (var i = 0; i < l; i++) {
-                        k.push(i);
-                    }
-                    for (var i = 0; i < sg.length; i++) {
-                        for (var j = 0; j < k.length; j++) {
-                            if (isValidTxSig(tx, sg[i], Owners.getAKey(k[j]))) {
-                                k.splice(j, 1);
-                                signatures.push(sg[i]);
-                                break;
-                            }
-                        }
-                        if (signatures.length == t) break;
-                    }
-                    tx.signatures = signatures
-                } else {
-                    console.log('owner')
-                    tx.signatures = sg;
-                }
+                tx.signatures = sg
                 if (tx.signatures.length == t && tx.operations.length) {
                     console.log('Attempting MS Broadcast...')
                     hiveClient.api.broadcastTransactionSynchronous(

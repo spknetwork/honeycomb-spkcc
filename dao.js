@@ -196,30 +196,71 @@ export function dao(num, runtimeContext) {
                 }
                 var up_op = accountUpdate(stats, mnode, pick(newOwners))
                 function pick(noobj) {
-                    var top = 0
-                    var topwin = 0
-                    var tops = []
+                    var candidates = []
+                    var minCollateral = 100000 // Minimum 100 tokens required
+                    
+                    // Build candidate list with participation metrics
                     for (var node in noobj) {
-                        if (noobj[node].g > top) {
-                            top = noobj[node].g
+                        if (noobj[node].g >= minCollateral && noobj[node].wins > 0) {
+                            // Calculate participation score
+                            var participationScore = 0
+                            
+                            // Wins contribute to base score
+                            participationScore += noobj[node].wins * 10
+                            
+                            // Verified signatures from node data
+                            if (mnode[node].vS) {
+                                participationScore += mnode[node].vS * 5
+                            }
+                            
+                            // Total wins history (tw) shows consistency
+                            if (mnode[node].tw) {
+                                participationScore += Math.min(mnode[node].tw, 1000) // Cap historical contribution
+                            }
+                            
+                            // Yays show consensus participation
+                            if (mnode[node].ty) {
+                                participationScore += Math.min(mnode[node].ty / 10, 100)
+                            }
+                            
+                            // Recent activity check (lastGood should be recent)
+                            if (mnode[node].lastGood && mnode[node].lastGood > num - 200) { // Within last 10 minutes
+                                participationScore += 50
+                            }
+                            
+                            candidates.push({ 
+                                node, 
+                                g: noobj[node].g,
+                                score: participationScore,
+                                wins: noobj[node].wins
+                            })
                         }
-                        if (noobj[node].wins > topwin) {
-                            topwin = noobj[node].wins
+                    }
+                    
+                    // Sort by participation score, then by collateral as tiebreaker
+                    candidates.sort((a, b) => {
+                        if (b.score !== a.score) return b.score - a.score
+                        return b.g - a.g
+                    })
+                    
+                    // Take top performers up to max multisig size
+                    var out = []
+                    var maxNodes = 40 // Maximum nodes in multisig
+                    
+                    for (var i = 0; i < Math.min(candidates.length, maxNodes); i++) {
+                        out.push(candidates[i].node)
+                    }
+                    
+                    // Ensure minimum viable multisig size
+                    if (out.length < 3) {
+                        // Emergency fallback: add nodes with just collateral requirement
+                        for (var node in noobj) {
+                            if (!out.includes(node) && noobj[node].g >= minCollateral && out.length < 3) {
+                                out.push(node)
+                            }
                         }
-                        if (noobj[node].wins) tops.push(noobj[node].g)
                     }
-                    tops.sort((a, b) => { return b - a })
-                    var thresh = tops[parseInt(tops.length / 2) - 1]
-                    var sorting = [], out = []
-                    for (var node in noobj) {
-                        if (noobj[node].g >= thresh && noobj[node].wins >= (topwin * 90 / 100)) {
-                            sorting.push({ node, g: noobj[node].g })
-                        }
-                    }
-                    sorting.sort((a, b) => { return b.g - a.g })
-                    for (var i = 0; i < sorting.length; i++) {
-                        out.push(sorting[i].node)
-                    }
+                    
                     return out
                 }
                 bals.rd += parseInt(t * stats.delegationRate / 10000); // 10% to delegators
@@ -312,10 +353,28 @@ export function dao(num, runtimeContext) {
                 var vol = 0,
                     volhbd = 0,
                     vols = 0,
+                    volHiveToken = 0,  // TOKEN volume in HIVE market
+                    volHbdToken = 0,   // TOKEN volume in HBD market
                     his = [],
                     hisb = [],
                     hi = {},
                     hib = {};
+                
+                // Initialize volume EMAs if not present
+                if (!stats.volumeEMA) {
+                    stats.volumeEMA = {
+                        hive: {
+                            token: 0,    // TOKEN volume in HIVE market
+                            hive: 0      // HIVE volume
+                        },
+                        hbd: {
+                            token: 0,    // TOKEN volume in HBD market
+                            hbd: 0       // HBD volume
+                        },
+                        alpha: 0.1       // EMA smoothing factor (0.1 = ~10 periods)
+                    };
+                }
+                
                 if (Config("features").dex) {
                     for (var int in dex.hive.his) {
                         if (dex.hive.his[int].block < num - 60480) {
@@ -323,6 +382,7 @@ export function dao(num, runtimeContext) {
                             daops.push({ type: 'del', path: ['dex', 'hive', 'his', int] });
                         } else {
                             vol = parseInt(parseInt(dex.hive.his[int].base_vol) + vol);
+                            volHiveToken = parseInt(parseInt(dex.hive.his[int].base_vol) + volHiveToken);
                             vols = parseInt(parseInt(dex.hive.his[int].target_vol) + vols);
                         }
                     }
@@ -331,7 +391,8 @@ export function dao(num, runtimeContext) {
                             hisb.push(dex.hbd.his[int]);
                             daops.push({ type: 'del', path: ['dex', 'hbd', 'his', int] });
                         } else {
-                            vol = parseInt(parseInt(dex.hbd.his[int].amount) + vol);
+                            vol = parseInt(parseInt(dex.hbd.his[int].base_vol || dex.hbd.his[int].amount) + vol);
+                            volHbdToken = parseInt(parseInt(dex.hbd.his[int].base_vol || dex.hbd.his[int].amount) + volHbdToken);
                             volhbd = parseInt(parseInt(dex.hbd.his[int].target_vol) + volhbd);
                         }
                     }
@@ -385,7 +446,7 @@ export function dao(num, runtimeContext) {
                             liqa += parseInt(dex.liq[acc])
                         }
                         for (var acc in dex.liq) {
-                            thisd = parseInt(liqt * (dex.liq[acc] / liqa))
+                            var thisd = parseInt(liqt * (dex.liq[acc] / liqa))
                             if (!bals[acc]) bals[acc] = 0
                             bals[acc] += thisd
                             bals.rm -= thisd
@@ -393,7 +454,24 @@ export function dao(num, runtimeContext) {
                     }
                     delete dex.liq
                     daops.push({ type: 'del', path: ['dex', 'liq'] })
-                    post = post + `*****\n### DEX Report\n#### Prices:\n* ${parseFloat(dex.hive.tick).toFixed(3)} HIVE per ${Config("TOKEN")}\n* ${parseFloat(dex.hbd.tick).toFixed(3)} HBD per ${Config("TOKEN")}\n#### Daily Volume:\n* ${parseFloat(vol / 1000).toFixed(3)} ${Config("TOKEN")}\n* ${parseFloat(vols / 1000).toFixed(3)} HIVE\n* ${parseFloat(parseInt(volhbd) / 1000).toFixed(3)} HBD\n*****\n`;
+                    
+                    // Update volume EMAs
+                    const alpha = stats.volumeEMA.alpha || 0.1;
+                    
+                    // Update EMAs using: EMA = alpha * current + (1 - alpha) * previous
+                    stats.volumeEMA.hive.token = Math.floor(alpha * volHiveToken + (1 - alpha) * stats.volumeEMA.hive.token);
+                    stats.volumeEMA.hive.hive = Math.floor(alpha * vols + (1 - alpha) * stats.volumeEMA.hive.hive);
+                    stats.volumeEMA.hbd.token = Math.floor(alpha * volHbdToken + (1 - alpha) * stats.volumeEMA.hbd.token);
+                    stats.volumeEMA.hbd.hbd = Math.floor(alpha * volhbd + (1 - alpha) * stats.volumeEMA.hbd.hbd);
+                    
+                    // Calculate volume ratio for balancing decisions
+                    const totalTokenEMA = stats.volumeEMA.hive.token + stats.volumeEMA.hbd.token;
+                    if (totalTokenEMA > 0) {
+                        stats.volumeEMA.hiveRatio = (stats.volumeEMA.hive.token / totalTokenEMA).toFixed(3);
+                        stats.volumeEMA.hbdRatio = (stats.volumeEMA.hbd.token / totalTokenEMA).toFixed(3);
+                    }
+                    
+                    post = post + `*****\n### DEX Report\n#### Prices:\n* ${parseFloat(dex.hive.tick).toFixed(3)} HIVE per ${Config("TOKEN")}\n* ${parseFloat(dex.hbd.tick).toFixed(3)} HBD per ${Config("TOKEN")}\n#### Daily Volume:\n* ${parseFloat(vol / 1000).toFixed(3)} ${Config("TOKEN")}\n* ${parseFloat(vols / 1000).toFixed(3)} HIVE\n* ${parseFloat(parseInt(volhbd) / 1000).toFixed(3)} HBD\n#### Volume EMAs:\n* HIVE Market: ${parseFloat(stats.volumeEMA.hive.token / 1000).toFixed(3)} ${Config("TOKEN")} (${stats.volumeEMA.hiveRatio || '0.500'})\n* HBD Market: ${parseFloat(stats.volumeEMA.hbd.token / 1000).toFixed(3)} ${Config("TOKEN")} (${stats.volumeEMA.hbdRatio || '0.500'})\n*****\n`;
                 }
                 if (!stats.movingWeight) stats.movingWeight = {}
                 stats.movingWeight.dailyPool = bals.ra
@@ -681,28 +759,100 @@ export function Liquidity() {
 function accountUpdate(stats, nodes, arr) {
     //get runners by gov balance
     //ensure have public key
+    var min = Number.MAX_SAFE_INTEGER
     for (var i = 0; i < arr.length; i++) {
+        if(nodes[arr[i]].g < min) min = nodes[arr[i]].g
         if (!nodes[arr[i]].mskey) {
             arr.splice(i, 1)
             i--
         }
     }
-    var differrent = false
+    
+    // Calculate total weight and determine if update needed
+    var totalWeight = 0
+    var different = false
+    var weightedAuths = []
+    
+    // Build weighted authorities based on governance token holdings
     for (var i = 0; i < arr.length; i++) {
-        if (stats.ms.active_account_auths[arr[i]] != 1) differrent = true
+        var node = arr[i]
+        // Convert governance tokens to weight (1 weight per min amount, minimum 1)
+        var weight = Math.floor(nodes[node].g / min) || 1
+        weightedAuths.push([node, weight])
     }
-    if (!differrent || arr.length < 3) return //don't send duplicate updates, don't reduce key holders below 3
-    if (arr.length > 40) arr = arr.slice(0, 40)
+    
+    // Sort by weight descending to find top holders
+    weightedAuths.sort((a, b) => b[1] - a[1])
+    
+    // Cap the top 3 weights to prevent single points of failure
+    if (weightedAuths.length >= 4) {
+        // Find the 4th highest weight as ceiling
+        var capWeight = weightedAuths[3][1]
+        
+        // Cap top 3 to this weight if they exceed it
+        for (var i = 0; i < 3 && i < weightedAuths.length; i++) {
+            if (weightedAuths[i][1] > capWeight) {
+                weightedAuths[i][1] = capWeight
+            }
+        }
+    }
+    
+    // Recalculate total weight after capping
+    totalWeight = 0
+    for (var i = 0; i < weightedAuths.length; i++) {
+        totalWeight += weightedAuths[i][1]
+        
+        // Check if current weight differs from stored weight
+        if (!stats.ms.active_account_auths[weightedAuths[i][0]] || 
+            stats.ms.active_account_auths[weightedAuths[i][0]] != weightedAuths[i][1]) {
+            different = true
+        }
+    }
+    
+    // Check if all nodes exist in current auths (to detect removed nodes)
+    for (var node in stats.ms.active_account_auths) {
+        if (!arr.includes(node)) {
+            different = true
+        }
+    }
+    
+    if (!different || arr.length < 3) return //don't send duplicate updates, don't reduce key holders below 3
+    
+    if (arr.length > 40) {
+        // For large arrays, take top 40 by weight
+        weightedAuths.sort((a, b) => b[1] - a[1])
+        weightedAuths = weightedAuths.slice(0, 40)
+        totalWeight = weightedAuths.reduce((sum, auth) => sum + auth[1], 0)
+    }
+    
+    // Calculate threshold - ensure it's achievable
+    var threshold = Math.floor(totalWeight / 2) + 1
+    
+    // Edge case: if threshold exceeds total weight (e.g., single account scenario)
+    if (threshold > totalWeight) {
+        threshold = totalWeight
+    }
+    
+    // Edge case: ensure threshold requires at least 2 signers if possible
+    if (weightedAuths.length >= 2) {
+        // Find the minimum combination of 2 signers
+        var minTwoSigners = weightedAuths[weightedAuths.length - 1][1] + 
+                           weightedAuths[weightedAuths.length - 2][1]
+        if (threshold < minTwoSigners) {
+            threshold = minTwoSigners
+        }
+    }
+    
     var updateOp = {
         "account": Config("msaccount"),
         "active": {
-            "weight_threshold": parseInt(arr.length / 2 + 1),
-            "account_auths": [],
+            "weight_threshold": threshold,
+            "account_auths": weightedAuths,
             "key_auths": []
         },
         "owner": {
-            "weight_threshold": parseInt(arr.length / 2 + 1),
-            "account_auths": [],
+            "weight_threshold": threshold,
+            "account_auths": weightedAuths,
             "key_auths": []
         },
         "posting": {
@@ -712,11 +862,7 @@ function accountUpdate(stats, nodes, arr) {
         },
         "memo_key": Config("msPubMemo"),
         "json_metadata": stringify(Config("msmeta"))
-
     }
-    for (var i = 0; i < arr.length; i++) {
-        updateOp.active.account_auths.push([arr[i], 1])
-        updateOp.owner.key_auths.push([nodes[arr[i]].mskey, 1])
-    }
+    
     return updateOp
 }

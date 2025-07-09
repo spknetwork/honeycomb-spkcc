@@ -6,6 +6,12 @@ export default {
         "seller-a": 1000000,
         "seller-b": 1000000,
         "seller-c": 1000000,
+        "test-user": 0,
+        "test-seller": 0,
+        "test-buyer": 0,
+        "test-clearer": 0,
+        "lp-provider": 0,
+        "swapper": 0,
         "ra": 0,
         "rb": 0,
         "rc": 0,
@@ -17,12 +23,36 @@ export default {
         "rr": 0
     },
     "delegations": {}, //these need to be preloaded if already on account before starting block
+    "escrow": {}, // For escrow release tests
+    "feed": {}, // For witness feed publication tests
     "dex": {
         "hbd": {
-            "tick": "0.012500" //ICO price
+            "tick": "0.012500", //ICO price
+            "pool": {
+                "token": 0,
+                "hbd": 0,
+                "tick": 0,
+                "shares": {},
+                "sharesSupply": 0
+            },
+            "buyBook": "",
+            "sellBook": "",
+            "buyOrders": {},
+            "sellOrders": {}
         },
         "hive": {
-            "tick": "0.100000" //ICO Price
+            "tick": "0.100000", //ICO Price
+            "pool": {
+                "token": 0,
+                "hive": 0,
+                "tick": 0,
+                "shares": {},
+                "sharesSupply": 0
+            },
+            "buyBook": "",
+            "sellBook": "",
+            "buyOrders": {},
+            "sellOrders": {}
         }
     },
     "markets": {
@@ -84,7 +114,18 @@ export default {
         },
         "MSHeld": {
             "HIVE": 0,
-            "HBD": 0
-        }
+            "HBD": 0,
+            "VALUE": 0
+        },
+        "priceFeed": {
+            "hivePrice": "0.2170",
+            "hivePerHbd": "4.6080"
+        },
+        "safetyLimit": 4.76,
+        "dex_max": 10,
+        "dex_slope": 10,
+        "dex_fee": 500,
+        "lpRewardPool": 0,
+        "colclaim": 0
     }
 }

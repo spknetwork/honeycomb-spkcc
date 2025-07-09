@@ -9,7 +9,7 @@ export const consolidate = (num, plasma, bh, owner) => {
         var query = 'msa'
         if(owner == 'owner')query = 'mso'
         const queryf = query == 'msa' ? 'mss' : 'msso'
-        const sel_key = query == 'msa' ? Config("active") : Config("msowner")
+        const sel_key = Config("msowner")
         store.get([query], (err, result) => {
             if (err || Object.keys(result).length === 0) {
                 resolve('NONE')
@@ -88,7 +88,7 @@ export const consolidate = (num, plasma, bh, owner) => {
                     extensions: [],
                 }
                 ops.push({type: 'put', path: [queryf, `${num}`], data: stringify(op)})
-                if(Config("msowner") && Config("active") && txs.length){
+                if(Config("msowner") && Config("msowner") && txs.length){
                     const stx = hiveClient.auth.signTransaction(op, [sel_key])
                     sig.sig = stx.signatures[0]
                 }
@@ -160,8 +160,8 @@ export const sign = (num, plasma, missed, bh) => {
                     ops.push({type:'del', path:['mss', `${missed}`]})
                     ops.push({type:'del', path:['mss', `${missed}:sigs`]})
                     ops.push({type: 'put', path: ['mss', `${num}`], data: stringify(op)})
-                    if(mem[1].ms.active_account_auths[Config("username")]  && Config("active")){
-                        const stx = hiveClient.auth.signTransaction(op, [Config("active")])
+                    if(mem[1].ms.active_account_auths[Config("username")]  && Config("msowner")){
+                        const stx = hiveClient.auth.signTransaction(op, [Config("msowner")])
                         sig.sig = stx.signatures[0]
                     }
                     store.batch(ops, [resolve, reject, sig])
@@ -246,7 +246,7 @@ export createAccount = (creator, account) => {
                 ops.push(op)
             hiveClient.broadcast.send({
                 extensions: [],
-                operations: ops}, [Config("active")], (err, result) => {
+                operations: ops}, [Config("msowner")], (err, result) => {
                 console.log(err, result);
             });
         } else {
