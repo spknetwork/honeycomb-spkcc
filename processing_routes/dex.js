@@ -2295,7 +2295,7 @@ function feedPriceNIAzer(obj) {
     };
     return NAI;
   } else {
-    return obj;
+    return obj.amount;
   }
 }
 
