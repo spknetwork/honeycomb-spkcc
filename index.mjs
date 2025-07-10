@@ -700,7 +700,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                   opIndex = 0  // Reset operation index for new block
                   store.get([], function (err, obj) {
                     const blockState = Buffer.from(stringify([num + 1, obj]))
-                    promises.push(ipfsHash(num,blockState))
+                    promises.push(ipfsHash(num + 1,blockState))
                     ipfsSaveState(num, blockState, ipfs)
                       .then(pla => {
                         //console.log({ pla })
@@ -726,7 +726,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                   const blockState = Buffer.from(stringify([num + 1, block]))
                   block.ops = []
                   opIndex = 0  // Reset operation index
-                  promises.push(ipfsHash(num,blockState))
+                  promises.push(ipfsHash(num + 1,blockState))
                   issc(num, blockState, null, 0, 0)
                 }
                 if ((num - 2) % 3000 === 0) {

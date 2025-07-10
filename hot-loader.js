@@ -469,8 +469,10 @@ export function customInit(api, chron, processor, codeShareDefsFromChain, everyD
     }
 
     // Initialize Honeygraph WebSocket integration if configured
-    if (process.env.HONEYGRAPH_ENABLED === 'true') {
+    if (process.env.HONEYGRAPH_ENABLED === 'true' && !global._honeygraphInitialized) {
       console.log('Initializing Honeygraph WebSocket integration...');
+      global._honeygraphInitialized = true; // Prevent multiple initializations
+      
       import('./lib/honeygraph-ws-init.js').then(({ getHoneygraphWSIntegration }) => {
         const integration = getHoneygraphWSIntegration({
           enabled: true,
@@ -491,6 +493,7 @@ export function customInit(api, chron, processor, codeShareDefsFromChain, everyD
         });
       }).catch(err => {
         console.error('Failed to initialize Honeygraph WebSocket integration:', err);
+        global._honeygraphInitialized = false; // Allow retry on error
       });
     }
 
