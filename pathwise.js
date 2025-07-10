@@ -5,7 +5,6 @@ import type from 'component-type';
 import after from 'after';
 import streamToArray from 'stream-to-array';
 import stringify from 'json-stable-stringify';
-import { config } from './config.js';
 import { block, trackOperation } from './index.mjs'
 export var Pathwise = function (db) {
     assert(db, 'db required');
@@ -64,9 +63,15 @@ Pathwise.prototype.batch = function(ops, pc) { // promise chain[resolve(), rejec
             pc[1](err)
         } else if (pc.length > 2) {
             block.ops.push('W')
+            if (process.env.HONEYGRAPH_ENABLED === 'true') {
+                trackOperation('W');
+            }
             batch.write(()=>{pc[0](pc[2])})
         } else {
             block.ops.push('W')
+            if (process.env.HONEYGRAPH_ENABLED === 'true') {
+                trackOperation('W');
+            }
             batch.write(()=>{pc[0]()})
         }
     });
@@ -75,7 +80,7 @@ Pathwise.prototype.batch = function(ops, pc) { // promise chain[resolve(), rejec
         block.ops.push(stringifiedOp);
         
         // Track operation for Dgraph
-        if (config.HONEYGRAPH_ENABLED) {
+        if (process.env.HONEYGRAPH_ENABLED === 'true') {
             trackOperation(stringifiedOp);
         }
         

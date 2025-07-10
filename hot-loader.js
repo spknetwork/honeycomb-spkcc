@@ -469,13 +469,13 @@ export function customInit(api, chron, processor, codeShareDefsFromChain, everyD
     }
 
     // Initialize Honeygraph WebSocket integration if configured
-    if (config.HONEYGRAPH_ENABLED === 'true') {
+    if (process.env.HONEYGRAPH_ENABLED === 'true') {
       console.log('Initializing Honeygraph WebSocket integration...');
       import('./lib/honeygraph-ws-init.js').then(({ getHoneygraphWSIntegration }) => {
         const integration = getHoneygraphWSIntegration({
           enabled: true,
-          url: config.HONEYGRAPH_WS_URL,
-          token: config.prefix,
+          url: process.env.HONEYGRAPH_WS_URL || 'ws://localhost:3030/fork-stream',
+          token: process.env.HONEYGRAPH_TOKEN || config.prefix || 'DLUX',
           batchSize: parseInt(process.env.HONEYGRAPH_BATCH_SIZE) || 100,
           autoReconnect: true
         });
