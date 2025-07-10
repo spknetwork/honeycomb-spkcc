@@ -2025,9 +2025,7 @@ export const witness_mod = async function (bn, prand, stats, realTime, runtimeCo
       console.log('witness_mod: Missing block header or witness', { bn, bh });
       return resolve();
     }
-    const [witness] = await Promise.all([getPathObj(["witness"])])
-    witness[`${bn % 100}`] = bh.witness
-    store.batch([{ type: "put", path: ["witness"], data: witness }], [resolve, reject])
+    store.batch([{ type: "put", path: ["witness", `${bn % 100}`], data: bh.witness }], [resolve, reject])
   })
 }
 

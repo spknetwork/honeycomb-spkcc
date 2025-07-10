@@ -20,7 +20,8 @@ export function trackOperation(op) {
       type: 'write_marker',
       index: opIndex++,
       blockNum: plasma.hashBlock || 0,
-      forkHash: plasma.hashLastIBlock || null
+      forkHash: plasma.hashLastIBlock || null,
+      prevCheckpointHash: plasma.hashSecIBlock || null
     };
     
     if (honeygraphClient) {
@@ -45,6 +46,7 @@ export function trackOperation(op) {
   operation.index = opIndex++;
   operation.blockNum = plasma.hashBlock || 0;
   operation.forkHash = plasma.hashLastIBlock || null;
+  operation.prevCheckpointHash = plasma.hashSecIBlock || null;
   
   // Send to honeygraph if client is available
   if (honeygraphClient) {
@@ -708,8 +710,13 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                         plasma.hashLastIBlock = pla.hashLastIBlock
                         plasma.hashBlock = pla.hashBlock
                         // Notify Honeygraph of checkpoint
-                        if (block.honeygraphClient) {
-                          block.honeygraphClient.sendCheckpoint(num, pla.hashLastIBlock);
+                        if (honeygraphClient && typeof honeygraphClient.sendCheckpoint === 'function') {
+                          honeygraphClient.sendCheckpoint({
+                            blockNum: num,
+                            hash: pla.hashLastIBlock,
+                            prevHash: plasma.hashSecIBlock,
+                            timestamp: Date.now()
+                          });
                         }
                       })
                       .catch(e => { console.log(e) })
