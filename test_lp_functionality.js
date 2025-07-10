@@ -46,15 +46,17 @@ const dexExample = {
 };
 
 const statsExample = {
-  safetyLimit: 50000, // 50,000 HIVE collateral limit
+  safetyLimit: 50000, // 50,000 TOKEN collateral limit
+  safetyLimitValue: 50000, // 50,000 HBD collateral limit
   dex_fee: 0.005, // 0.5% fee
   priceFeed: {
     hivePerHbd: "4.6080",
     hivePrice: "0.2170"
   },
   MSHeld: {
-    HIVE: 15000, // Currently holding 15,000 HIVE
-    HBD: 0
+    HIVE: 1000000, // Currently holding 1,000 HIVE
+    HBD: 0,
+    VALUE: 2170000 // in millidollars
   }
 };
 

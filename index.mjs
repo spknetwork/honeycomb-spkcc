@@ -11,40 +11,62 @@ export function configSet(obj, state, api, chron, processor, CodeShare, Every) {
 }
 var honeygraphClient = null;
 var opIndex = 0;
+
+// Standalone function for tracking operations to honeygraph
+export function trackOperation(op) {
+  // Handle 'W' write markers as special operations
+  if (op === 'W') {
+    const writeMarker = {
+      type: 'write_marker',
+      index: opIndex++,
+      blockNum: plasma.hashBlock || 0,
+      forkHash: plasma.hashLastIBlock || null
+    };
+    
+    if (honeygraphClient) {
+      if (typeof honeygraphClient.trackOperation === 'function') {
+        honeygraphClient.trackOperation(writeMarker);
+      } else if (typeof honeygraphClient.addOperation === 'function') {
+        honeygraphClient.addOperation(writeMarker);
+      }
+    }
+    return;
+  }
+  
+  // Parse stringified operations
+  let operation;
+  try {
+    operation = typeof op === 'string' ? JSON.parse(op) : op;
+  } catch (e) {
+    return; // Skip invalid operations
+  }
+  
+  // Track operation with index
+  operation.index = opIndex++;
+  operation.blockNum = plasma.hashBlock || 0;
+  operation.forkHash = plasma.hashLastIBlock || null;
+  
+  // Send to honeygraph if client is available
+  if (honeygraphClient) {
+    // Handle both WebSocket and HTTP clients
+    if (typeof honeygraphClient.trackOperation === 'function') {
+      honeygraphClient.trackOperation(operation);
+    } else if (typeof honeygraphClient.addOperation === 'function') {
+      honeygraphClient.addOperation(operation);
+    }
+  }
+}
+
+// Export function to set honeygraph client
+export function setHoneygraphClient(client) {
+  honeygraphClient = client;
+}
+
 export var block = {
   ops: [],
   root: '',
   prev_root: '',
-  chain: [],
-  
-  // Hook for Dgraph integration
-  trackOperation: function(op) {
-    // Skip 'W' write markers
-    if (op === 'W') return;
-    
-    // Parse stringified operations
-    let operation;
-    try {
-      operation = typeof op === 'string' ? JSON.parse(op) : op;
-    } catch (e) {
-      return; // Skip invalid operations
-    }
-    
-    // Track operation with index
-    operation.index = opIndex++;
-    operation.blockNum = plasma.hashBlock || 0;
-    operation.forkHash = plasma.hashLastIBlock || null;
-    
-    // Send to honeygraph if client is available
-    if (honeygraphClient) {
-      // Handle both WebSocket and HTTP clients
-      if (typeof honeygraphClient.trackOperation === 'function') {
-        honeygraphClient.trackOperation(operation);
-      } else if (typeof honeygraphClient.addOperation === 'function') {
-        honeygraphClient.addOperation(operation);
-      }
-    }
-  }
+  chain: []
 }
 export var status = {
   cleaner: [],

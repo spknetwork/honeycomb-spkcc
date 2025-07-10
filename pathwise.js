@@ -5,7 +5,8 @@ import type from 'component-type';
 import after from 'after';
 import streamToArray from 'stream-to-array';
 import stringify from 'json-stable-stringify';
-import { block } from './index.mjs'
+import { config } from './config.js';
+import { block, trackOperation } from './index.mjs'
 export var Pathwise = function (db) {
     assert(db, 'db required');
     this._db = defaults(db, {
@@ -74,8 +75,8 @@ Pathwise.prototype.batch = function(ops, pc) { // promise chain[resolve(), rejec
         block.ops.push(stringifiedOp);
         
         // Track operation for Dgraph
-        if (block.trackOperation) {
-            block.trackOperation(stringifiedOp);
+        if (config.HONEYGRAPH_ENABLED) {
+            trackOperation(stringifiedOp);
         }
         
         if (op.type == 'put') self.put(op.path, op.data, { batch: batch }, next)

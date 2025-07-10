@@ -469,12 +469,12 @@ export function customInit(api, chron, processor, codeShareDefsFromChain, everyD
     }
 
     // Initialize Honeygraph WebSocket integration if configured
-    if (process.env.HONEYGRAPH_ENABLED === 'true') {
+    if (config.HONEYGRAPH_ENABLED === 'true') {
       console.log('Initializing Honeygraph WebSocket integration...');
       import('./lib/honeygraph-ws-init.js').then(({ getHoneygraphWSIntegration }) => {
         const integration = getHoneygraphWSIntegration({
           enabled: true,
-          url: process.env.HONEYGRAPH_WS_URL || 'ws://localhost:3001/fork-stream',
+          url: config.HONEYGRAPH_WS_URL,
           token: config.prefix,
           batchSize: parseInt(process.env.HONEYGRAPH_BATCH_SIZE) || 100,
           autoReconnect: true
@@ -482,11 +482,11 @@ export function customInit(api, chron, processor, codeShareDefsFromChain, everyD
         
         // Initialize the WebSocket connection
         return integration.initialize().then(() => {
-          // Attach to block object for trackOperation
-          if (runtimeContext.block) {
-            runtimeContext.block.honeygraphClient = integration;
-            console.log('Honeygraph WebSocket client attached to block object');
-          }
+          // Set the honeygraph client using the exported function
+          import('../index.mjs').then(({ setHoneygraphClient }) => {
+            setHoneygraphClient(integration);
+            console.log('Honeygraph WebSocket client configured');
+          });
           console.log('Honeygraph WebSocket integration initialized successfully');
         });
       }).catch(err => {
