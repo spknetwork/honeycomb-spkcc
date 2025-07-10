@@ -483,7 +483,7 @@ export function customInit(api, chron, processor, codeShareDefsFromChain, everyD
         // Initialize the WebSocket connection
         return integration.initialize().then(() => {
           // Set the honeygraph client using the exported function
-          import('../index.mjs').then(({ setHoneygraphClient }) => {
+          import('./index.mjs').then(({ setHoneygraphClient }) => {
             setHoneygraphClient(integration);
             console.log('Honeygraph WebSocket client configured');
           });
