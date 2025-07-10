@@ -3,6 +3,10 @@ import { getPathNum } from "./../getPathObj.js"
 import { postToDiscord } from './../discord.js'
 import { updatePromote } from './../edb.js'
 
+export function sanity_check(username){
+    return /^(?=.{3,16}$)[a-z][a-z0-9-]{1,}[a-z0-9](\.[a-z][a-z0-9-]{1,}[a-z0-9])*$/.test(username)
+}
+
 export const send = (json, from, active, pc) => {
     let fbalp = getPathNum(['balances', from]),
         tbp = getPathNum(['balances', json.to]); //to balance promise
@@ -12,7 +16,7 @@ export const send = (json, from, active, pc) => {
                 tbal = bals[1],
                 ops = [],
                 send = parseInt(json.amount);
-            if (json.to && typeof json.to == 'string' && send > 0 && fbal >= send && active && json.to != from) { //balance checks
+            if (json.to && typeof sanity_check(json.to) && send > 0 && fbal >= send && active && json.to != from) { //balance checks
                 ops.push({ type: 'put', path: ['balances', from], data: parseInt(fbal - send) });
                 ops.push({ type: 'put', path: ['balances', json.to], data: parseInt(tbal + send) });
                 let msg = `@${from}| Sent @${json.to} ${parseFloat(parseInt(json.amount) / 1000).toFixed(3)} ${Config("TOKEN")}`

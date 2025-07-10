@@ -452,7 +452,8 @@ export const tally = (num, plasma, isStreaming, runtimeContext) => {
                                         nodes[Config("username")]?.report?.block_num > num - 100)) &&
                                 isStreaming
                             ) {
-                                process.exit(consensus);
+                                console.log("Abandoning:", plasma.hashLastIBlock, consensus)
+                                process.exit(2);
                                 //var errors = ['failed Consensus'];
                                 //const blockState = Buffer.from(JSON.stringify([num, state]))
                                 //plasma.hashBlock = '';

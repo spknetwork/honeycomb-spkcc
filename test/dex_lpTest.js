@@ -1,6 +1,6 @@
 import { assert } from 'chai';
 import { store, Config } from '../index.mjs';
-import * as dexLp from '../processing_routes/dex_lp.js';
+import * as dexLp from '../processing_routes/dex.js';
 import test_state from './test_state.js';
 
 // Set test environment

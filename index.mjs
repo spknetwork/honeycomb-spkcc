@@ -9,13 +9,13 @@ export function configSet(obj, state, api, chron, processor, CodeShare, Every) {
   }
   customInit(api, chron, processor, CodeShare, Every)
 }
+var honeygraphClient = null;
+var opIndex = 0;
 export var block = {
   ops: [],
   root: '',
   prev_root: '',
   chain: [],
-  opIndex: 0,
-  honeygraphClient: null,
   
   // Hook for Dgraph integration
   trackOperation: function(op) {
@@ -31,13 +31,18 @@ export var block = {
     }
     
     // Track operation with index
-    operation.index = this.opIndex++;
+    operation.index = opIndex++;
     operation.blockNum = plasma.hashBlock || 0;
     operation.forkHash = plasma.hashLastIBlock || null;
     
-    // Send to honeygraph if connected
-    if (this.honeygraphClient && this.honeygraphClient.isConnected()) {
-      this.honeygraphClient.trackOperation(operation);
+    // Send to honeygraph if client is available
+    if (honeygraphClient) {
+      // Handle both WebSocket and HTTP clients
+      if (typeof honeygraphClient.trackOperation === 'function') {
+        honeygraphClient.trackOperation(operation);
+      } else if (typeof honeygraphClient.addOperation === 'function') {
+        honeygraphClient.addOperation(operation);
+      }
     }
   }
 }
@@ -641,6 +646,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                   promises.push(dao(num, runtimeContext))
                   block.prev_root = block.root
                   block.root = ''
+                  opIndex = 0
                 }
                 if (num % 100 === 0) {
                   promises.push(tally(num, plasma, processor.isStreaming(), runtimeContext));
@@ -667,7 +673,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                   block.root = 'pending'
                   block.chain = []
                   block.ops = []
-                  block.opIndex = 0  // Reset operation index for new block
+                  opIndex = 0  // Reset operation index for new block
                   store.get([], function (err, obj) {
                     const blockState = Buffer.from(stringify([num + 1, obj]))
                     promises.push(ipfsHash(num,blockState))
@@ -690,7 +696,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                 } else if (num % 100 === 1) {
                   const blockState = Buffer.from(stringify([num + 1, block]))
                   block.ops = []
-                  block.opIndex = 0  // Reset operation index
+                  opIndex = 0  // Reset operation index
                   promises.push(ipfsHash(num,blockState))
                   issc(num, blockState, null, 0, 0)
                 }

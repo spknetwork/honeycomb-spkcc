@@ -167,6 +167,19 @@ export function dao(num, runtimeContext) {
                         mnode[node].yays = 0
                         const gbal = gov[node] || 0
                         mnode[node].g = gbal
+                        
+                        // Track LP provider metrics before reset
+                        if (mnode[node].vS || mnode[node].CCR) {
+                            if (!stats.lpProviders) stats.lpProviders = {}
+                            stats.lpProviders[node] = {
+                                vS: mnode[node].vS || 0,
+                                CCR: mnode[node].CCR || 0,
+                                g: gbal
+                            }
+                            // Reset daily metrics
+                            mnode[node].vS = 0
+                            mnode[node].CCR = 0
+                        }
                         const feevote = mnode[node].bidRate > 1000 || mnode[node].bidRate < 0 || typeof mnode[node].bidRate != 'number' ? 1000 : mnode[node].bidRate
                         const dmvote = typeof mnode[node].dm != 'number' ? 10000 : mnode[node].dm
                         const dsvote = typeof mnode[node].ds != 'number' ? 0 : mnode[node].ds
@@ -471,7 +484,48 @@ export function dao(num, runtimeContext) {
                         stats.volumeEMA.hbdRatio = (stats.volumeEMA.hbd.token / totalTokenEMA).toFixed(3);
                     }
                     
-                    post = post + `*****\n### DEX Report\n#### Prices:\n* ${parseFloat(dex.hive.tick).toFixed(3)} HIVE per ${Config("TOKEN")}\n* ${parseFloat(dex.hbd.tick).toFixed(3)} HBD per ${Config("TOKEN")}\n#### Daily Volume:\n* ${parseFloat(vol / 1000).toFixed(3)} ${Config("TOKEN")}\n* ${parseFloat(vols / 1000).toFixed(3)} HIVE\n* ${parseFloat(parseInt(volhbd) / 1000).toFixed(3)} HBD\n#### Volume EMAs:\n* HIVE Market: ${parseFloat(stats.volumeEMA.hive.token / 1000).toFixed(3)} ${Config("TOKEN")} (${stats.volumeEMA.hiveRatio || '0.500'})\n* HBD Market: ${parseFloat(stats.volumeEMA.hbd.token / 1000).toFixed(3)} ${Config("TOKEN")} (${stats.volumeEMA.hbdRatio || '0.500'})\n*****\n`;
+                    post = post + `*****\n### DEX Report\n#### Prices:\n* ${parseFloat(dex.hive.tick).toFixed(3)} HIVE per ${Config("TOKEN")}\n* ${parseFloat(dex.hbd.tick).toFixed(3)} HBD per ${Config("TOKEN")}\n#### Daily Volume:\n* ${parseFloat(vol / 1000).toFixed(3)} ${Config("TOKEN")}\n* ${parseFloat(vols / 1000).toFixed(3)} HIVE\n* ${parseFloat(parseInt(volhbd) / 1000).toFixed(3)} HBD\n#### Volume EMAs:\n* HIVE Market: ${parseFloat(stats.volumeEMA.hive.token / 1000).toFixed(3)} ${Config("TOKEN")} (${stats.volumeEMA.hiveRatio || '0.500'})\n* HBD Market: ${parseFloat(stats.volumeEMA.hbd.token / 1000).toFixed(3)} ${Config("TOKEN")} (${stats.volumeEMA.hbdRatio || '0.500'})\n`;
+                    
+                    // LP Pool Status
+                    if (dex.hive.pool || dex.hbd.pool) {
+                        post = post + `#### LP Pools:\n`;
+                        if (dex.hive.pool) {
+                            post = post + `* HIVE Pool: ${parseFloat((dex.hive.pool.token || 0) / 1000).toFixed(3)} ${Config("TOKEN")} / ${parseFloat((dex.hive.pool.hive || 0) / 1000).toFixed(3)} HIVE\n`;
+                        }
+                        if (dex.hbd.pool) {
+                            post = post + `* HBD Pool: ${parseFloat((dex.hbd.pool.token || 0) / 1000).toFixed(3)} ${Config("TOKEN")} / ${parseFloat((dex.hbd.pool.hbd || 0) / 1000).toFixed(3)} HBD\n`;
+                        }
+                        post = post + `* Total Collateralized Value: ${parseFloat((stats.MSHeld?.VALUE || 0) / 1000).toFixed(3)} HBD\n`;
+                    }
+                    
+                    // LP Provider Metrics
+                    if (stats.lpProviders && Object.keys(stats.lpProviders).length > 0) {
+                        post = post + `#### LP Provider Performance:\n`;
+                        const sortedProviders = Object.entries(stats.lpProviders)
+                            .sort((a, b) => (b[1].vS + b[1].CCR) - (a[1].vS + a[1].CCR))
+                            .slice(0, 5); // Top 5
+                        
+                        for (const [provider, metrics] of sortedProviders) {
+                            const _at = _atfun(provider);
+                            post = post + `* ${_at}${provider}: vS: ${metrics.vS}, CCR: ${metrics.CCR}\n`;
+                        }
+                    }
+                    
+                    post = post + `*****\n`;
+                    
+                    // Balance LP pools if feature enabled
+                    if (Config("features").lp) {
+                        const { dex_lp_action } = await import('./processing_routes/dex_lp.js');
+                        try {
+                            const lpOps = await dex_lp_action({action: "balance_pools"});
+                            if (lpOps && lpOps.length > 0) {
+                                daops = daops.concat(lpOps);
+                                console.log(`LP Balancing: ${lpOps.length} operations queued`);
+                            }
+                        } catch (e) {
+                            console.log('LP Balancing error:', e);
+                        }
+                    }
                 }
                 if (!stats.movingWeight) stats.movingWeight = {}
                 stats.movingWeight.dailyPool = bals.ra

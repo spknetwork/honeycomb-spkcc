@@ -5,6 +5,7 @@ import { NFT, Chron, Watchdog, Log, Base64, Base58, Base38, DEX, verifySig } fro
 import { burn, forceCancel, add, addc, addMT, addCol, addGov, deletePointer, credit, nodeUpdate, penalty, chronAssign, hashThis, isEmpty, naizer, release } from './lil_ops.js'
 import { getPathObj, getPathNum, getPathSome } from './getPathObj.js'
 import { postToDiscord } from './discord.js'
+import { block } from './index.mjs';
 import fetch from 'node-fetch';
 import WebSocket from 'ws';
 import stringify from 'json-stable-stringify';
@@ -50,7 +51,8 @@ export function initializeContext(processorToUse, storeToUse, statusToUse, versi
     verifySig, 
     CodeShare, // Uses the current module-level CodeShare
     Every,     // Uses the current module-level Every
-    processor: processorToUse 
+    processor: processorToUse,
+    block      // Add block object for Honeygraph integration
   };
 
   console.log('runtimeContext initialized/updated');
@@ -464,6 +466,32 @@ export function customInit(api, chron, processor, codeShareDefsFromChain, everyD
       console.log('Context reinitialized with new CodeShare and Every');
     } else {
       console.warn('Cannot reinitialize context - runtimeContext not properly set');
+    }
+
+    // Initialize Honeygraph WebSocket integration if configured
+    if (process.env.HONEYGRAPH_ENABLED === 'true') {
+      console.log('Initializing Honeygraph WebSocket integration...');
+      import('./lib/honeygraph-ws-init.js').then(({ getHoneygraphWSIntegration }) => {
+        const integration = getHoneygraphWSIntegration({
+          enabled: true,
+          url: process.env.HONEYGRAPH_WS_URL || 'ws://localhost:3001/fork-stream',
+          token: config.prefix,
+          batchSize: parseInt(process.env.HONEYGRAPH_BATCH_SIZE) || 100,
+          autoReconnect: true
+        });
+        
+        // Initialize the WebSocket connection
+        return integration.initialize().then(() => {
+          // Attach to block object for trackOperation
+          if (runtimeContext.block) {
+            runtimeContext.block.honeygraphClient = integration;
+            console.log('Honeygraph WebSocket client attached to block object');
+          }
+          console.log('Honeygraph WebSocket integration initialized successfully');
+        });
+      }).catch(err => {
+        console.error('Failed to initialize Honeygraph WebSocket integration:', err);
+      });
     }
 
     resolve();
