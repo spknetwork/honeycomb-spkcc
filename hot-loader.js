@@ -469,6 +469,10 @@ export function customInit(api, chron, processor, codeShareDefsFromChain, everyD
     }
 
     // Initialize Honeygraph WebSocket integration if configured
+    console.log('Checking honeygraph initialization - HONEYGRAPH_ENABLED:', process.env.HONEYGRAPH_ENABLED, 'type:', typeof process.env.HONEYGRAPH_ENABLED);
+    console.log('_honeygraphInitialized flag:', global._honeygraphInitialized);
+    // Temporarily reset flag for debugging
+    delete global._honeygraphInitialized;
     if (process.env.HONEYGRAPH_ENABLED === 'true' && !global._honeygraphInitialized) {
       console.log('Initializing Honeygraph WebSocket integration...');
       global._honeygraphInitialized = true; // Prevent multiple initializations

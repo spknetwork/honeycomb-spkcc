@@ -1,4 +1,4 @@
-require('dotenv').Config();
+require('dotenv').config();
 const { getPathObj, getPathNum } = require('./getPathObj')
 const { store } = require("./index");
 const { chronAssign } = require('./lil_ops')
