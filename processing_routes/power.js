@@ -27,6 +27,7 @@ export const power_up = (json, from, active, pc) => {
             } else {
                 ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: `@${from}| Invalid power up` });
             }
+            if (process.env.npm_lifecycle_event == 'test') pc[2] = ops
             store.batch(ops, pc);
         })
         .catch(e => { console.log(e); });
@@ -167,6 +168,7 @@ export const power_grant = (json, from, active, pc) => {
                 if (Config("hookurl") || Config("status")) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
                 ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
             }
+            if (process.env.npm_lifecycle_event == 'test') pc[2] = ops
             store.batch(ops, pc);
         })
         .catch(e => { console.log(e); });
@@ -214,6 +216,7 @@ export const power_down = (json, from, active, pc) => {
                         const msg = `@${from}| Powered down ${parseFloat(amount / 1000).toFixed(3)} ${Config("TOKEN")}`
                         if (Config("hookurl") || Config("status")) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
                         ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
+                        if (process.env.npm_lifecycle_event == 'test') pc[2] = ops
                         store.batch(ops, pc);
                     });
             } else if (typeof amount == 'number' && amount == 0 && active) {
@@ -223,11 +226,13 @@ export const power_down = (json, from, active, pc) => {
                 const msg = `@${from}| Canceled Power Down`
                 if (Config("hookurl") || Config("status")) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
                 ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
+                if (process.env.npm_lifecycle_event == 'test') pc[2] = ops
                 store.batch(ops, pc);
             } else {
                 const msg = `@${from}| Invalid Power Down`
                 if (Config("hookurl") || Config("status")) postToDiscord(msg, `${json.block_num}:${json.transaction_id}`)
                 ops.push({ type: 'put', path: ['feed', `${json.block_num}:${json.transaction_id}`], data: msg });
+                if (process.env.npm_lifecycle_event == 'test') pc[2] = ops
                 store.batch(ops, pc);
             }
 

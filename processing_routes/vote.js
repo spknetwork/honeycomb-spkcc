@@ -57,6 +57,7 @@ export const vote = (json, pc) => {
                             }
                             ops.push({ type: 'put', path: ['up', json.voter], data: weights.up })
                             ops.push({ type: 'put', path: ['posts', `${json.author}/${json.permlink}`], data: p })
+                            if (process.env.npm_lifecycle_event == 'test') pc[2] = ops
                             store.batch(ops, pc)
                         }
                     })

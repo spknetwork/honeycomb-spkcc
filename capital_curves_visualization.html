@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Capital Curves and Liquidity Limits Visualization</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            margin: 20px;
+            background-color: #f5f5f5;
+        }
+        .container {
+            max-width: 1600px;
+            margin: 0 auto;
+        }
+        .chart-container {
+            background: white;
+            padding: 20px;
+            margin: 20px 0;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .controls {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-bottom: 20px;
+        }
+        .control-group {
+            display: inline-block;
+            margin: 10px 20px 10px 0;
+        }
+        label {
+            display: inline-block;
+            width: 200px;
+            font-weight: bold;
+        }
+        input[type="range"] {
+            width: 200px;
+        }
+        .value-display {
+            display: inline-block;
+            width: 100px;
+            text-align: right;
+        }
+        .grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 20px;
+        }
+        .status {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            margin-top: 20px;
+        }
+        .status-item {
+            display: flex;
+            justify-content: space-between;
+            margin: 10px 0;
+            padding: 5px 0;
+            border-bottom: 1px solid #eee;
+        }
+        .warning {
+            color: #ff6b6b;
+            font-weight: bold;
+        }
+        .safe {
+            color: #51cf66;
+            font-weight: bold;
+        }
+        h1, h2 {
+            color: #333;
+        }
+        .info-box {
+            background: #e3f2fd;
+            padding: 15px;
+            border-radius: 5px;
+            margin: 10px 0;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Capital Curves and Liquidity Limits Visualization</h1>
+        
+        <div class="info-box">
+            <strong>Key Concept:</strong> Safety Limit = Governance tokens held by multisig threshold weight<br>
+            Maximum Safe HIVE/HBD = Safety Limit × Current Token Price<br>
+            This ensures liquid assets never exceed what governance token holders can control.
+        </div>
+
+        <div class="controls">
+            <h2>Interactive Controls</h2>
+            
+            <div class="control-group">
+                <label>Governance Tokens (Safety Limit):</label>
+                <input type="range" id="safetyLimit" min="100000" max="10000000" value="5100000" step="100000">
+                <span class="value-display" id="safetyLimitValue">5,100,000</span>
+            </div>
+            
+            <div class="control-group">
+                <label>Token Supply:</label>
+                <input type="range" id="tokenSupply" min="0" max="2550000" value="500000" step="10000">
+                <span class="value-display" id="tokenSupplyValue">500,000</span>
+            </div>
+            
+            <div class="control-group">
+                <label>HIVE in System:</label>
+                <input type="range" id="hiveHoldings" min="0" max="1000000" value="100000" step="10000">
+                <span class="value-display" id="hiveHoldingsValue">100,000</span>
+            </div>
+            
+            <div class="control-group">
+                <label>HBD in System:</label>
+                <input type="range" id="hbdHoldings" min="0" max="200000" value="20000" step="1000">
+                <span class="value-display" id="hbdHoldingsValue">20,000</span>
+            </div>
+            
+            <div class="control-group">
+                <label>HIVE/HBD Price Ratio:</label>
+                <input type="range" id="hivePerHbd" min="2" max="10" value="5" step="0.1">
+                <span class="value-display" id="hivePerHbdValue">5.0</span>
+            </div>
+            
+            <div class="control-group">
+                <label>Base Price (HIVE/token):</label>
+                <input type="range" id="basePrice" min="0.01" max="0.5" value="0.1" step="0.01">
+                <span class="value-display" id="basePriceValue">0.100</span>
+            </div>
+        </div>
+
+        <div class="grid">
+            <div class="chart-container">
+                <h2>Bonding Curve & Token Price</h2>
+                <canvas id="bondingCurveChart"></canvas>
+            </div>
+            
+            <div class="chart-container">
+                <h2>Collateral Safety Limits</h2>
+                <canvas id="collateralChart"></canvas>
+            </div>
+            
+            <div class="chart-container">
+                <h2>System Exposure vs Limits</h2>
+                <canvas id="exposureChart"></canvas>
+            </div>
+            
+            <div class="chart-container">
+                <h2>Price Impact on Capacity</h2>
+                <canvas id="priceImpactChart"></canvas>
+            </div>
+        </div>
+
+        <div class="status">
+            <h2>System Status</h2>
+            <div class="status-item">
+                <span>Current Token Price:</span>
+                <span id="currentPrice">0.100 HIVE</span>
+            </div>
+            <div class="status-item">
+                <span>Maximum Safe HIVE Value:</span>
+                <span id="maxSafeHive">510,000 HIVE</span>
+            </div>
+            <div class="status-item">
+                <span>Current Total Exposure:</span>
+                <span id="totalExposure">200,000 HIVE</span>
+            </div>
+            <div class="status-item">
+                <span>Available Capacity:</span>
+                <span id="availableCapacity">310,000 HIVE</span>
+            </div>
+            <div class="status-item">
+                <span>System Status:</span>
+                <span id="systemStatus" class="safe">SAFE</span>
+            </div>
+            <div class="status-item">
+                <span>Max Tokens Mintable:</span>
+                <span id="maxMintable">2,550,000</span>
+            </div>
+            <div class="status-item">
+                <span>Tokens Remaining:</span>
+                <span id="tokensRemaining">2,050,000</span>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Chart instances
+        let bondingCurveChart, collateralChart, exposureChart, priceImpactChart;
+        
+        // System parameters
+        let params = {
+            safetyLimit: 5100000,
+            tokenSupply: 500000,
+            hiveHoldings: 100000,
+            hbdHoldings: 20000,
+            hivePerHbd: 5.0,
+            basePrice: 0.1
+        };
+        
+        // Calculate bonding curve price
+        function bondingCurvePrice(supply, maxSupply, basePrice) {
+            const supplyRatio = supply / maxSupply;
+            const curveMultiplier = 1 + Math.pow(supplyRatio, 2);
+            return basePrice * curveMultiplier;
+        }
+        
+        // Calculate total cost to buy tokens using integral
+        function bondingCurveCost(fromSupply, toSupply, maxSupply, basePrice) {
+            const amount = toSupply - fromSupply;
+            const fromRatio = fromSupply / maxSupply;
+            const toRatio = toSupply / maxSupply;
+            
+            const linearCost = basePrice * amount;
+            const quadraticCost = basePrice * amount * (fromRatio + toRatio) / 2;
+            const cubicCost = basePrice * amount * (Math.pow(fromRatio, 2) + fromRatio * toRatio + Math.pow(toRatio, 2)) / 3;
+            
+            return linearCost + quadraticCost + cubicCost;
+        }
+        
+        // Initialize charts
+        function initCharts() {
+            // Bonding Curve Chart
+            const bondingCtx = document.getElementById('bondingCurveChart').getContext('2d');
+            bondingCurveChart = new Chart(bondingCtx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Token Price (HIVE)',
+                        borderColor: 'rgb(75, 192, 192)',
+                        backgroundColor: 'rgba(75, 192, 192, 0.1)',
+                        tension: 0.1
+                    }, {
+                        label: 'Current Supply',
+                        borderColor: 'rgb(255, 99, 132)',
+                        borderWidth: 3,
+                        pointRadius: 8,
+                        pointBackgroundColor: 'rgb(255, 99, 132)',
+                        showLine: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            title: {
+                                display: true,
+                                text: 'Token Supply'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Price (HIVE per token)'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Collateral Chart
+            const collateralCtx = document.getElementById('collateralChart').getContext('2d');
+            collateralChart = new Chart(collateralCtx, {
+                type: 'bar',
+                data: {
+                    labels: ['Governance Tokens', 'Max Safe HIVE', 'Current HIVE Exposure'],
+                    datasets: [{
+                        label: 'Values',
+                        backgroundColor: ['rgba(54, 162, 235, 0.5)', 'rgba(75, 192, 192, 0.5)', 'rgba(255, 99, 132, 0.5)'],
+                        borderColor: ['rgb(54, 162, 235)', 'rgb(75, 192, 192)', 'rgb(255, 99, 132)'],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        y: {
+                            beginAtZero: true,
+                            title: {
+                                display: true,
+                                text: 'Value'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Exposure Chart
+            const exposureCtx = document.getElementById('exposureChart').getContext('2d');
+            exposureChart = new Chart(exposureCtx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Max Safe HIVE',
+                        borderColor: 'rgb(75, 192, 192)',
+                        borderDash: [5, 5],
+                        borderWidth: 2
+                    }, {
+                        label: 'Total Exposure',
+                        borderColor: 'rgb(255, 206, 86)',
+                        backgroundColor: 'rgba(255, 206, 86, 0.1)',
+                        fill: true
+                    }, {
+                        label: 'Critical Limit',
+                        borderColor: 'rgb(255, 99, 132)',
+                        borderDash: [10, 5],
+                        borderWidth: 2
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            title: {
+                                display: true,
+                                text: 'Token Supply'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'HIVE Value'
+                            }
+                        }
+                    }
+                }
+            });
+            
+            // Price Impact Chart
+            const priceImpactCtx = document.getElementById('priceImpactChart').getContext('2d');
+            priceImpactChart = new Chart(priceImpactCtx, {
+                type: 'line',
+                data: {
+                    datasets: [{
+                        label: 'Max Safe HIVE Capacity',
+                        borderColor: 'rgb(153, 102, 255)',
+                        backgroundColor: 'rgba(153, 102, 255, 0.1)',
+                        tension: 0.1
+                    }, {
+                        label: 'Current Price Point',
+                        borderColor: 'rgb(255, 159, 64)',
+                        borderWidth: 3,
+                        pointRadius: 8,
+                        pointBackgroundColor: 'rgb(255, 159, 64)',
+                        showLine: false
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    scales: {
+                        x: {
+                            type: 'linear',
+                            title: {
+                                display: true,
+                                text: 'Token Price (HIVE)'
+                            }
+                        },
+                        y: {
+                            title: {
+                                display: true,
+                                text: 'Maximum Safe HIVE Holdings'
+                            }
+                        }
+                    }
+                }
+            });
+        }
+        
+        // Update all charts and status
+        function updateVisualization() {
+            const maxSupply = params.safetyLimit / 2;
+            const currentPrice = bondingCurvePrice(params.tokenSupply, maxSupply, params.basePrice);
+            const maxSafeHive = params.safetyLimit * currentPrice;
+            const totalExposure = params.hiveHoldings + (params.hbdHoldings * params.hivePerHbd);
+            const availableCapacity = maxSafeHive - totalExposure;
+            
+            // Update status display
+            document.getElementById('currentPrice').textContent = currentPrice.toFixed(3) + ' HIVE';
+            document.getElementById('maxSafeHive').textContent = Math.floor(maxSafeHive).toLocaleString() + ' HIVE';
+            document.getElementById('totalExposure').textContent = Math.floor(totalExposure).toLocaleString() + ' HIVE';
+            document.getElementById('availableCapacity').textContent = Math.floor(availableCapacity).toLocaleString() + ' HIVE';
+            document.getElementById('maxMintable').textContent = maxSupply.toLocaleString();
+            document.getElementById('tokensRemaining').textContent = (maxSupply - params.tokenSupply).toLocaleString();
+            
+            // Update system status
+            const statusElement = document.getElementById('systemStatus');
+            if (availableCapacity < 0) {
+                statusElement.textContent = 'CRITICAL - OVER LIMIT';
+                statusElement.className = 'warning';
+            } else if (availableCapacity < maxSafeHive * 0.1) {
+                statusElement.textContent = 'WARNING - NEAR LIMIT';
+                statusElement.className = 'warning';
+            } else {
+                statusElement.textContent = 'SAFE';
+                statusElement.className = 'safe';
+            }
+            
+            // Update Bonding Curve Chart
+            const bondingData = [];
+            const steps = 100;
+            for (let i = 0; i <= steps; i++) {
+                const supply = (maxSupply * i) / steps;
+                const price = bondingCurvePrice(supply, maxSupply, params.basePrice);
+                bondingData.push({ x: supply, y: price });
+            }
+            
+            bondingCurveChart.data.datasets[0].data = bondingData;
+            bondingCurveChart.data.datasets[1].data = [{ x: params.tokenSupply, y: currentPrice }];
+            bondingCurveChart.update();
+            
+            // Update Collateral Chart
+            collateralChart.data.datasets[0].data = [
+                params.safetyLimit,
+                maxSafeHive,
+                totalExposure
+            ];
+            collateralChart.update();
+            
+            // Update Exposure Chart
+            const exposureData = [];
+            const safeData = [];
+            const criticalData = [];
+            
+            for (let i = 0; i <= steps; i++) {
+                const supply = (maxSupply * i) / steps;
+                const price = bondingCurvePrice(supply, maxSupply, params.basePrice);
+                const safeLine = params.safetyLimit * price;
+                const exposure = params.hiveHoldings + (params.hbdHoldings * params.hivePerHbd) + (supply * price * 0.3); // Assume 30% in LP
+                
+                exposureData.push({ x: supply, y: exposure });
+                safeData.push({ x: supply, y: safeLine });
+                criticalData.push({ x: supply, y: safeLine * 0.9 }); // 90% warning threshold
+            }
+            
+            exposureChart.data.datasets[0].data = safeData;
+            exposureChart.data.datasets[1].data = exposureData;
+            exposureChart.data.datasets[2].data = criticalData;
+            exposureChart.update();
+            
+            // Update Price Impact Chart
+            const priceImpactData = [];
+            const currentPricePoint = [];
+            
+            for (let i = 1; i <= 100; i++) {
+                const price = params.basePrice * i / 10; // 0.01 to 1.0 HIVE
+                const capacity = params.safetyLimit * price;
+                priceImpactData.push({ x: price, y: capacity });
+            }
+            
+            currentPricePoint.push({ x: currentPrice, y: maxSafeHive });
+            
+            priceImpactChart.data.datasets[0].data = priceImpactData;
+            priceImpactChart.data.datasets[1].data = currentPricePoint;
+            priceImpactChart.update();
+        }
+        
+        // Set up event listeners
+        function setupControls() {
+            const controls = [
+                { id: 'safetyLimit', param: 'safetyLimit', display: 'safetyLimitValue' },
+                { id: 'tokenSupply', param: 'tokenSupply', display: 'tokenSupplyValue' },
+                { id: 'hiveHoldings', param: 'hiveHoldings', display: 'hiveHoldingsValue' },
+                { id: 'hbdHoldings', param: 'hbdHoldings', display: 'hbdHoldingsValue' },
+                { id: 'hivePerHbd', param: 'hivePerHbd', display: 'hivePerHbdValue' },
+                { id: 'basePrice', param: 'basePrice', display: 'basePriceValue' }
+            ];
+            
+            controls.forEach(control => {
+                const element = document.getElementById(control.id);
+                const display = document.getElementById(control.display);
+                
+                element.addEventListener('input', (e) => {
+                    const value = parseFloat(e.target.value);
+                    params[control.param] = value;
+                    
+                    // Format display
+                    if (control.param === 'hivePerHbd' || control.param === 'basePrice') {
+                        display.textContent = value.toFixed(3);
+                    } else {
+                        display.textContent = Math.floor(value).toLocaleString();
+                    }
+                    
+                    // Update max supply for token supply slider
+                    if (control.param === 'safetyLimit') {
+                        document.getElementById('tokenSupply').max = value / 2;
+                    }
+                    
+                    updateVisualization();
+                });
+            });
+        }
+        
+        // Initialize everything
+        window.addEventListener('load', () => {
+            initCharts();
+            setupControls();
+            updateVisualization();
+        });
+    </script>
+</body>
+</html>

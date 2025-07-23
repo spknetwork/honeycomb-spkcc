@@ -36,7 +36,6 @@ export function dao(num, runtimeContext) {
             Pnodes = getPathObj(['markets', 'node']),
             Pstats = getPathObj(['stats']),
             Pdelegations = getPathObj(['delegations']),
-            Pico = getPathObj(['ico']),
             Pdex = getPathObj(['dex']),
             Pbr = getPathObj(['br']),
             Ppbal = getPathNum(['pow', 't']),
@@ -47,11 +46,10 @@ export function dao(num, runtimeContext) {
             Prnfts = getPathObj(['rnfts']),
             Pgov = getPathObj(['gov']),
             Pdistro = Distro()
-        Promise.all([Pnews, Pbals, Prunners, Pnodes, Pstats, Pdelegations, Pico, Pdex, Pbr, Ppbal, Pnomen, Pposts, Pfeed, Ppaid, Prnfts, Pdistro, Pcbals, Pgov]).then(async function (v) {
+        Promise.all([Pnews, Pbals, Prunners, Pnodes, Pstats, Pdelegations, Pdex, Pbr, Ppbal, Pnomen, Pposts, Pfeed, Ppaid, Prnfts, Pdistro, Pcbals, Pgov]).then(async function (v) {
             daoDels.push({ type: 'del', path: ['postQueue'] });
             daoDels.push({ type: 'del', path: ['br'] });
             daoDels.push({ type: 'del', path: ['rolling'] });
-            daoDels.push({ type: 'del', path: ['ico'] });
             daoDels.push({ type: 'del', path: ['stats'] });
             const dels = new Promise((res, rej) => {
                 store.batch(daoDels, [res, rej, 0])
@@ -60,22 +58,21 @@ export function dao(num, runtimeContext) {
                 news = v[0] + '*****\n';
                 const header = post + news;
                 var bals = v[1],
-                    cbals = v[16],
-                    gov = v[17],
+                    cbals = v[15],
+                    gov = v[16],
                     runners = v[2],
                     mnode = v[3],
                     stats = v[4],
                     deles = v[5],
-                    ico = v[6],
-                    dex = v[7],
-                    br = v[8],
-                    powBal = v[9],
-                    nomention = v[10],
-                    cpost = v[11],
-                    feedCleaner = v[12],
-                    paidCleaner = v[13],
-                    rnftsCleaner = v[14],
-                    dist = v[15]
+                    dex = v[6],
+                    br = v[7],
+                    powBal = v[8],
+                    nomention = v[9],
+                    cpost = v[10],
+                    feedCleaner = v[11],
+                    paidCleaner = v[12],
+                    rnftsCleaner = v[13],
+                    dist = v[14]
                 for (var i = 0; i < dist.length; i++) {
                     if (dist[i][0].split('div:')[1]) {
                         addMT(['div', dist[i][0].split('div:')[1], 'b'], dist[i][1])
@@ -296,73 +293,6 @@ export function dao(num, runtimeContext) {
                     }
                     stats[`${Config("jsonTokenName")}PerDel`] = parseFloat(k / j).toFixed(6);
                 }
-                if (Config("features").ico) {
-                    post = post + `*****\n ## ICO Status\n`;
-                    if (bals.ri < 100000000 && stats.tokenSupply < 100000000000) {
-                        stats.icoRound++;
-                        if (bals.ri == 0) {
-                            stats.tokenSupply += 100000000;
-                            bals.ri = 100000000;
-                            var ago = num - stats.outOnBlock,
-                                dil = ' seconds';
-                            if (ago !== num) {
-                                bals.rl = parseInt(ago / 30240 * 50000000);
-                                bals.ri = 100000000 - parseInt(ago / 30240 * 50000000);
-                                const newPrice = stats.icoPrice * (1 + (ago / 30240) / 2);
-                                stats.icoPrice = Math.min(MAX_ICO_PRICE, 
-                                                     Math.max(MIN_ICO_PRICE, newPrice));
-                            }
-                            if (ago > 20) {
-                                dil = ' minutes';
-                                ago = parseFloat(ago / 20)
-                                    .toFixed(1);
-                            } else {
-                                ago = ago * 3;
-                            }
-                            if (ago > 60) {
-                                dil = ' hours';
-                                ago = parseFloat(ago / 60)
-                                    .toFixed(1);
-                            }
-                            post = post + `### We sold out ${ago}${dil}\nThere are now ${parseFloat(bals.ri / 1000).toFixed(3)} ${Config("TOKEN")} for sale from @${Config("mainICO")} for ${parseFloat(stats.icoPrice / 1000).toFixed(3)} HIVE each.\n`;
-                        } else {
-                            var left = bals.ri;
-                            stats.tokenSupply += 100000000 - left;
-                            bals.ri = 100000000;
-                            stats.icoPrice = stats.icoPrice - (left / 1000000000); //10% max decrease
-                            if (stats.icoPrice < 1000)
-                                stats.icoPrice = 1000;
-                            post = post + `### We Sold out ${100000000 - left} today.\nThere are now ${parseFloat(bals.ri / 1000).toFixed(3)} ${Config("TOKEN")} for sale from @${Config("mainICO")} for ${parseFloat(stats.icoPrice / 1000).toFixed(3)} HIVE each.\n`;
-                        }
-                    } else {
-                        post = post + `### We have ${parseFloat(parseInt(bals.ri - 100000000) / 1000).toFixed(3)} ${Config("TOKEN")} left for sale at ${parseFloat(stats.icoPrice / 1000).toFixed(3)} HIVE in our Pre-ICO. Send your HIVE to @${Config("mainICO")} to own a piece of the community.\n`;
-                    }
-                    if (bals.rl) {
-                        var dailyICODistrobution = bals.rl,
-                            y = 0;
-                        for (let roundIndex = 0; roundIndex < ico.length; roundIndex++) {
-                            for (const participantNode in ico[roundIndex]) {
-                                y += ico[roundIndex][participantNode];
-                            }
-                        }
-                        post = post + `### ICO Over Auction Results:\n${parseFloat(bals.rl / 1000).toFixed(3)} ${Config("TOKEN")} was set aside from today's ICO to divide between people who didn't get a chance at fixed price tokens and donated ${parseFloat(y / 1000).toFixed(3)} HIVE today.\n`;
-                        for (let roundIndex = 0; roundIndex < ico.length; roundIndex++) {
-                            for (const participantNode in ico[roundIndex]) {
-                                cbals[participantNode] ? cbals[participantNode] += parseInt(ico[roundIndex][participantNode] / y * bals.rl) : cbals[participantNode] = parseInt(ico[roundIndex][participantNode] / y * bals.rl);
-                                dailyICODistrobution -= parseInt(ico[roundIndex][participantNode] / y * bals.rl);
-                                post = post + `* @${participantNode} awarded  ${parseFloat(parseInt(ico[roundIndex][participantNode] / y * bals.rl) / 1000).toFixed(3)} ${Config("TOKEN")} for ICO auction\n`;
-                                console.log(num + `:${participantNode} awarded  ${parseInt(ico[roundIndex][participantNode] / y * bals.rl)} ${Config("TOKEN")} for ICO auction`);
-                                if (roundIndex == ico.length - 1) {
-                                    cbals[participantNode] ? cbals[participantNode] += dailyICODistrobution : cbals[participantNode] = dailyICODistrobution
-                                    post = post + `* @${participantNode} awarded  ${parseFloat(parseInt(dailyICODistrobution) / 1000).toFixed(3)} ${Config("TOKEN")} for ICO auction\n`;
-                                    console.log(num + `:${participantNode} given  ${dailyICODistrobution} remainder`);
-                                }
-                            }
-                        }
-                        bals.rl = 0;
-                        ico = [];
-                    }
-                }
                 var vol = 0,
                     volhbd = 0,
                     vols = 0,
@@ -384,7 +314,7 @@ export function dao(num, runtimeContext) {
                             token: 0,    // TOKEN volume in HBD market
                             hbd: 0       // HBD volume
                         },
-                        alpha: 0.1       // EMA smoothing factor (0.1 = ~10 periods)
+                        alpha: 0.1       // EMA smoothing factor (~10 periods)
                     };
                 }
                 
@@ -515,15 +445,24 @@ export function dao(num, runtimeContext) {
                     
                     // Balance LP pools if feature enabled
                     if (Config("features").lp) {
-                        const { dex_lp_action } = await import('./processing_routes/dex_lp.js');
                         try {
+                            const { dex_lp_action } = await import('./processing_routes/dex.js');
                             const lpOps = await dex_lp_action({action: "balance_pools"});
                             if (lpOps && lpOps.length > 0) {
                                 daops = daops.concat(lpOps);
                                 console.log(`LP Balancing: ${lpOps.length} operations queued`);
+                                
+                                // Log rebalancing details to the report
+                                const rebalanceInfo = lpOps.find(op => op.path && op.path[0] === 'rebalance_log');
+                                if (rebalanceInfo && rebalanceInfo.data) {
+                                    post = post + `#### LP Pool Rebalancing:\n* ${rebalanceInfo.data.message}\n`;
+                                }
+                            } else {
+                                console.log('LP Balancing: No rebalancing needed');
                             }
                         } catch (e) {
-                            console.log('LP Balancing error:', e);
+                            console.error('LP Balancing error:', e.message || e);
+                            post = post + `#### LP Pool Rebalancing Failed:\n* Error: ${e.message || 'Unknown error'}\n`;
                         }
                     }
                 }
@@ -663,7 +602,6 @@ export function dao(num, runtimeContext) {
                                 nodes: mnode,
                                 runners,
                                 delegations: deles,
-                                ico,
                                 dex,
                                 posts: cpost,
                                 cbals,

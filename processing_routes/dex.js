@@ -12,6 +12,34 @@ import {
 import { postToDiscord } from "../discord.js"
 import stringify from "json-stable-stringify"
 
+// ===== Capital Management Configuration =====
+
+const CAPITAL_CONFIG = {
+  // Collateral Requirements
+  MIN_COLLATERAL_FOR_DISTRIBUTION: 100,     // Minimum tokens required to receive distributions
+  MIN_COLLATERAL_FOR_MULTISIG: 100000,      // Minimum tokens required for multisig participation
+  
+  // Safety Limits
+  DEFAULT_SAFETY_LIMIT: 1000,                // Default safety limit if not initialized
+  MIN_SAFETY_LIMIT: 1000,                    // Minimum safety limit enforced
+  
+  // Bonding Curve
+  BONDING_CURVE_BASE_DIVISOR: 1000,          // Divisor for base price (millihive to HIVE)
+  BONDING_CURVE_POOL_SHARE: 0.333,           // 1/3 to pool, 2/3 to providers
+  
+  // Rebalancing
+  REBALANCE_THRESHOLD: 0.05,                 // 5% deviation triggers rebalancing
+  MIN_POOL_RATIO: 0.25,                      // Minimum 25% in each market
+  MAX_REBALANCE_AMOUNT: 0.5,                 // Maximum 50% of pool can be moved
+  
+  // Volume EMA
+  VOLUME_EMA_ALPHA: 0.1,                     // Smoothing factor for volume EMAs
+  
+  // Price Defaults
+  DEFAULT_HIVE_PRICE: 0.217,                 // Default HIVE price in USD
+  DEFAULT_HIVE_PER_HBD: 4.608,               // Default HIVE per HBD ratio
+};
+
 // ===== LP Helper Functions =====
 
 /**
@@ -21,17 +49,20 @@ import stringify from "json-stable-stringify"
  */
 const updateMSHeldValue = (stats) => {
   if (!stats.MSHeld) stats.MSHeld = { HIVE: 0, HBD: 0, VALUE: 0 };
-  if (!stats.priceFeed) stats.priceFeed = { hivePrice: "0.2170", hivePerHbd: "4.6080" };
-  
+  if (!stats.priceFeed) stats.priceFeed = { 
+    hivePrice: CAPITAL_CONFIG.DEFAULT_HIVE_PRICE.toString(), 
+    hivePerHbd: CAPITAL_CONFIG.DEFAULT_HIVE_PER_HBD.toString() 
+  };
+
   // Calculate value in millidollars
   // HBD is pegged to $1 USD, so 1 HBD = 1000 millidollars
   // HIVE value = HIVE amount * HIVE price in USD
   const hbdValue = stats.MSHeld.HBD || 0; // Already in millihbd = millidollars
   const hiveValue = (stats.MSHeld.HIVE || 0) * parseFloat(stats.priceFeed.hivePrice || 0.217);
-  
+
   // Total value in millidollars (integer)
   stats.MSHeld.VALUE = Math.floor(hbdValue + hiveValue);
-  
+
   return stats.MSHeld.VALUE;
 };
 
@@ -45,11 +76,11 @@ const updateMSHeldValue = (stats) => {
  */
 const calculateBondingCurvePrice = (currentSupply, maxSupply, reserveAmount, stats) => {
   // Quadratic bonding curve: price = base_price * (1 + (currentSupply / maxSupply)^2)
-  const basePrice = parseFloat(stats.icoPrice || 100) / 1000; // Convert from millihive to HIVE
+  const basePrice = parseFloat(stats.icoPrice || 100) / CAPITAL_CONFIG.BONDING_CURVE_BASE_DIVISOR; // Convert from millihive to HIVE
   const supplyRatio = currentSupply / maxSupply;
   const curveMultiplier = 1 + Math.pow(supplyRatio, 2);
   const price = basePrice * curveMultiplier;
-  
+
   // If we have reserves, also consider the constant product price
   if (reserveAmount > 0 && currentSupply > 0) {
     const ammPrice = reserveAmount / currentSupply;
@@ -59,36 +90,10 @@ const calculateBondingCurvePrice = (currentSupply, maxSupply, reserveAmount, sta
     const bondingWeight = 1 - ammWeight;
     return ((price * bondingWeight) + (ammPrice * ammWeight)).toFixed(6);
   }
-  
+
   return price.toFixed(6);
 };
 
-/**
- * Calculate collateral health score for a provider
- * @param {object} provider - Provider object with signature and consensus data
- * @param {object} stats - Stats object with pendingblock
- * @returns {number} Health score
- */
-const calculateCollateralHealth = (provider, stats) => {
-  let score = 0;
-  
-  // Points for credited consensus reports
-  if (provider.consensusReportsasBackup > 0) {
-    score += provider.CCR
-  }
-  
-  // Points for verified & timely multisig signatures
-  if (provider.vS > 0) {
-    score += provider.vS;
-  }
-  
-  // Decay factor for inactive providers
-  const blocksDelenquint = stats.pendingblock -  provider.lastGood > 100 ? 
-  (stats.pendingblock -  provider.lastActivity) / 100 : 1
-  const decayFactor = Math.pow(0.95, Math.pow(blocksDelenquint, 0.65));
-  
-  return (score * decayFactor).toFixed(2);
-};
 
 /**
  * Seed initial liquidity in the LP pool using bonding curve
@@ -101,28 +106,34 @@ const calculateCollateralHealth = (provider, stats) => {
  */
 const seedLpPool = (pairDex, tokenAmount, pairAmount, pair, stats) => {
   pairDex = initializeLpPool(pairDex);
-  
+
+  // Ensure stats has safetyLimit
+  if (!stats.safetyLimit) {
+    console.warn('safetyLimit not initialized in seedLpPool, using default');
+    stats.safetyLimit = CAPITAL_CONFIG.DEFAULT_SAFETY_LIMIT;
+  }
+
   // Calculate maximum available tokens (1/2 of safety limit)
   const maxTokenSupply = Math.floor(stats.safetyLimit / 2);
-  
+
   // If no initial amounts provided, use bonding curve for price discovery
   if (tokenAmount === 0 && pairAmount === 0) {
     // Start with minimal liquidity for price discovery
-    dex.pool.token = 0;
-    dex.pool.base = 0;
-    dex.pool.maxSupply = maxTokenSupply;
-    dex.pool.tick = calculateBondingCurvePrice(0, maxTokenSupply, 0, stats);
+    pairDex.pool.token = 0;
+    pairDex.pool[pair] = 0;
+    pairDex.pool.maxSupply = maxTokenSupply;
+    pairDex.tick = calculateBondingCurvePrice(0, maxTokenSupply, 0, stats);
   } else {
     // Use provided amounts
-    dex.pool.token = tokenAmount;
-    dex.pool.base = pairAmount;
-    dex.pool.maxSupply = maxTokenSupply;
-    
+    pairDex.pool.token = tokenAmount;
+    pairDex.pool[pair] = pairAmount;
+    pairDex.pool.maxSupply = maxTokenSupply;
+
     // Set tick based on bonding curve with current liquidity
-    dex.pool.tick = calculateBondingCurvePrice(tokenAmount, maxTokenSupply, pairAmount, stats);
+    pairDex.tick = calculateBondingCurvePrice(tokenAmount, maxTokenSupply, pairAmount, stats);
   }
-  
-  return dex;
+
+  return pairDex;
 };
 
 /**
@@ -134,48 +145,73 @@ const seedLpPool = (pairDex, tokenAmount, pairAmount, pair, stats) => {
  */
 const distributeToCollateralProviders = (tokensToDistribute, stats, nodes) => {
   const distribution = {};
-  
-  // Use the weighted authorities from multisig
-  if (!stats.ms || !stats.ms.active_account_auths) {
+
+  // Validate inputs
+  if (!tokensToDistribute || tokensToDistribute <= 0) {
+    console.log('No tokens to distribute');
     return distribution;
   }
-  
+
+  // Use the weighted authorities from multisig
+  if (!stats.ms || !stats.ms.active_account_auths) {
+    console.warn('No multisig authorities found for distribution');
+    return distribution;
+  }
+
   // Get total weight from multisig configuration
   let totalWeight = 0;
   const weights = [];
-  
+  const MIN_COLLATERAL = CAPITAL_CONFIG.MIN_COLLATERAL_FOR_DISTRIBUTION;
+
   for (const [node, weight] of Object.entries(stats.ms.active_account_auths)) {
+    // Validate node exists and has sufficient collateral
     if (nodes[node] && weight > 0) {
-      totalWeight += weight;
-      weights.push([node, weight]);
+      const nodeCollateral = nodes[node].g || 0;
+      if (nodeCollateral >= MIN_COLLATERAL) {
+        totalWeight += weight;
+        weights.push([node, weight, nodeCollateral]);
+      } else {
+        console.log(`Node ${node} has insufficient collateral: ${nodeCollateral} < ${MIN_COLLATERAL}`);
+      }
     }
   }
-  
+
   // Distribute tokens proportionally to weights
-  if (totalWeight > 0) {
+  if (totalWeight > 0 && weights.length > 0) {
     let distributed = 0;
-    
-    for (const [node, weight] of weights) {
+
+    // First pass: distribute based on weight proportions
+    for (const [node, weight, collateral] of weights) {
       const tokens = Math.floor((weight / totalWeight) * tokensToDistribute);
       distribution[node] = tokens;
       distributed += tokens;
     }
-    
-    // Handle rounding remainder - give to lowest weight to improve collateral quality
+
+    // Handle rounding remainder - prioritize nodes with better collateral health
     const remainder = tokensToDistribute - distributed;
     if (remainder > 0 && weights.length > 0) {
-      // Sort by weight ascending and give remainder to lowest weight nodes
-      weights.sort((a, b) => a[1] - b[1]);
+      // Sort by collateral health score (collateral / weight ratio) descending
+      weights.sort((a, b) => {
+        const healthA = a[2] / a[1]; // collateral / weight
+        const healthB = b[2] / b[1];
+        return healthB - healthA;
+      });
+      
       let remainderLeft = remainder;
-      for (const [node, weight] of weights) {
-        if (remainderLeft > 0) {
-          distribution[node]++;
-          remainderLeft--;
-        }
+      let idx = 0;
+      while (remainderLeft > 0 && idx < weights.length) {
+        distribution[weights[idx][0]]++;
+        remainderLeft--;
+        idx = (idx + 1) % weights.length; // Cycle through if needed
       }
     }
+    
+    // Log distribution summary
+    console.log(`Distributed ${tokensToDistribute} tokens to ${weights.length} providers (total weight: ${totalWeight})`);
+  } else {
+    console.warn(`Cannot distribute tokens: no eligible providers found (totalWeight: ${totalWeight})`);
   }
-  
+
   return distribution;
 };
 
@@ -189,19 +225,25 @@ const distributeToCollateralProviders = (tokensToDistribute, stats, nodes) => {
  * @returns {object} Result with tokens minted and distribution
  */
 const addReserveToBondingCurve = (dex, reserveAmount, pair, stats, collateralProviders) => {
+  // Ensure stats has required properties
+  if (!stats.safetyLimit) {
+    console.warn('safetyLimit not initialized in addReserveToBondingCurve, using default');
+    stats.safetyLimit = CAPITAL_CONFIG.DEFAULT_SAFETY_LIMIT;
+  }
+  
   const currentSupply = dex.pool.token || 0;
   const maxSupply = dex.pool.maxSupply || Math.floor(stats.safetyLimit / 2);
   const currentReserve = dex.pool[pair] || 0;
-  
+
   // Calculate tokens to mint based on bonding curve
   const currentPrice = parseFloat(dex.tick || calculateBondingCurvePrice(currentSupply, maxSupply, currentReserve, stats));
   const tokensToMint = Math.floor(reserveAmount / currentPrice);
-  
+
   // Check if we're within supply limits
   if (currentSupply + tokensToMint > maxSupply) {
     const availableTokens = maxSupply - currentSupply;
     const adjustedReserve = Math.floor(availableTokens * currentPrice);
-    
+
     return {
       success: false,
       error: 'Exceeds maximum supply',
@@ -209,11 +251,11 @@ const addReserveToBondingCurve = (dex, reserveAmount, pair, stats, collateralPro
       maxReserve: adjustedReserve
     };
   }
-  
-  // Calculate distribution: 1/3 to pool, 2/3 to providers (maintaining 2:1 collateral ratio)
-  const poolShare = Math.floor(tokensToMint / 3);
+
+  // Calculate distribution based on configured ratio
+  const poolShare = Math.floor(tokensToMint * CAPITAL_CONFIG.BONDING_CURVE_POOL_SHARE);
   const providerShare = tokensToMint - poolShare;
-  
+
   // Check if adding to pool would exceed safety limits
   const newPoolTokens = (dex.pool.token || 0) + poolShare;
   if (newPoolTokens > maxSupply) {
@@ -222,7 +264,7 @@ const addReserveToBondingCurve = (dex, reserveAmount, pair, stats, collateralPro
     const adjustedPoolShare = Math.max(0, availablePoolSpace);
     const adjustedProviderShare = adjustedPoolShare * 2; // Maintain 2:1 ratio
     const adjustedTotal = adjustedPoolShare + adjustedProviderShare;
-    
+
     return {
       success: false,
       error: 'Would exceed collateral limits',
@@ -231,18 +273,18 @@ const addReserveToBondingCurve = (dex, reserveAmount, pair, stats, collateralPro
       providerShare: adjustedProviderShare
     };
   }
-  
+
   // Add to pool
   dex.pool.token += poolShare;
   dex.pool[pair] += reserveAmount;
-  
+
   // Update price based on new pool state
   dex.tick = calculateBondingCurvePrice(dex.pool.token, maxSupply, dex.pool[pair], stats);
-  
+
   // Get nodes data for distribution
   const nodes = collateralProviders || {};
   const distribution = distributeToCollateralProviders(providerShare, stats, nodes);
-  
+
   return {
     success: true,
     tokensMinted: tokensToMint,
@@ -278,41 +320,41 @@ const executeFirstSale = (dex, pairAmount, pair, stats, buyer) => {
   if (!dex.pool || (!dex.pool.maxSupply && dex.pool.token === 0)) {
     seedLpPool(dex, 0, 0, pair, stats);
   }
-  
+
   const maxSupply = dex.pool.maxSupply || Math.floor(stats.safetyLimit / 2);
   let totalCost = 0;
   let tokensBought = 0;
   let currentSupply = dex.pool.token || 0;
-  
+
   // Calculate tokens that can be bought using integral of bonding curve
   // For quadratic curve: ∫price dx = base_price * (x + x³/3*maxSupply²)
   const basePrice = parseFloat(stats.icoPrice || 100) / 1000;
-  
+
   // Binary search to find how many tokens can be bought with pairAmount
   let low = 0;
   let high = Math.min(pairAmount / basePrice, maxSupply - currentSupply);
-  
+
   while (high - low > 1) {
     const mid = Math.floor((low + high) / 2);
     const cost = calculateBondingCurveCost(currentSupply, currentSupply + mid, maxSupply, basePrice);
-    
+
     if (cost <= pairAmount) {
       low = mid;
     } else {
       high = mid;
     }
   }
-  
+
   tokensBought = low;
   totalCost = calculateBondingCurveCost(currentSupply, currentSupply + tokensBought, maxSupply, basePrice);
-  
+
   // Update pool
   dex.pool.token += tokensBought;
   dex.pool[pair] += totalCost;
-  
+
   // Update tick to reflect new price
   dex.tick = calculateBondingCurvePrice(dex.pool.token, maxSupply, dex.pool[pair], stats);
-  
+
   // Track the purchase
   if (!dex.pool.purchases) {
     dex.pool.purchases = [];
@@ -324,7 +366,7 @@ const executeFirstSale = (dex, pairAmount, pair, stats, buyer) => {
     price: (totalCost / tokensBought).toFixed(6),
     block: Date.now() // Should use block number
   });
-  
+
   return {
     success: true,
     tokensBought,
@@ -348,11 +390,11 @@ const calculateBondingCurveCost = (from, to, maxSupply, basePrice) => {
   const amount = to - from;
   const fromRatio = from / maxSupply;
   const toRatio = to / maxSupply;
-  
+
   // ∫base_price * (1 + x²) dx = base_price * (x + x³/3)
   const fromCost = basePrice * (from + Math.pow(fromRatio, 3) * maxSupply / 3);
   const toCost = basePrice * (to + Math.pow(toRatio, 3) * maxSupply / 3);
-  
+
   return toCost - fromCost;
 };
 
@@ -381,33 +423,95 @@ const calculateSwapOutput = (amountIn, reserveIn, reserveOut, fee = 0.005) => {
  * @returns {boolean} True if operation is within limits, false otherwise
  */
 const checkCollateralLimit = (additionalHive, additionalHbd, stats, dex) => {
+  // Ensure stats has required properties
+  if (!stats.safetyLimit || !stats.multiSigCollateral) {
+    console.warn('Collateral limits not initialized, using defaults');
+    stats.safetyLimit = stats.safetyLimit || CAPITAL_CONFIG.DEFAULT_SAFETY_LIMIT;
+    stats.multiSigCollateral = stats.multiSigCollateral || 0;
+  }
+  
   // Convert HBD to HIVE equivalent using price feed
   const hbdToHive = additionalHbd * parseFloat(stats.priceFeed?.hivePerHbd || 1);
-  
+
   // Calculate total additional value in HIVE
   const totalAdditionalHive = additionalHive + hbdToHive;
-  
-  // Get current LP holdings
-  const currentLpHive = (dex.hive?.pool?.hive || 0) + (dex.hbd?.pool?.hbd || 0) * parseFloat(stats.priceFeed?.hivePerHbd || 1);
-  
-  // Get current open buy orders value
+
+  // Get current LP holdings - handle both single dex object and separate hive/hbd objects
+  let currentLpHive = 0;
   let openOrdersValue = 0;
-  if (dex.hive?.buyOrders) {
-    for (const order of Object.values(dex.hive.buyOrders)) {
-      openOrdersValue += order.hive || 0;
+  
+  if (dex.hive && dex.hbd) {
+    // Separate DEX objects for HIVE and HBD
+    currentLpHive = (dex.hive.pool?.hive || 0) + (dex.hbd.pool?.hbd || 0) * parseFloat(stats.priceFeed?.hivePerHbd || 1);
+    
+    // Get current open buy orders value
+    if (dex.hive.buyOrders) {
+      for (const order of Object.values(dex.hive.buyOrders)) {
+        openOrdersValue += order.hive || 0;
+      }
+    }
+    if (dex.hbd.buyOrders) {
+      for (const order of Object.values(dex.hbd.buyOrders)) {
+        openOrdersValue += (order.hbd || 0) * parseFloat(stats.priceFeed?.hivePerHbd || 1);
+      }
+    }
+  } else if (dex.pool) {
+    // Single DEX object with pool
+    const pair = dex.pool.hive !== undefined ? 'hive' : 'hbd';
+    if (pair === 'hive') {
+      currentLpHive = dex.pool.hive || 0;
+    } else {
+      currentLpHive = (dex.pool.hbd || 0) * parseFloat(stats.priceFeed?.hivePerHbd || 1);
+    }
+    
+    // Get current open buy orders value from single dex
+    if (dex.buyOrders) {
+      for (const order of Object.values(dex.buyOrders)) {
+        if (pair === 'hive') {
+          openOrdersValue += order.hive || 0;
+        } else {
+          openOrdersValue += (order.hbd || 0) * parseFloat(stats.priceFeed?.hivePerHbd || 1);
+        }
+      }
     }
   }
-  if (dex.hbd?.buyOrders) {
-    for (const order of Object.values(dex.hbd.buyOrders)) {
-      openOrdersValue += (order.hbd || 0) * parseFloat(stats.priceFeed?.hivePerHbd || 1);
-    }
+
+  // Get current MSHeld value if available
+  const msHeldHive = (stats.MSHeld?.HIVE || 0) / 1000; // Convert from milliHIVE
+  const msHeldHbd = (stats.MSHeld?.HBD || 0) / 1000; // Convert from milliHBD
+  const msHeldValue = msHeldHive + msHeldHbd * parseFloat(stats.priceFeed?.hivePerHbd || 1);
+
+  // Get current token price to calculate safe HIVE limit
+  let tokenPrice = 0;
+  if (dex.hive && dex.hbd) {
+    // Use HIVE market price as primary reference
+    tokenPrice = parseFloat(dex.hive.tick || dex.hbd.tick || 0);
+  } else if (dex.tick) {
+    tokenPrice = parseFloat(dex.tick);
   }
   
+  if (!tokenPrice || tokenPrice <= 0) {
+    console.warn('Token price not available for collateral check, using conservative estimate');
+    tokenPrice = 0.001; // Conservative failsafe
+  }
+
   // Check if total would exceed safety limit
-  const totalValue = currentLpHive + openOrdersValue + totalAdditionalHive;
-  const safetyLimit = stats.safetyLimit || 0;
+  const totalValue = currentLpHive + openOrdersValue + totalAdditionalHive + msHeldValue;
   
-  return totalValue <= safetyLimit;
+  // Safety limit is in governance tokens - convert to HIVE value
+  const safetyLimitTokens = stats.safetyLimit || 0;
+  const collateralLimitTokens = stats.multiSigCollateral || safetyLimitTokens;
+  const effectiveLimitTokens = Math.min(safetyLimitTokens, collateralLimitTokens);
+  
+  // Maximum safe HIVE value = governance tokens × current token price
+  const maxSafeHiveValue = effectiveLimitTokens * tokenPrice;
+
+  if (totalValue > maxSafeHiveValue) {
+    console.log(`Collateral limit check failed: ${totalValue} HIVE > ${maxSafeHiveValue} HIVE (${effectiveLimitTokens} tokens × ${tokenPrice} HIVE/token)`);
+    return false;
+  }
+
+  return true;
 };
 
 /**
@@ -435,7 +539,7 @@ const initializeLpPool = (dex) => {
  */
 const executeLpSwap = (amountIn, inputType, dex, stats, buyer = null) => {
   initializeLpPool(dex);
-  
+
   // Determine the pair type based on dex object structure
   let pair = "";
   if (dex.buyBook !== undefined || dex.sellBook !== undefined) {
@@ -451,8 +555,8 @@ const executeLpSwap = (amountIn, inputType, dex, stats, buyer = null) => {
       else if (firstOrder && firstOrder.hbd !== undefined) pair = "hbd";
     }
   }
-  if (!pair) return {success: false, amountOut: 0, newTick: dex.tick};
-  
+  if (!pair) return { success: false, amountOut: 0, newTick: dex.tick };
+
   // Check if pool has no liquidity and we're buying tokens
   if ((!dex.pool.token || dex.pool.token === 0) && (!dex.pool[pair] || dex.pool[pair] === 0) && inputType !== "token") {
     // Use bonding curve for first sale
@@ -466,32 +570,32 @@ const executeLpSwap = (amountIn, inputType, dex, stats, buyer = null) => {
         refund: result.refund
       };
     }
-    return {success: false, amountOut: 0, newTick: dex.tick};
+    return { success: false, amountOut: 0, newTick: dex.tick };
   }
-  
+
   // If we have a bonding curve in effect but also some liquidity, use hybrid approach
   if (dex.pool.maxSupply && dex.pool.token < dex.pool.maxSupply * 0.1) {
     // Less than 10% of max supply - still use bonding curve heavily
     const bondingWeight = 0.7;
     const ammWeight = 0.3;
-    
+
     if (inputType !== "token") {
       // Buying tokens - calculate both bonding curve and AMM prices
       const bondingResult = executeFirstSale(dex, amountIn * bondingWeight, pair, stats, buyer || "unknown");
-      
+
       // Calculate AMM output for remaining amount
       const fee = parseFloat(stats.dex_fee) || 0.005;
       const ammInput = amountIn * ammWeight;
-      const ammOutput = dex.pool.token > 0 ? 
+      const ammOutput = dex.pool.token > 0 ?
         calculateSwapOutput(ammInput, dex.pool[pair], dex.pool.token, fee) : 0;
-      
+
       if (bondingResult.success && ammOutput > 0) {
         dex.pool[pair] += ammInput;
         dex.pool.token -= ammOutput;
-        
+
         const totalOutput = bondingResult.tokensBought + ammOutput;
         const avgPrice = amountIn / totalOutput;
-        
+
         return {
           success: true,
           amountOut: totalOutput,
@@ -501,61 +605,61 @@ const executeLpSwap = (amountIn, inputType, dex, stats, buyer = null) => {
       }
     }
   }
-  
+
   // Standard AMM swap logic
   const fee = parseFloat(stats.dex_fee) || 0.005;
   let amountOut = 0;
   let newTick = dex.tick;
-  
+
   if (inputType === "token") {
     // Selling tokens for HIVE/HBD
     const tokenReserve = dex.pool.token;
     const pairReserve = dex.pool[pair];
-    
-    if (!tokenReserve || !pairReserve) return {success: false, amountOut: 0, newTick};
-    
+
+    if (!tokenReserve || !pairReserve) return { success: false, amountOut: 0, newTick };
+
     amountOut = calculateSwapOutput(amountIn, tokenReserve, pairReserve, fee);
-    
+
     if (amountOut > 0 && amountOut < pairReserve) {
       // Update reserves
       dex.pool.token += amountIn;
       dex.pool[pair] -= amountOut;
-      
+
       // Calculate new price after swap
       if (dex.pool.maxSupply) {
         newTick = calculateBondingCurvePrice(dex.pool.token, dex.pool.maxSupply, dex.pool[pair], stats);
       } else {
         newTick = calculateCurvePrice(dex.pool.token, dex.pool[pair]);
       }
-      
-      return {success: true, amountOut, newTick};
+
+      return { success: true, amountOut, newTick };
     }
   } else {
     // Buying tokens with HIVE/HBD
     const pairReserve = dex.pool[pair];
     const tokenReserve = dex.pool.token;
-    
-    if (!tokenReserve || !pairReserve) return {success: false, amountOut: 0, newTick};
-    
+
+    if (!tokenReserve || !pairReserve) return { success: false, amountOut: 0, newTick };
+
     amountOut = calculateSwapOutput(amountIn, pairReserve, tokenReserve, fee);
-    
+
     if (amountOut > 0 && amountOut < tokenReserve) {
       // Update reserves
       dex.pool[pair] += amountIn;
       dex.pool.token -= amountOut;
-      
+
       // Calculate new price after swap
       if (dex.pool.maxSupply) {
         newTick = calculateBondingCurvePrice(dex.pool.token, dex.pool.maxSupply, dex.pool[pair], stats);
       } else {
         newTick = calculateCurvePrice(dex.pool.token, dex.pool[pair]);
       }
-      
-      return {success: true, amountOut, newTick};
+
+      return { success: true, amountOut, newTick };
     }
   }
-  
-  return {success: false, amountOut: 0, newTick};
+
+  return { success: false, amountOut: 0, newTick };
 };
 
 /**
@@ -564,18 +668,18 @@ const executeLpSwap = (amountIn, inputType, dex, stats, buyer = null) => {
  * @returns {object} Target ratios for each market
  */
 const calculateBalancingTargets = (stats) => {
-  // Minimum 25% in each market
-  const MIN_RATIO = 0.25;
-  
+  // Minimum ratio in each market
+  const MIN_RATIO = CAPITAL_CONFIG.MIN_POOL_RATIO;
+
   // Get volume ratios, default to 50/50 if not available
   const hiveVolumeRatio = parseFloat(stats.volumeEMA?.hiveRatio || 0.5);
   const hbdVolumeRatio = parseFloat(stats.volumeEMA?.hbdRatio || 0.5);
-  
+
   // Calculate targets: 25% + (volumeRatio / 2)
   // This gives range from 25% (0% volume) to 75% (100% volume)
   const hiveTarget = MIN_RATIO + (hiveVolumeRatio / 2);
   const hbdTarget = MIN_RATIO + (hbdVolumeRatio / 2);
-  
+
   return {
     hive: hiveTarget,
     hbd: hbdTarget,
@@ -595,43 +699,42 @@ export const balanceLiquidityPools = (dexHive, dexHbd, stats) => {
   // Initialize pools if needed
   dexHive = initializeLpPool(dexHive);
   dexHbd = initializeLpPool(dexHbd);
-  
+
   // Get current pool values in HBD terms
   const hivePerHbd = parseFloat(stats.priceFeed?.hivePerHbd || 4.608);
   const hiveTickPrice = parseFloat(dexHive.tick || 0.1);
   const hbdTickPrice = parseFloat(dexHbd.tick || 0.1);
-  
+
   // Calculate current pool values in HBD
   const hivePoolTokenValue = (dexHive.pool.token || 0) * hbdTickPrice;
   const hivePoolHiveValue = (dexHive.pool.hive || 0) / hivePerHbd;
   const hivePoolTotalValue = hivePoolTokenValue + hivePoolHiveValue;
-  
+
   const hbdPoolTokenValue = (dexHbd.pool.token || 0) * hbdTickPrice;
   const hbdPoolHbdValue = (dexHbd.pool.hbd || 0);
   const hbdPoolTotalValue = hbdPoolTokenValue + hbdPoolHbdValue;
-  
+
   const totalValue = hivePoolTotalValue + hbdPoolTotalValue;
-  
+
   if (totalValue === 0) {
     return {
       success: false,
       message: "No liquidity to balance"
     };
   }
-  
+
   // Calculate current ratios
   const currentHiveRatio = hivePoolTotalValue / totalValue;
   const currentHbdRatio = hbdPoolTotalValue / totalValue;
-  
+
   // Get target ratios
   const targets = calculateBalancingTargets(stats);
-  
-  // Check if rebalancing is needed (> 5% deviation)
-  const REBALANCE_THRESHOLD = 0.05;
+
+  // Check if rebalancing is needed
   const hiveDeviation = Math.abs(currentHiveRatio - targets.hive);
   const hbdDeviation = Math.abs(currentHbdRatio - targets.hbd);
-  
-  if (hiveDeviation < REBALANCE_THRESHOLD && hbdDeviation < REBALANCE_THRESHOLD) {
+
+  if (hiveDeviation < CAPITAL_CONFIG.REBALANCE_THRESHOLD && hbdDeviation < CAPITAL_CONFIG.REBALANCE_THRESHOLD) {
     return {
       success: true,
       message: "Pools are balanced",
@@ -645,13 +748,13 @@ export const balanceLiquidityPools = (dexHive, dexHbd, stats) => {
       }
     };
   }
-  
+
   // Calculate rebalancing amounts
   const targetHiveValue = totalValue * targets.hive;
   //const targetHbdValue = totalValue * targets.hbd;
-  
+
   const valueToMove = Math.abs(targetHiveValue - hivePoolTotalValue);
-  
+
   // Determine direction and amounts
   let result = {
     success: true,
@@ -661,36 +764,36 @@ export const balanceLiquidityPools = (dexHive, dexHbd, stats) => {
     tokenAmount: 0,
     pairAmount: 0
   };
-  
+
   if (currentHiveRatio > targets.hive) {
     // Move from HIVE to HBD pool
     result.fromPool = "hive";
     result.toPool = "hbd";
-    
+
     // Calculate how much to move (in token terms for simplicity)
     const tokenRatio = dexHive.pool.token / (dexHive.pool.token + dexHive.pool.hive / hiveTickPrice);
     result.tokenAmount = Math.floor(valueToMove * tokenRatio / hbdTickPrice);
     result.pairAmount = Math.floor(valueToMove * (1 - tokenRatio));
-    
+
     // Ensure we don't move more than available
-    result.tokenAmount = Math.min(result.tokenAmount, Math.floor(dexHive.pool.token * 0.5));
-    result.pairAmount = Math.min(result.pairAmount, Math.floor(dexHive.pool.hive * 0.5 / hivePerHbd));
-    
+    result.tokenAmount = Math.min(result.tokenAmount, Math.floor(dexHive.pool.token * CAPITAL_CONFIG.MAX_REBALANCE_AMOUNT));
+    result.pairAmount = Math.min(result.pairAmount, Math.floor(dexHive.pool.hive * CAPITAL_CONFIG.MAX_REBALANCE_AMOUNT / hivePerHbd));
+
   } else {
     // Move from HBD to HIVE pool
     result.fromPool = "hbd";
     result.toPool = "hive";
-    
+
     // Calculate how much to move
     const tokenRatio = dexHbd.pool.token / (dexHbd.pool.token + dexHbd.pool.hbd / hbdTickPrice);
     result.tokenAmount = Math.floor(valueToMove * tokenRatio / hbdTickPrice);
     result.pairAmount = Math.floor(valueToMove * (1 - tokenRatio) * hivePerHbd);
-    
+
     // Ensure we don't move more than available
-    result.tokenAmount = Math.min(result.tokenAmount, Math.floor(dexHbd.pool.token * 0.5));
-    result.pairAmount = Math.min(result.pairAmount, Math.floor(dexHbd.pool.hbd * 0.5));
+    result.tokenAmount = Math.min(result.tokenAmount, Math.floor(dexHbd.pool.token * CAPITAL_CONFIG.MAX_REBALANCE_AMOUNT));
+    result.pairAmount = Math.min(result.pairAmount, Math.floor(dexHbd.pool.hbd * CAPITAL_CONFIG.MAX_REBALANCE_AMOUNT));
   }
-  
+
   result.message = `Rebalancing ${result.tokenAmount} tokens and ${result.pairAmount} ${result.toPool.toUpperCase()} from ${result.fromPool.toUpperCase()} to ${result.toPool.toUpperCase()} pool`;
   result.currentRatios = {
     hive: (currentHiveRatio * 100).toFixed(1) + "%",
@@ -700,10 +803,10 @@ export const balanceLiquidityPools = (dexHive, dexHbd, stats) => {
     hive: targets.hivePercent + "%",
     hbd: targets.hbdPercent + "%"
   };
-  
+
   // The actual pool updates would be done by the calling function
   // This function just calculates what needs to be done
-  
+
   return result;
 };
 
@@ -718,33 +821,33 @@ export const balanceLiquidityPools = (dexHive, dexHbd, stats) => {
  */
 export const addLiquidity = (dex, tokenAmount, pairAmount, pair, stats) => {
   initializeLpPool(dex);
-  
+
   // If pool is empty and no amounts provided, this is a bonding curve scenario
   if (dex.pool.token === 0 && dex.pool[pair] === 0 && tokenAmount === 0 && pairAmount === 0) {
     // Initialize with bonding curve
     seedLpPool(dex, 0, 0, pair, stats);
     return {
-      success: true, 
-      lpTokens: 0, 
+      success: true,
+      lpTokens: 0,
       message: "Pool initialized with bonding curve",
       tick: dex.tick
     };
   }
-  
+
   // If pool is empty but amounts provided, seed it
   if (dex.pool.token === 0 || dex.pool[pair] === 0) {
     seedLpPool(dex, tokenAmount, pairAmount, pair, stats);
     // For initial liquidity, LP tokens = sqrt(tokenAmount * pairAmount)
     const lpTokens = Math.floor(Math.sqrt(tokenAmount * pairAmount));
-    return {success: true, lpTokens};
+    return { success: true, lpTokens };
   }
-  
+
   // If we have a bonding curve in effect (maxSupply set), use that mechanism
   if (dex.pool.maxSupply && pairAmount > 0 && tokenAmount === 0) {
     // This is adding reserves to the bonding curve
     const collateralProviders = dex.pool.collateralProviders || {};
     const result = addReserveToBondingCurve(dex, pairAmount, pair, stats, collateralProviders);
-    
+
     if (result.success) {
       return {
         success: true,
@@ -762,26 +865,26 @@ export const addLiquidity = (dex, tokenAmount, pairAmount, pair, stats) => {
       };
     }
   }
-  
+
   // Standard liquidity provision (both token and pair amounts)
   const currentRatio = dex.pool[pair] / dex.pool.token;
   const providedRatio = pairAmount / tokenAmount;
-  
+
   // Require balanced liquidity provision (within 1% tolerance)
   if (Math.abs(currentRatio - providedRatio) / currentRatio > 0.01) {
-    return {success: false, lpTokens: 0, error: "Imbalanced liquidity"};
+    return { success: false, lpTokens: 0, error: "Imbalanced liquidity" };
   }
-  
+
   // Calculate LP tokens based on share of pool
   const shareOfPool = tokenAmount / dex.pool.token;
   const totalLpTokens = dex.pool.lpTokens || Math.floor(Math.sqrt(dex.pool.token * dex.pool[pair]));
   const lpTokens = Math.floor(totalLpTokens * shareOfPool);
-  
+
   // Update pool reserves
   dex.pool.token += tokenAmount;
   dex.pool[pair] += pairAmount;
   dex.pool.lpTokens = totalLpTokens + lpTokens;
-  
+
   // Update tick based on new reserves
   if (dex.pool.maxSupply) {
     // Use bonding curve if in effect
@@ -790,8 +893,8 @@ export const addLiquidity = (dex, tokenAmount, pairAmount, pair, stats) => {
     // Use standard AMM price
     dex.tick = calculateCurvePrice(dex.pool.token, dex.pool[pair]);
   }
-  
-  return {success: true, lpTokens};
+
+  return { success: true, lpTokens };
 };
 
 /**
@@ -801,13 +904,13 @@ export const addLiquidity = (dex, tokenAmount, pairAmount, pair, stats) => {
  * @param {boolean} active - If active authority
  * @param {array} pc - Promise chain
  */
-export const dex_lp_action = (options = {action: "balance_pools"}) => {
-  return new Promise( async (resolve, reject) => {
-  if (options.action === "balance_pools") {
-    const [ stats, dexHive, dexHbd ] = await Promise.all([getPathObj(["stats"]), getPathObj(["dex", "hive"]), getPathObj(["dex", "hbd"])])
+export const dex_lp_action = (options = { action: "balance_pools" }) => {
+  return new Promise(async (resolve, reject) => {
+    if (options.action === "balance_pools") {
+      const [stats, dexHive, dexHbd] = await Promise.all([getPathObj(["stats"]), getPathObj(["dex", "hive"]), getPathObj(["dex", "hbd"])])
       // Execute balancing
       const result = balanceLiquidityPools(dexHive, dexHbd, stats);
-      
+
       if (result.success && result.tokenAmount > 0) {
         // Apply the rebalancing
         if (result.fromPool === "hive") {
@@ -821,23 +924,33 @@ export const dex_lp_action = (options = {action: "balance_pools"}) => {
           dexHive.pool.token += result.tokenAmount;
           dexHive.pool.hive += result.pairAmount;
         }
-        
+
         // Update ticks based on new ratios
         dexHive.tick = calculateCurvePrice(dexHive.pool.token, dexHive.pool.hive);
         dexHbd.tick = calculateCurvePrice(dexHbd.pool.token, dexHbd.pool.hbd);
-        
+
         const ops = [
           { type: "put", path: ["dex", "hive"], data: dexHive },
           { type: "put", path: ["dex", "hbd"], data: dexHbd },
+          { type: "put", path: ["rebalance_log"], data: {
+            message: result.message,
+            tokenAmount: result.tokenAmount,
+            pairAmount: result.pairAmount,
+            fromPool: result.fromPool,
+            toPool: result.toPool,
+            timestamp: Date.now()
+          }}
         ];
-        
+
+        console.log(`LP Rebalancing executed: ${result.message}`);
         resolve(ops);
       } else {
+        console.log(`LP Rebalancing not needed: ${result.message || 'Pools are balanced'}`);
         resolve([]);
       }
-  } else {
-    resolve([]);
-  }
+    } else {
+      resolve([]);
+    }
   });
 };
 
@@ -904,20 +1017,20 @@ export const dex_sell = (json, from, active, pc) => {
         sell_loop: while (remaining) {
           // Initialize LP pool if needed
           initializeLpPool(dex);
-          
+
           // Calculate curve price based on LP reserves
           const curvePrice = calculateCurvePrice(dex.pool.token, dex.pool[order.pair]);
-          
+
           let price = dex.buyBook
             ? parseFloat(dex.buyBook.split("_")[0])
             : dex.tick;
           let item = dex.buyBook ? dex.buyBook.split("_")[1].split(",")[0] : "";
-          
+
           // Check if order provides better liquidity than LP
           const orderProvidesBetterLiquidity = item && parseFloat(price) > parseFloat(curvePrice);
-          
+
           //console.log({ json, item, price, order, curvePrice, orderProvidesBetterLiquidity });
-          
+
           if (
             item &&
             (order.type == "MARKET" ||
@@ -1098,17 +1211,17 @@ export const dex_sell = (json, from, active, pc) => {
               // Check collateral limits before LP swap
               const additionalHive = order.pair === "hive" ? 0 : remaining;
               const additionalHbd = order.pair === "hbd" ? 0 : remaining;
-              
+
               if (checkCollateralLimit(additionalHive, additionalHbd, stats, dex)) {
                 // Execute LP swap
                 const swapResult = executeLpSwap(remaining, "token", dex, stats);
-                
+
                 if (swapResult.success && swapResult.amountOut > 0) {
                   // LP swap successful
                   filled += remaining;
                   pair += swapResult.amountOut;
                   dex.tick = swapResult.newTick;
-                  
+
                   // Create transfer for LP swap
                   const transfer = [
                     "transfer",
@@ -1122,7 +1235,7 @@ export const dex_sell = (json, from, active, pc) => {
                       memo: `LP Swap: ${json.transaction_id}`,
                     },
                   ];
-                  
+
                   his[`${json.block_num}:${i}:${json.transaction_id}`] = {
                     type: "sell",
                     t: Date.parse(json.timestamp + ".000Z"),
@@ -1133,13 +1246,13 @@ export const dex_sell = (json, from, active, pc) => {
                     price: swapResult.newTick,
                     id: json.transaction_id + i,
                   };
-                  
+
                   let msg = `@${from} sold ${parseFloat(
                     parseInt(remaining) / 1000
                   ).toFixed(3)} ${Config("TOKEN")} for ${parseFloat(
                     parseInt(swapResult.amountOut) / 1000
                   ).toFixed(3)} ${order.pair.toUpperCase()} via LP swap`;
-                  
+
                   ops.push({
                     type: "put",
                     path: [
@@ -1148,7 +1261,7 @@ export const dex_sell = (json, from, active, pc) => {
                     ],
                     data: msg,
                   });
-                  
+
                   ops.push({
                     type: "put",
                     path: [
@@ -1157,18 +1270,18 @@ export const dex_sell = (json, from, active, pc) => {
                     ],
                     data: stringify(transfer),
                   });
-                  
+
                   // Calculate and distribute fees
                   const lpFee = parseInt(remaining * (parseFloat(stats.dex_fee) || 0.005));
                   fee += lpFee;
-                  
+
                   remaining = 0;
                   i++;
                   continue sell_loop;
                 }
               }
             }
-            
+
             // If LP swap failed or not available, create limit order
             let txid = Config("TOKEN") + hashThis(from + json.transaction_id),
               crate =
@@ -1314,105 +1427,13 @@ export const dex_sell = (json, from, active, pc) => {
     });
 };
 
+
+// Here for legacy comparison. transfer is called in dex_refactor.js
 export const transfer = (json, pc) => {
   json = naizer(json);
   if (
-    Config("features").ico &&
-    json.to == Config("mainICO") &&
-    json.amount.nai == "@@000000021" &&
-    json.from != Config("msaccount")
-  ) {
-    //the ICO disribution... should be in multi sig account
-    const amount = parseInt(json.amount.amount);
-    var purchase,
-      Pstats = getPathObj(["stats"]),
-      Pbal = getPathNum(["balances", json.from]),
-      Pinv = getPathNum(["balances", "ri"]);
-    Promise.all([Pstats, Pbal, Pinv]).then(function (v) {
-      var stats = v[0],
-        b = v[1],
-        i = v[2],
-        ops = [];
-      if (!stats.outOnBlock) {
-        purchase = parseInt((amount / stats.icoPrice) * 1000);
-        if (purchase < i) {
-          i -= purchase;
-          b += purchase;
-          const msg = `@${json.from}| bought ${parseFloat(
-            purchase / 1000
-          ).toFixed(3)} ${Config("TOKEN")} with ${parseFloat(
-            amount / 1000
-          ).toFixed(3)} HIVE`;
-          if (Config("hookurl") || Config("status"))
-            postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
-          ops = [
-            {
-              type: "put",
-              path: ["feed", `${json.block_num}:${json.transaction_id}`],
-              data: msg,
-            },
-            { type: "put", path: ["balances", json.from], data: b },
-            { type: "put", path: ["balances", "ri"], data: i },
-          ];
-          if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-          store.batch(ops, pc);
-        } else {
-          b += i;
-          const left = purchase - i;
-          stats.outOnBlock = json.block_num;
-          const msg = `@${json.from}| bought ALL ${parseFloat(
-            parseInt(purchase - left)
-          ).toFixed(3)} ${Config("TOKEN")} with ${parseFloat(
-            parseInt(amount) / 1000
-          ).toFixed(3)} HIVE. And bid in the over-auction`;
-          if (Config("hookurl") || Config("status"))
-            postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
-          ops = [
-            {
-              type: "put",
-              path: ["ico", `${json.block_num}`, json.from],
-              data: parseInt((amount * left) / purchase),
-            },
-            { type: "put", path: ["balances", json.from], data: b },
-            { type: "put", path: ["balances", "ri"], data: 0 },
-            { type: "put", path: ["stats"], data: stats },
-            {
-              type: "put",
-              path: ["feed", `${json.block_num}:${json.transaction_id}`],
-              data: msg,
-            },
-          ];
-          if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-          store.batch(ops, pc);
-        }
-      } else {
-        const msg = `@${json.from}| bought ALL ${parseFloat(
-          parseInt(purchase - left)
-        ).toFixed(3)} ${Config("TOKEN")} with ${parseFloat(
-          parseInt(amount) / 1000
-        ).toFixed(3)} HIVE. And bid in the over-auction`;
-        if (Config("hookurl") || Config("status"))
-          postToDiscord(msg, `${json.block_num}:${json.transaction_id}`);
-        ops = [
-          {
-            type: "put",
-            path: ["ico", `${json.block_num}`, json.from],
-            data: parseInt(amount),
-          },
-          {
-            type: "put",
-            path: ["feed", `${json.block_num}:${json.transaction_id}`],
-            data: msg,
-          },
-        ];
-        if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-        store.batch(ops, pc);
-      }
-    });
-  } else if (
     (Config("features").dex || Config("features").nft) &&
-    json.to == Config("msaccount") &&
-    json.from != Config("mainICO")
+    json.to == Config("msaccount")
   ) {
     if (
       json.memo.split(" ").length > 1 &&
@@ -2090,29 +2111,26 @@ export const transfer = (json, pc) => {
           while (remaining) {
             //console.log('while')
             i++;
-            
+
             // Initialize LP pool if needed
             initializeLpPool(dex);
-            
+
             // Calculate curve price based on LP reserves
             const curvePrice = calculateCurvePrice(dex.pool.token, dex.pool[order.pair]);
-            
+
             var price = dex.sellBook
               ? parseFloat(dex.sellBook.split("_")[0]).toFixed(6)
               : "";
             let item = "";
             if (price) item = dex.sellBook.split("_")[1].split(",")[0];
             else price = dex.tick;
-            
+
             // Check if order provides better liquidity than LP
             const orderProvidesBetterLiquidity = item && parseFloat(price) < parseFloat(curvePrice);
-            
+
             //console.log("Matching...", { order, price, item, curvePrice, orderProvidesBetterLiquidity });
             if (
               item &&
-              (order.pair == "hbd" ||
-                (order.pair == "hive" &&
-                  (price <= stats.icoPrice / 1000 || !Config("features").ico))) &&
               (order.type == "MARKET" ||
                 (order.type == "LIMIT" && order.rate >= price)) &&
               orderProvidesBetterLiquidity
@@ -2291,251 +2309,120 @@ export const transfer = (json, pc) => {
                 }); //update the contract
               }
             } else {
-              if (
-                Config("features").ico &&
-                order.pair == "hive" &&
-                (order.type == "MARKET" ||
-                  (order.type == "LIMIT" &&
-                    order.rate >= stats.icoPrice / 1000))
-              ) {
-                //console.log("ICO");
-                let purchase;
+              // Try LP swap if we have reserves and it's allowed by collateral limits
+              if (dex.pool && dex.pool.token > 0 && dex.pool[order.pair] > 0 && parseFloat(curvePrice) > 0) {
+                // Check collateral limits - already holding the HIVE/HBD so no additional check needed
+                // Execute LP swap
+                const swapResult = executeLpSwap(remaining, order.pair, dex, stats);
+
+                if (swapResult.success && swapResult.amountOut > 0) {
+                  // LP swap successful
+                  filled += swapResult.amountOut;
+                  bal += swapResult.amountOut;
+                  dex.tick = swapResult.newTick;
+
+                  // Create history entry for LP swap
+                  his[`${json.block_num}:${i}:${json.transaction_id}`] = {
+                    type: "buy",
+                    t: Date.parse(json.timestamp),
+                    block: json.block_num,
+                    base_vol: swapResult.amountOut,
+                    target_vol: remaining,
+                    target: order.pair,
+                    price: swapResult.newTick,
+                    id: json.transaction_id + i,
+                  };
+
+                  let msg = `@${json.from} bought ${parseFloat(
+                    parseInt(swapResult.amountOut) / 1000
+                  ).toFixed(3)} ${Config("TOKEN")} with ${parseFloat(
+                    parseInt(remaining) / 1000
+                  ).toFixed(3)} ${order.pair.toUpperCase()} via LP swap`;
+
+                  ops.push({
+                    type: "put",
+                    path: [
+                      "feed",
+                      `${json.block_num}:${json.transaction_id}.${i}`,
+                    ],
+                    data: msg,
+                  });
+
+                  // Calculate and distribute fees
+                  const lpFee = parseInt(swapResult.amountOut * (parseFloat(stats.dex_fee) || 0.005));
+                  fee += lpFee;
+                  bal -= lpFee; // Remove fee from balance
+
+                  remaining = 0;
+                  i++;
+                  continue;
+                }
+              }
+
+              // If LP swap failed or not available, create limit order
+              console.log("Building contract");
+              const txid =
+                Config("TOKEN") + hashThis(json.from + json.transaction_id),
+                crate = parseFloat(order.rate) > 0 ? order.rate : dex.tick,
+                toRefund = maxAllowed(stats, dex.tick, remaining, crate);
+              remaining = remaining - toRefund;
+              console.log({ toRefund, remaining });
+              const hours = 720,
+                expBlock = json.block_num + hours * 1200;
+              if (toRefund) {
                 const transfer = [
                   "transfer",
                   {
                     from: Config("msaccount"),
-                    to: Config("mainICO"),
+                    to: json.from,
                     amount:
-                      parseFloat(remaining / 1000).toFixed(3) +
+                      parseFloat(toRefund / 1000).toFixed(3) +
                       " " +
                       order.pair.toUpperCase(),
-                    memo: `ICO Buy from ${json.from}:${json.transaction_id}`,
+                    memo: `Partial refund due to collateral limits ${json.from}:${json.transaction_id}`,
                   },
                 ];
                 ops.push({
                   type: "put",
                   path: [
                     "msa",
-                    `ICO@${json.from}:${json.transaction_id}:${json.block_num}`,
+                    `Refund@${json.from}:${json.transaction_id}:${json.block_num}`,
                   ],
                   data: stringify(transfer),
-                }); //send HIVE out via MS
-                dex.tick = parseFloat(stats.icoPrice / 1000).toFixed(6);
-                if (!stats.outOnBlock) {
-                  purchase = parseInt((remaining / stats.icoPrice) * 1000);
-                  filled += purchase;
-                  if (purchase < inv) {
-                    inv -= purchase;
-                    bal += purchase;
-                    his[`${json.block_num}:${i}:${json.transaction_id}`] = {
-                      type: "buy",
-                      t: Date.parse(json.timestamp),
-                      block: json.block_num,
-                      base_vol: purchase,
-                      target_vol: remaining,
-                      target: order.pair,
-                      price: parseFloat(stats.icoPrice / 1000).toFixed(6),
-                      id: json.transaction_id + i,
-                    };
-                    const msg = `@${json.from}| bought ${parseFloat(
-                      purchase / 1000
-                    ).toFixed(3)} ${Config("TOKEN")} with ${parseFloat(
-                      remaining / 1000
-                    ).toFixed(3)} HIVE`;
-                    ops.push(
-                      {
-                        type: "put",
-                        path: [
-                          "feed",
-                          `${json.block_num}:${json.transaction_id}:${i}`,
-                        ],
-                        data: msg,
-                      },
-                      { type: "put", path: ["balances", "ri"], data: inv }
-                    );
-                  } else {
-                    bal += inv;
-                    const left = purchase - inv;
-                    stats.outOnBlock = json.block_num;
-                    his[`${json.block_num}:${i}:${json.transaction_id}`] = {
-                      type: "buy",
-                      t: Date.parse(json.timestamp),
-                      block: json.block_num,
-                      base_vol: inv,
-                      target_vol: remaining,
-                      target: order.pair,
-                      price: parseFloat(stats.icoPrice / 1000).toFixed(6),
-                      id: json.transaction_id + i,
-                    };
-                    const msg = `@${json.from}| bought ALL ${parseFloat(
-                      parseInt(purchase - left)
-                    ).toFixed(3)} ${Config("TOKEN")} with ${parseFloat(
-                      parseInt(amount) / 1000
-                    ).toFixed(3)} HIVE. And bid in the over-auction`;
-                    ops.push(
-                      {
-                        type: "put",
-                        path: ["ico", `${json.block_num}`, json.from],
-                        data: parseInt((amount * left) / purchase),
-                      },
-                      { type: "put", path: ["balances", "ri"], data: 0 },
-                      {
-                        type: "put",
-                        path: [
-                          "feed",
-                          `${json.block_num}:${json.transaction_id}`,
-                        ],
-                        data: msg,
-                      }
-                    );
-                  }
-                  remaining = 0;
-                } else {
-                  const msg = `@${json.from}| bought ALL ${parseFloat(
-                    parseInt(purchase - left)
-                  ).toFixed(3)} ${Config("TOKEN")} with ${parseFloat(
-                    parseInt(amount) / 1000
-                  ).toFixed(3)} HIVE. And bid in the over-auction`;
-                  if (Config("hookurl") || Config("status"))
-                    postToDiscord(
-                      msg,
-                      `${json.block_num}:${json.transaction_id}`
-                    );
-                  ops = [
-                    {
-                      type: "put",
-                      path: ["ico", `${json.block_num}`, json.from],
-                      data: parseInt(amount),
-                    },
-                    {
-                      type: "put",
-                      path: [
-                        "feed",
-                        `${json.block_num}:${json.transaction_id}`,
-                      ],
-                      data: msg,
-                    },
-                  ];
-                  if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-                  ops.push({ type: "put", path: ["stats"], data: stats });
-                  if (process.env.npm_lifecycle_event == "test") pc[2] = ops;
-                  store.batch(ops, pc);
-                }
-              } else {
-                // Try LP swap if we have reserves and it's allowed by collateral limits
-                if (dex.pool && dex.pool.token > 0 && dex.pool[order.pair] > 0 && parseFloat(curvePrice) > 0) {
-                  // Check collateral limits - already holding the HIVE/HBD so no additional check needed
-                  // Execute LP swap
-                  const swapResult = executeLpSwap(remaining, order.pair, dex, stats);
-                  
-                  if (swapResult.success && swapResult.amountOut > 0) {
-                    // LP swap successful
-                    filled += swapResult.amountOut;
-                    bal += swapResult.amountOut;
-                    dex.tick = swapResult.newTick;
-                    
-                    // Create history entry for LP swap
-                    his[`${json.block_num}:${i}:${json.transaction_id}`] = {
-                      type: "buy",
-                      t: Date.parse(json.timestamp),
-                      block: json.block_num,
-                      base_vol: swapResult.amountOut,
-                      target_vol: remaining,
-                      target: order.pair,
-                      price: swapResult.newTick,
-                      id: json.transaction_id + i,
-                    };
-                    
-                    let msg = `@${json.from} bought ${parseFloat(
-                      parseInt(swapResult.amountOut) / 1000
-                    ).toFixed(3)} ${Config("TOKEN")} with ${parseFloat(
-                      parseInt(remaining) / 1000
-                    ).toFixed(3)} ${order.pair.toUpperCase()} via LP swap`;
-                    
-                    ops.push({
-                      type: "put",
-                      path: [
-                        "feed",
-                        `${json.block_num}:${json.transaction_id}.${i}`,
-                      ],
-                      data: msg,
-                    });
-                    
-                    // Calculate and distribute fees
-                    const lpFee = parseInt(swapResult.amountOut * (parseFloat(stats.dex_fee) || 0.005));
-                    fee += lpFee;
-                    bal -= lpFee; // Remove fee from balance
-                    
-                    remaining = 0;
-                    i++;
-                    continue;
-                  }
-                }
-                
-                // If LP swap failed or not available, create limit order
-                console.log("Building contract");
-                const txid =
-                  Config("TOKEN") + hashThis(json.from + json.transaction_id),
-                  crate = parseFloat(order.rate) > 0 ? order.rate : dex.tick,
-                  toRefund = maxAllowed(stats, dex.tick, remaining, crate);
-                remaining = remaining - toRefund;
-                console.log({ toRefund, remaining });
-                const hours = 720,
-                  expBlock = json.block_num + hours * 1200;
-                if (toRefund) {
-                  const transfer = [
-                    "transfer",
-                    {
-                      from: Config("msaccount"),
-                      to: json.from,
-                      amount:
-                        parseFloat(toRefund / 1000).toFixed(3) +
-                        " " +
-                        order.pair.toUpperCase(),
-                      memo: `Partial refund due to collateral limits ${json.from}:${json.transaction_id}`,
-                    },
-                  ];
-                  ops.push({
-                    type: "put",
-                    path: [
-                      "msa",
-                      `Refund@${json.from}:${json.transaction_id}:${json.block_num}`,
-                    ],
-                    data: stringify(transfer),
-                  });
-                }
-                contract = {
-                  txid,
-                  from: json.from,
-                  hive: 0,
-                  hbd: 0,
-                  fee: 0,
-                  amount: 0,
-                  rate: crate,
-                  block: json.block_num,
-                  type: `${order.pair}:buy`,
-                  hive_id: json.transaction_id,
-                };
-                contract.amount = parseInt(remaining / crate);
-                (contract.fee =
-                  parseFloat(stats.dex_fee) > 0
-                    ? parseInt(
-                      parseInt(contract.amount) * parseFloat(stats.dex_fee)
-                    ) + 1
-                    : parseInt(contract.amount * 0.005) + 1),
-                  (contract[order.pair] = remaining);
-                if (remaining) {
-                  dex.buyBook = DEX.insert(txid, crate, dex.buyBook, "buy");
-                  path = chronAssign(expBlock, {
-                    block: expBlock,
-                    op: "expire",
-                    from: json.from,
-                    txid,
-                  });
-                  remaining = 0;
-                }
-                console.log({ contract });
+                });
               }
+              contract = {
+                txid,
+                from: json.from,
+                hive: 0,
+                hbd: 0,
+                fee: 0,
+                amount: 0,
+                rate: crate,
+                block: json.block_num,
+                type: `${order.pair}:buy`,
+                hive_id: json.transaction_id,
+              };
+              contract.amount = parseInt(remaining / crate);
+              (contract.fee =
+                parseFloat(stats.dex_fee) > 0
+                  ? parseInt(
+                    parseInt(contract.amount) * parseFloat(stats.dex_fee)
+                  ) + 1
+                  : parseInt(contract.amount * 0.005) + 1),
+                (contract[order.pair] = remaining);
+              if (remaining) {
+                dex.buyBook = DEX.insert(txid, crate, dex.buyBook, "buy");
+                path = chronAssign(expBlock, {
+                  block: expBlock,
+                  op: "expire",
+                  from: json.from,
+                  txid,
+                });
+                remaining = 0;
+              }
+              console.log({ contract });
+
             }
           }
           let msg = "";
@@ -3058,7 +2945,7 @@ export const margins = function (bn) {
         }
       // Update MSHeld.VALUE after adjusting for pending transfers
       updateMSHeldValue(stats);
-      
+
       var allowedHive = parseInt(
         stats.multiSigCollateral * parseFloat(dex.hive.tick)
       ),
@@ -3198,7 +3085,7 @@ export const feed_publish = (tx, pc, runtimeContext) => {
           lastUpdate: tx.block_num, // Block number
           activePriceFeeds: activePrices.length
         };
-        
+
         // Update MSHeld.VALUE with new price feed
         updateMSHeldValue(stats);
       }

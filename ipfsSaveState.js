@@ -1,13 +1,29 @@
 import { ipfs, store } from "./index.mjs"
+import { getPathObj, getPathNum } from "./getPathObj.js"
 import { of as createHash } from "ipfs-only-hash";
 
 export const ipfsHash = (num, buffer, initiator = null, state = null) => {
   return new Promise(async (resolve, reject) => {
     const hash = await createHash(buffer);
     if (initiator && state) {
+      const  [OldPendingHash, OldPendingBlock] = [ state.stats.OldPendingHash, state.stats.OldPendingBlock]
       state.stats.pendingHash = hash
       state.stats.pendingBlock = num
+      console.log('OldPendingHash', OldPendingHash)
+      console.log('OldPendingBlock', OldPendingBlock)
+      console.log('hash', hash)
+      console.log('num', num)
       store.batch([
+        {
+          type: "put",
+          path: ['stats', 'OldPendingHash'],
+          data: OldPendingHash || hash+ 'Genesis'
+        },
+        {
+          type: "put",
+          path: ['stats', 'oldPendingBlock'],
+          data: OldPendingBlock || num -100
+        },
         {
           type: "put",
           path: ['stats', 'pendingHash'],
@@ -20,7 +36,21 @@ export const ipfsHash = (num, buffer, initiator = null, state = null) => {
         }
       ], [initiator, reject, state])
     } else {
+      const OldPendingHash = await getPathObj(['stats', 'pendingHash'])
+      console.log('OldPendingHash', OldPendingHash)
+      console.log('hash', hash)
+      console.log('num', num)
       store.batch([
+        {
+          type: "put",
+          path: ['stats', 'OldPendingHash'],
+          data: OldPendingHash
+        },
+        {
+          type: "put",
+          path: ['stats', 'oldPendingBlock'],
+          data: num - 100
+        },
         {
           type: "put",
           path: ['stats', 'pendingHash'],
