@@ -468,38 +468,8 @@ export function customInit(api, chron, processor, codeShareDefsFromChain, everyD
       console.warn('Cannot reinitialize context - runtimeContext not properly set');
     }
 
-    // Initialize Honeygraph WebSocket integration if configured
-    console.log('Checking honeygraph initialization - HONEYGRAPH_ENABLED:', process.env.HONEYGRAPH_ENABLED, 'type:', typeof process.env.HONEYGRAPH_ENABLED);
-    console.log('_honeygraphInitialized flag:', global._honeygraphInitialized);
-    // Temporarily reset flag for debugging
-    delete global._honeygraphInitialized;
-    if (process.env.HONEYGRAPH_ENABLED === 'true' && !global._honeygraphInitialized) {
-      console.log('Initializing Honeygraph WebSocket integration...');
-      global._honeygraphInitialized = true; // Prevent multiple initializations
-      
-      import('./lib/honeygraph-ws-init.js').then(({ getHoneygraphWSIntegration }) => {
-        const integration = getHoneygraphWSIntegration({
-          enabled: true,
-          url: process.env.HONEYGRAPH_WS_URL || 'ws://localhost:3030/fork-stream',
-          token: process.env.HONEYGRAPH_TOKEN || config.prefix || 'DLUX',
-          batchSize: parseInt(process.env.HONEYGRAPH_BATCH_SIZE) || 100,
-          autoReconnect: true
-        });
-        
-        // Initialize the WebSocket connection
-        return integration.initialize().then(() => {
-          // Set the honeygraph client using the exported function
-          import('./index.mjs').then(({ setHoneygraphClient }) => {
-            setHoneygraphClient(integration);
-            console.log('Honeygraph WebSocket client configured');
-          });
-          console.log('Honeygraph WebSocket integration initialized successfully');
-        });
-      }).catch(err => {
-        console.error('Failed to initialize Honeygraph WebSocket integration:', err);
-        global._honeygraphInitialized = false; // Allow retry on error
-      });
-    }
+    // Honeygraph initialization has been moved to index.mjs to prevent
+    // node-specific settings from being overwritten during chain config reloads
 
     resolve();
   });

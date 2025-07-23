@@ -5,13 +5,8 @@ import { dirname, join } from 'path';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-console.log('Current working directory:', process.cwd());
-console.log('Config.js directory:', __dirname);
-console.log('Loading dotenv config from:', join(__dirname, '.env'));
-
-const result = dotenv.config({ path: join(__dirname, '.env') });
-console.log('Dotenv load result:', result.error ? 'ERROR: ' + result.error : 'SUCCESS');
-console.log('HONEYGRAPH_ENABLED after dotenv:', process.env.HONEYGRAPH_ENABLED);
+// Load .env file from the honeycomb-spkcc directory
+dotenv.config({ path: join(__dirname, '.env') });
 
 const ENV = process.env;
 

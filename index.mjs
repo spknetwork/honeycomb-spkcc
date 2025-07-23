@@ -240,6 +240,28 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
 
   //HIVE API CODE
 
+  // Initialize Honeygraph WebSocket integration if configured
+  if (process.env.HONEYGRAPH_ENABLED === 'true') {
+    console.log('Initializing Honeygraph WebSocket integration...');
+    import('./lib/honeygraph-ws-init.js').then(({ getHoneygraphWSIntegration }) => {
+      const integration = getHoneygraphWSIntegration({
+        enabled: true,
+        url: process.env.HONEYGRAPH_WS_URL || 'ws://localhost:3030/fork-stream',
+        token: process.env.HONEYGRAPH_TOKEN || config.prefix || 'DLUX',
+        batchSize: parseInt(process.env.HONEYGRAPH_BATCH_SIZE) || 100
+      });
+      
+      if (integration && integration.client) {
+        setHoneygraphClient(integration.client);
+        console.log('Honeygraph WebSocket client set successfully');
+      }
+    }).catch((err) => {
+      console.error('Failed to initialize Honeygraph WebSocket integration:', err);
+    });
+  } else {
+    console.log('Honeygraph integration disabled (HONEYGRAPH_ENABLED:', process.env.HONEYGRAPH_ENABLED, ')');
+  }
+
   // Parse command line arguments
   const args = process.argv.slice(2);
   const swIndex = args.indexOf('-sw');
