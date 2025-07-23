@@ -1437,9 +1437,9 @@ const CodeShare = {
         function b58ToNumber(str) {
           const glyphs58 = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
           var result = 0;
-          chars = chars.split("");
-          for (var e = 0; e < chars.length; e++) {
-            result = result * 58 + glyphs58.indexOf(chars[e]);
+          str = str.split("");
+          for (var e = 0; e < str.length; e++) {
+            result = result * 58 + glyphs58.indexOf(str[e]);
           }
           return result;
         }
