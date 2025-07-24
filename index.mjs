@@ -279,6 +279,69 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
           console.log(`[Honeygraph] Server requesting missed transactions from index: ${data.fromIndex}`);
         });
         
+        // Handle authentication if required
+        integration.client.on('auth_required', async (data) => {
+          console.log('[Honeygraph] Authentication required, signing challenge...');
+          
+          if (!config.active) {
+            console.error('[Honeygraph] No active key configured, cannot authenticate');
+            return;
+          }
+          
+          try {
+            const dhive = await import('@hiveio/dhive');
+            const privateKey = dhive.PrivateKey.fromString(config.active);
+            
+            // Create the message to sign
+            const messageObj = {
+              account: config.username,
+              challenge: data.challenge,
+              timestamp: Date.now()
+            };
+            const message = JSON.stringify(messageObj);
+            
+            // Sign the message
+            const hash = dhive.cryptoUtils.sha256(message);
+            const signature = privateKey.sign(hash).toString();
+            
+            // Send auth response
+            integration.client.sendMessage({
+              type: 'auth_response',
+              account: config.username,
+              signature: signature,
+              message: message
+            });
+            
+            console.log(`[Honeygraph] Sent authentication response for account: ${config.username}`);
+          } catch (error) {
+            console.error('[Honeygraph] Authentication failed:', error);
+          }
+        });
+        
+        // Handle successful authentication
+        integration.client.on('auth_success', (data) => {
+          console.log('[Honeygraph] Authentication successful, sending sync status...');
+          
+          // Now send sync status after successful auth
+          integration.client.sendMessage({
+            type: 'sync_status',
+            lastIndex: 0,
+            token: config.prefix
+          });
+        });
+        
+        // Handle welcome message (no auth required)
+        integration.client.on('welcome', (data) => {
+          console.log('[Honeygraph] Received welcome, sending sync status...');
+          
+          // Send sync status if no auth was required
+          integration.client.sendMessage({
+            type: 'sync_status',
+            lastIndex: 0,
+            token: config.prefix
+          });
+        });
+        
       }).catch((err) => {
         console.error('Failed to initialize Honeygraph WebSocket connection:', err);
       });
