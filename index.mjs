@@ -260,7 +260,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
       // Initialize the connection
       integration.initialize().then(() => {
         console.log('Honeygraph WebSocket connection initialized');
-        setHoneygraphClient(integration.client);
+        setHoneygraphClient(integration);
         
         // Set up event listeners for better logging
         integration.client.on('connected', () => {
@@ -341,9 +341,18 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
         
         // Handle successful authentication
         integration.client.on('auth_success', (data) => {
-          console.log('[Honeygraph] Authentication successful, sending sync status...');
+          console.log('[Honeygraph] Authentication successful, sending identification...');
           
-          // Now send sync status after successful auth
+          // Send identify message first
+          integration.client.sendMessage({
+            type: 'identify',
+            source: 'honeycomb',
+            version: '1.0.0',
+            token: config.prefix,
+            prefix: config.prefix
+          });
+          
+          // Then send sync status after successful auth
           integration.client.sendMessage({
             type: 'sync_status',
             lastIndex: 0,
@@ -353,9 +362,18 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
         
         // Handle welcome message (no auth required)
         integration.client.on('welcome', (data) => {
-          console.log('[Honeygraph] Received welcome, sending sync status...');
+          console.log('[Honeygraph] Received welcome, sending identification...');
           
-          // Send sync status if no auth was required
+          // Send identify message first
+          integration.client.sendMessage({
+            type: 'identify',
+            source: 'honeycomb',
+            version: '1.0.0',
+            token: config.prefix,
+            prefix: config.prefix
+          });
+          
+          // Then send sync status if no auth was required
           integration.client.sendMessage({
             type: 'sync_status',
             lastIndex: 0,
