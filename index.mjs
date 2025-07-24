@@ -307,15 +307,21 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
             // Get the signature in the format honeygraph expects
             // dhive returns a Signature object, we need to convert it properly
             let signature;
-            if (sig.data) {
-              // If sig has a data property, use that
-              signature = sig.data;
-            } else if (typeof sig.toString === 'function') {
-              // Use toString() which should give us the canonical format
-              signature = sig.toString();
+            
+            // The sig object from dhive might have different properties
+            // We need to get it as a hex string for transmission
+            if (Buffer.isBuffer(sig)) {
+              signature = sig.toString('hex');
+            } else if (sig.data && Buffer.isBuffer(sig.data)) {
+              signature = sig.data.toString('hex');
+            } else if (sig.toBuffer && typeof sig.toBuffer === 'function') {
+              signature = sig.toBuffer().toString('hex');
+            } else if (sig.toString && typeof sig.toString === 'function') {
+              // Try toString with 'hex' parameter
+              signature = sig.toString('hex');
             } else {
-              // Fallback to hex
-              signature = Buffer.from(sig).toString('hex');
+              // Last resort - try to convert to string
+              signature = String(sig);
             }
             
             // Also get the public key for debugging
