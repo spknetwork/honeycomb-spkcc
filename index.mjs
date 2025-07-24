@@ -304,12 +304,19 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
             const hash = dhive.cryptoUtils.sha256(message);
             const sig = privateKey.sign(hash);
             
-            // Try both signature formats to see which one honeygraph expects
-            const hexSignature = sig.toString('hex');
-            const compactSignature = sig.toString(); // Default might be compact/base58
-            
-            // Use the compact format which is what Hive typically uses
-            const signature = compactSignature;
+            // Get the signature in the format honeygraph expects
+            // dhive returns a Signature object, we need to convert it properly
+            let signature;
+            if (sig.data) {
+              // If sig has a data property, use that
+              signature = sig.data;
+            } else if (typeof sig.toString === 'function') {
+              // Use toString() which should give us the canonical format
+              signature = sig.toString();
+            } else {
+              // Fallback to hex
+              signature = Buffer.from(sig).toString('hex');
+            }
             
             // Also get the public key for debugging
             const publicKey = privateKey.createPublic().toString();
@@ -384,6 +391,10 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
           console.error('  2. You are using the active private key (not posting key)');
           console.error('  3. Your account is in the authorized nodes list on honeygraph');
           console.error(`  4. The account name "${config.username}" matches your Hive account`);
+          console.error('');
+          console.error('[Honeygraph] Since the signature verifies locally, this is likely an authorization issue.');
+          console.error('[Honeygraph] Contact the honeygraph administrator to add your account to the authorized nodes list.');
+          console.error('[Honeygraph] Or check if HONEYGRAPH_AUTH_ENABLED can be set to false for testing.');
         });
         
       }).catch((err) => {
