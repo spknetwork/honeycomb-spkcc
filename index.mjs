@@ -302,7 +302,9 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
             
             // Sign the message - use dhive's crypto utilities
             const hash = dhive.cryptoUtils.sha256(message);
+            console.log('[Honeygraph] Message hash:', hash.toString('hex'));
             const sig = privateKey.sign(hash);
+            console.log('[Honeygraph] Signature object:', sig);
             
             // Get the signature in the format honeygraph expects
             // dhive returns a Signature object, we need to convert it properly
@@ -310,12 +312,28 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
             
             // The sig object from dhive might have different properties
             // We need to get it as a hex string for transmission
-            if (Buffer.isBuffer(sig)) {
+            console.log('[Honeygraph] Signature properties:', Object.keys(sig));
+            console.log('[Honeygraph] Signature r:', sig.r);
+            console.log('[Honeygraph] Signature s:', sig.s);
+            console.log('[Honeygraph] Signature recovery:', sig.recovery);
+            
+            // Check if we have r and s components
+            if (sig.r && sig.s) {
+              // Create a proper 65-byte signature with recovery parameter
+              const recovery = sig.recovery || 0;
+              const rBuffer = Buffer.isBuffer(sig.r) ? sig.r : Buffer.from(sig.r);
+              const sBuffer = Buffer.isBuffer(sig.s) ? sig.s : Buffer.from(sig.s);
+              
+              // Combine recovery + r + s
+              const fullSig = Buffer.concat([
+                Buffer.from([recovery + 31]), // Add 31 for Hive format
+                rBuffer,
+                sBuffer
+              ]);
+              signature = fullSig.toString('hex');
+              console.log('[Honeygraph] Created full signature with recovery:', signature);
+            } else if (Buffer.isBuffer(sig)) {
               signature = sig.toString('hex');
-            } else if (sig.data && Buffer.isBuffer(sig.data)) {
-              signature = sig.data.toString('hex');
-            } else if (sig.toBuffer && typeof sig.toBuffer === 'function') {
-              signature = sig.toBuffer().toString('hex');
             } else if (sig.toString && typeof sig.toString === 'function') {
               // Try toString with 'hex' parameter
               signature = sig.toString('hex');
@@ -333,45 +351,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
             console.log('[Honeygraph] Signature:', signature);
             console.log('[Honeygraph] Signature type:', typeof signature, 'length:', signature.length);
             
-            // Verify the signature locally to ensure it's valid
-            try {
-              const pubKey = dhive.PublicKey.fromString(publicKey);
-              
-              // Since we have a hex signature without recovery, we need to try different recovery values
-              let isValid = false;
-              if (signature.length === 128) {
-                const sigBuffer = Buffer.from(signature, 'hex');
-                for (let recovery = 0; recovery < 4; recovery++) {
-                  try {
-                    const sigObj = new dhive.Signature(
-                      sigBuffer.slice(0, 32),
-                      sigBuffer.slice(32, 64),
-                      recovery
-                    );
-                    if (pubKey.verify(hash, sigObj)) {
-                      isValid = true;
-                      console.log('[Honeygraph] Local signature verification: VALID (recovery=' + recovery + ')');
-                      
-                      // Add the recovery parameter to the signature for transmission
-                      const fullSigBuffer = Buffer.concat([
-                        Buffer.from([recovery + 31]), // Add 31 for Hive format
-                        sigBuffer
-                      ]);
-                      signature = fullSigBuffer.toString('hex');
-                      console.log('[Honeygraph] Updated signature with recovery:', signature);
-                      break;
-                    }
-                  } catch (e) {
-                    // Try next recovery
-                  }
-                }
-                if (!isValid) {
-                  console.log('[Honeygraph] Local signature verification: INVALID (tried all recovery values)');
-                }
-              }
-            } catch (verifyError) {
-              console.error('[Honeygraph] Local signature verification error:', verifyError.message);
-            }
+            // Skip local verification for now - we'll let the server verify
             
             // Send auth response
             const authResponse = {
