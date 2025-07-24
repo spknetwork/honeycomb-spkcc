@@ -1009,7 +1009,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
         .then(r => {
           for (var i = 0; i < r.length; i++) {
             if (r[i].consensus) {
-              plasma.consensus = r[1].consensus
+              plasma.consensus = r[i].consensus
             }
           }
           resolve(1)
