@@ -299,18 +299,15 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
             };
             const message = JSON.stringify(messageObj);
             
-            // Debug: Check what hiveTx exports
-            console.log('[Honeygraph] hiveTx exports:', Object.keys(hiveTx));
-            console.log('[Honeygraph] hiveTx.default:', hiveTx.default ? Object.keys(hiveTx.default) : 'undefined');
-            
             // Use hive-tx to sign the message
+            const crypto = await import('crypto');
             const privateKey = hiveTx.PrivateKey.from(config.active);
-            const messageBuffer = Buffer.from(message);
             
-            // Sign the message - hive-tx PrivateKey has a sign method
-            const sig = privateKey.sign(messageBuffer);
+            // Create SHA256 hash of the message (32 bytes)
+            const messageHash = crypto.createHash('sha256').update(message).digest();
             
-            // Get the signature as a hex string
+            // Sign the hash
+            const sig = privateKey.sign(messageHash);
             const signature = sig.toString();
             
             // Get the public key
