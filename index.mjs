@@ -302,10 +302,18 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
             
             // Sign the message - use dhive's crypto utilities
             const hash = dhive.cryptoUtils.sha256(message);
-            const signature = privateKey.sign(hash).toString();
+            const sig = privateKey.sign(hash);
+            // Get the signature in the format honeygraph expects
+            const signature = sig.toString();
+            
+            // Also get the public key for debugging
+            const publicKey = privateKey.createPublic().toString();
             
             console.log('[Honeygraph] Message to sign:', message);
+            console.log('[Honeygraph] Account:', config.username);
+            console.log('[Honeygraph] Public key:', publicKey);
             console.log('[Honeygraph] Signature:', signature);
+            console.log('[Honeygraph] Signature type:', typeof signature, 'length:', signature.length);
             
             // Send auth response
             const authResponse = {
@@ -345,6 +353,20 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
             lastIndex: 0,
             token: config.prefix
           });
+        });
+        
+        // Handle auth failure
+        integration.client.on('auth_failed', (data) => {
+          console.error('[Honeygraph] Authentication failed!');
+          console.error('[Honeygraph] Reason:', data.reason || 'Unknown');
+          if (data.details) {
+            console.error('[Honeygraph] Details:', data.details);
+          }
+          console.error('[Honeygraph] Make sure:');
+          console.error('  1. Your account exists on Hive blockchain');
+          console.error('  2. You are using the active private key (not posting key)');
+          console.error('  3. Your account is in the authorized nodes list on honeygraph');
+          console.error(`  4. The account name "${config.username}" matches your Hive account`);
         });
         
       }).catch((err) => {
