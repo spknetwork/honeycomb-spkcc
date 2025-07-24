@@ -308,7 +308,9 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
             
             // Sign the hash
             const sig = privateKey.sign(messageHash);
-            const signature = sig.toString();
+            
+            // Get the signature in the format expected by Signature.from()
+            const signature = sig.customToString();
             
             // Get the public key
             const publicKey = privateKey.createPublic().toString();
