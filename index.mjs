@@ -875,17 +875,26 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                         //console.log({ pla })
                         TXID.saveNumber = pla.hashBlock
                         block.root = pla.hashLastIBlock
+                        const oldHash = plasma.hashLastIBlock; // Save old hash for prevHash
                         plasma.hashSecIBlock = plasma.hashLastIBlock
                         plasma.hashLastIBlock = pla.hashLastIBlock
                         plasma.hashBlock = pla.hashBlock
                         // Notify Honeygraph of checkpoint
                         if (honeygraphClient && typeof honeygraphClient.sendCheckpoint === 'function') {
+                          console.log(`[Honeygraph] Sending checkpoint for block ${num}:`, {
+                            hash: pla.hashLastIBlock,
+                            prevHash: oldHash
+                          });
                           honeygraphClient.sendCheckpoint({
                             blockNum: num,
                             hash: pla.hashLastIBlock,
-                            prevHash: plasma.hashSecIBlock,
+                            prevHash: oldHash,
                             timestamp: Date.now()
                           });
+                        } else {
+                          console.log(`[Honeygraph] Cannot send checkpoint - client not available or sendCheckpoint not a function`);
+                          console.log(`[Honeygraph] honeygraphClient:`, !!honeygraphClient);
+                          console.log(`[Honeygraph] sendCheckpoint is function:`, honeygraphClient && typeof honeygraphClient.sendCheckpoint === 'function');
                         }
                       })
                       .catch(e => { console.log(e) })
