@@ -242,21 +242,48 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
 
   // Initialize Honeygraph WebSocket integration if configured
   if (process.env.HONEYGRAPH_ENABLED === 'true') {
-    console.log('Initializing Honeygraph WebSocket integration...');
+    const honeygraphUrl = process.env.HONEYGRAPH_WS_URL || 'ws://localhost:3030/fork-stream';
+    console.log(`Initializing Honeygraph WebSocket integration...`);
+    console.log(`Honeygraph URL: ${honeygraphUrl}`);
+    console.log(`Honeygraph Token: ${process.env.HONEYGRAPH_TOKEN || config.prefix || 'DLUX'}`);
+    
     import('./lib/honeygraph-ws-init.js').then(({ getHoneygraphWSIntegration }) => {
       const integration = getHoneygraphWSIntegration({
         enabled: true,
-        url: process.env.HONEYGRAPH_WS_URL || 'ws://localhost:3030/fork-stream',
+        url: honeygraphUrl,
         token: process.env.HONEYGRAPH_TOKEN || config.prefix || 'DLUX',
         batchSize: parseInt(process.env.HONEYGRAPH_BATCH_SIZE) || 100
       });
       
-      if (integration && integration.client) {
+      console.log('Honeygraph integration object created, initializing connection...');
+      
+      // Initialize the connection
+      integration.initialize().then(() => {
+        console.log('Honeygraph WebSocket connection initialized');
         setHoneygraphClient(integration.client);
-        console.log('Honeygraph WebSocket client set successfully');
-      }
+        
+        // Set up event listeners for better logging
+        integration.client.on('connected', () => {
+          console.log('[Honeygraph] WebSocket handshake successful - Connected to server');
+        });
+        
+        integration.client.on('disconnected', (code, reason) => {
+          console.log(`[Honeygraph] WebSocket disconnected - Code: ${code}, Reason: ${reason}`);
+        });
+        
+        integration.client.on('error', (error) => {
+          console.error('[Honeygraph] WebSocket error:', error.message);
+        });
+        
+        integration.client.on('sync_request', (data) => {
+          console.log(`[Honeygraph] Server requesting missed transactions from index: ${data.fromIndex}`);
+        });
+        
+      }).catch((err) => {
+        console.error('Failed to initialize Honeygraph WebSocket connection:', err);
+      });
     }).catch((err) => {
-      console.error('Failed to initialize Honeygraph WebSocket integration:', err);
+      console.error('Failed to import Honeygraph WebSocket integration:', err);
     });
   } else {
     console.log('Honeygraph integration disabled (HONEYGRAPH_ENABLED:', process.env.HONEYGRAPH_ENABLED, ')');
