@@ -289,8 +289,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
           }
           
           try {
-            const dhive = await import('@hiveio/dhive');
-            const privateKey = dhive.PrivateKey.fromString(config.active);
+            const hiveTx = await import('hive-tx');
             
             // Create the message to sign - must match exact format expected by honeygraph
             const messageObj = {
@@ -300,50 +299,11 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
             };
             const message = JSON.stringify(messageObj);
             
-            // Sign the message - use dhive's crypto utilities
-            const hash = dhive.cryptoUtils.sha256(message);
-            console.log('[Honeygraph] Message hash:', hash.toString('hex'));
-            const sig = privateKey.sign(hash);
-            console.log('[Honeygraph] Signature object:', sig);
+            // Sign the message using hive-tx - it handles everything properly
+            const signature = hiveTx.signature.signBuffer(Buffer.from(message), config.active);
             
-            // Get the signature in the format honeygraph expects
-            // dhive returns a Signature object, we need to convert it properly
-            let signature;
-            
-            // The sig object from dhive might have different properties
-            // We need to get it as a hex string for transmission
-            console.log('[Honeygraph] Signature properties:', Object.keys(sig));
-            console.log('[Honeygraph] Signature r:', sig.r);
-            console.log('[Honeygraph] Signature s:', sig.s);
-            console.log('[Honeygraph] Signature recovery:', sig.recovery);
-            
-            // Check if we have r and s components
-            if (sig.r && sig.s) {
-              // Create a proper 65-byte signature with recovery parameter
-              const recovery = sig.recovery || 0;
-              const rBuffer = Buffer.isBuffer(sig.r) ? sig.r : Buffer.from(sig.r);
-              const sBuffer = Buffer.isBuffer(sig.s) ? sig.s : Buffer.from(sig.s);
-              
-              // Combine recovery + r + s
-              const fullSig = Buffer.concat([
-                Buffer.from([recovery + 31]), // Add 31 for Hive format
-                rBuffer,
-                sBuffer
-              ]);
-              signature = fullSig.toString('hex');
-              console.log('[Honeygraph] Created full signature with recovery:', signature);
-            } else if (Buffer.isBuffer(sig)) {
-              signature = sig.toString('hex');
-            } else if (sig.toString && typeof sig.toString === 'function') {
-              // Try toString with 'hex' parameter
-              signature = sig.toString('hex');
-            } else {
-              // Last resort - try to convert to string
-              signature = String(sig);
-            }
-            
-            // Also get the public key for debugging
-            const publicKey = privateKey.createPublic().toString();
+            // Get the public key from the private key
+            const publicKey = hiveTx.PublicKey.fromPrivateKey(config.active).toString();
             
             console.log('[Honeygraph] Message to sign:', message);
             console.log('[Honeygraph] Account:', config.username);
