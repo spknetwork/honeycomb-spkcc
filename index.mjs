@@ -292,25 +292,30 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
             const dhive = await import('@hiveio/dhive');
             const privateKey = dhive.PrivateKey.fromString(config.active);
             
-            // Create the message to sign
+            // Create the message to sign - must match exact format expected by honeygraph
             const messageObj = {
               account: config.username,
-              challenge: data.challenge,
+              challenge: data.challenge,  // Preserve the entire challenge object
               timestamp: Date.now()
             };
             const message = JSON.stringify(messageObj);
             
-            // Sign the message
+            // Sign the message - use dhive's crypto utilities
             const hash = dhive.cryptoUtils.sha256(message);
             const signature = privateKey.sign(hash).toString();
             
+            console.log('[Honeygraph] Message to sign:', message);
+            console.log('[Honeygraph] Signature:', signature);
+            
             // Send auth response
-            integration.client.sendMessage({
+            const authResponse = {
               type: 'auth_response',
               account: config.username,
               signature: signature,
               message: message
-            });
+            };
+            
+            integration.client.sendMessage(authResponse);
             
             console.log(`[Honeygraph] Sent authentication response for account: ${config.username}`);
           } catch (error) {
