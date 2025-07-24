@@ -336,9 +336,39 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
             // Verify the signature locally to ensure it's valid
             try {
               const pubKey = dhive.PublicKey.fromString(publicKey);
-              const sigObj = dhive.Signature.fromString(signature);
-              const isValid = pubKey.verify(hash, sigObj);
-              console.log('[Honeygraph] Local signature verification:', isValid ? 'VALID' : 'INVALID');
+              
+              // Since we have a hex signature without recovery, we need to try different recovery values
+              let isValid = false;
+              if (signature.length === 128) {
+                const sigBuffer = Buffer.from(signature, 'hex');
+                for (let recovery = 0; recovery < 4; recovery++) {
+                  try {
+                    const sigObj = new dhive.Signature(
+                      sigBuffer.slice(0, 32),
+                      sigBuffer.slice(32, 64),
+                      recovery
+                    );
+                    if (pubKey.verify(hash, sigObj)) {
+                      isValid = true;
+                      console.log('[Honeygraph] Local signature verification: VALID (recovery=' + recovery + ')');
+                      
+                      // Add the recovery parameter to the signature for transmission
+                      const fullSigBuffer = Buffer.concat([
+                        Buffer.from([recovery + 31]), // Add 31 for Hive format
+                        sigBuffer
+                      ]);
+                      signature = fullSigBuffer.toString('hex');
+                      console.log('[Honeygraph] Updated signature with recovery:', signature);
+                      break;
+                    }
+                  } catch (e) {
+                    // Try next recovery
+                  }
+                }
+                if (!isValid) {
+                  console.log('[Honeygraph] Local signature verification: INVALID (tried all recovery values)');
+                }
+              }
             } catch (verifyError) {
               console.error('[Honeygraph] Local signature verification error:', verifyError.message);
             }
