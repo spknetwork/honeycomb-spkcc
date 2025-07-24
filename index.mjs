@@ -303,34 +303,18 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
             console.log('[Honeygraph] hiveTx exports:', Object.keys(hiveTx));
             console.log('[Honeygraph] hiveTx.default:', hiveTx.default ? Object.keys(hiveTx.default) : 'undefined');
             
-            // Sign the message using hive-tx - it handles everything properly
-            // hive-tx might export differently, let's check
-            let signature;
-            if (hiveTx.signBuffer) {
-              signature = hiveTx.signBuffer(Buffer.from(message), config.active);
-            } else if (hiveTx.default && hiveTx.default.signBuffer) {
-              signature = hiveTx.default.signBuffer(Buffer.from(message), config.active);
-            } else if (hiveTx.Signature && hiveTx.Signature.signBuffer) {
-              signature = hiveTx.Signature.signBuffer(Buffer.from(message), config.active);
-            } else {
-              // Fallback to crypto utils
-              const crypto = hiveTx.cryptoUtils || hiveTx.default?.cryptoUtils || hiveTx;
-              const privateKey = crypto.PrivateKey.fromString(config.active);
-              signature = privateKey.signBuffer(Buffer.from(message));
-            }
+            // Use hive-tx to sign the message
+            const privateKey = hiveTx.PrivateKey.from(config.active);
+            const messageBuffer = Buffer.from(message);
             
-            // Get the public key from the private key
-            let publicKey;
-            if (hiveTx.PublicKey) {
-              publicKey = hiveTx.PublicKey.fromPrivateKey(config.active).toString();
-            } else if (hiveTx.default && hiveTx.default.PublicKey) {
-              publicKey = hiveTx.default.PublicKey.fromPrivateKey(config.active).toString();
-            } else {
-              // Fallback
-              const crypto = hiveTx.cryptoUtils || hiveTx.default?.cryptoUtils || hiveTx;
-              const privateKey = crypto.PrivateKey.fromString(config.active);
-              publicKey = privateKey.toPublic().toString();
-            }
+            // Sign the message - hive-tx PrivateKey has a sign method
+            const sig = privateKey.sign(messageBuffer);
+            
+            // Get the signature as a hex string
+            const signature = sig.toString();
+            
+            // Get the public key
+            const publicKey = privateKey.createPublic().toString();
             
             console.log('[Honeygraph] Message to sign:', message);
             console.log('[Honeygraph] Account:', config.username);
