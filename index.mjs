@@ -303,8 +303,13 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
             // Sign the message - use dhive's crypto utilities
             const hash = dhive.cryptoUtils.sha256(message);
             const sig = privateKey.sign(hash);
-            // Get the signature in the format honeygraph expects
-            const signature = sig.toString();
+            
+            // Try both signature formats to see which one honeygraph expects
+            const hexSignature = sig.toString('hex');
+            const compactSignature = sig.toString(); // Default might be compact/base58
+            
+            // Use the compact format which is what Hive typically uses
+            const signature = compactSignature;
             
             // Also get the public key for debugging
             const publicKey = privateKey.createPublic().toString();
@@ -312,8 +317,20 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
             console.log('[Honeygraph] Message to sign:', message);
             console.log('[Honeygraph] Account:', config.username);
             console.log('[Honeygraph] Public key:', publicKey);
-            console.log('[Honeygraph] Signature:', signature);
+            console.log('[Honeygraph] Hex signature:', hexSignature);
+            console.log('[Honeygraph] Compact signature:', compactSignature);
+            console.log('[Honeygraph] Using signature:', signature);
             console.log('[Honeygraph] Signature type:', typeof signature, 'length:', signature.length);
+            
+            // Verify the signature locally to ensure it's valid
+            try {
+              const pubKey = dhive.PublicKey.fromString(publicKey);
+              const sigObj = dhive.Signature.fromString(signature);
+              const isValid = pubKey.verify(hash, sigObj);
+              console.log('[Honeygraph] Local signature verification:', isValid ? 'VALID' : 'INVALID');
+            } catch (verifyError) {
+              console.error('[Honeygraph] Local signature verification error:', verifyError.message);
+            }
             
             // Send auth response
             const authResponse = {
