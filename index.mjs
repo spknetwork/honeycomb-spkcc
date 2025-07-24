@@ -324,9 +324,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
             console.log('[Honeygraph] Message to sign:', message);
             console.log('[Honeygraph] Account:', config.username);
             console.log('[Honeygraph] Public key:', publicKey);
-            console.log('[Honeygraph] Hex signature:', hexSignature);
-            console.log('[Honeygraph] Compact signature:', compactSignature);
-            console.log('[Honeygraph] Using signature:', signature);
+            console.log('[Honeygraph] Signature:', signature);
             console.log('[Honeygraph] Signature type:', typeof signature, 'length:', signature.length);
             
             // Verify the signature locally to ensure it's valid
