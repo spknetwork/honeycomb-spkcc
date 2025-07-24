@@ -879,6 +879,7 @@ Promise.all([config.startURL, config.clientURL]).then(urls => {
                         plasma.hashSecIBlock = plasma.hashLastIBlock
                         plasma.hashLastIBlock = pla.hashLastIBlock
                         plasma.hashBlock = pla.hashBlock
+                        console.log(`[Checkpoint Debug] Block ${num}: Checkpoint saved, honeygraphClient exists: ${!!honeygraphClient}, has sendCheckpoint: ${honeygraphClient && typeof honeygraphClient.sendCheckpoint === 'function'}`);
                         // Notify Honeygraph of checkpoint
                         if (honeygraphClient && typeof honeygraphClient.sendCheckpoint === 'function') {
                           console.log(`[Honeygraph] Sending checkpoint for block ${num}:`, {
