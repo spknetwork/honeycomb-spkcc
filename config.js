@@ -2736,7 +2736,8 @@ const CustomJsonProcessing = [
     op: "direct_upload",
     func: function (json, from, active, pc, context) {
       const { store, config, getPathObj, getPathNum, postToDiscord, stringify, CodeShare } = context
-      if (active && json.c && json.s && json.id) {
+      const id = `${from}:0:${json.block_num}-${json.transaction_id}`
+      if (active && json.c && json.s) {
         var Pbroca = getPathObj(["broca", from]);
         var Ppow = getPathNum(["bpow", from]);
         var Pstats = getPathObj(["stats"]);
@@ -2780,7 +2781,7 @@ const CustomJsonProcessing = [
                 ops.push({
                   type: "put",
                   path: ["IPFS", `${rev}`],
-                  data: `${from},${json.id}`
+                  data: `${from},${id}`
                 });
 
                 proms.push(getPathObj(["IPFS", `${rev}`]));
@@ -2800,7 +2801,7 @@ const CustomJsonProcessing = [
               }
 
               if (!num) {
-                err = `${json.id}-No New Files`;
+                err = `${id}-No New Files`;
                 ops = [{
                   type: "put",
                   path: ["feed", `${json.block_num}:${json.transaction_id}`],
@@ -2810,7 +2811,7 @@ const CustomJsonProcessing = [
                   postToDiscord(err, `${json.block_num}:${json.transaction_id}`);
                 }
               } else if (broca < total) {
-                err = `${json.id}-Insufficient Broca`;
+                err = `${id}-Insufficient Broca`;
                 ops = [{
                   type: "put",
                   path: ["feed", `${json.block_num}:${json.transaction_id}`],
@@ -2846,13 +2847,13 @@ const CustomJsonProcessing = [
 
                 ops.push({
                   type: "put",
-                  path: ["contract", from, json.id],
+                  path: ["contract", from, id],
                   data: directContract
                 });
 
                 ops.push({
                   type: "put",
-                  path: ["cPointers", json.id],
+                  path: ["cPointers", id],
                   data: from
                 });
 
@@ -2865,7 +2866,7 @@ const CustomJsonProcessing = [
                 ops.push({
                   type: "put",
                   path: ["feed", `${json.block_num}:${json.transaction_id}`],
-                  data: `${json.id} direct upload completed`
+                  data: `${id} direct upload completed`
                 });
 
                 if (config.hookurl || config.status) {
@@ -3751,7 +3752,7 @@ const CustomJsonProcessing = [
     type: "on",
     op: "register_service",
     func: function (json, from, active, pc, context) {
-      const { store, getPathObj, getPathNum, Base64, postToDiscord, config, stringify } = context
+      const { store, getPathObj, getPathNum, postToDiscord, config, stringify } = context
       if (typeof json.type == "string") json.type = json.type.toUpperCase()
       let Pbal = getPathNum(["balances", from]),
         Pservices = getPathObj(["services", from]), //to balance promise
@@ -3769,8 +3770,10 @@ const CustomJsonProcessing = [
             list = mem[5],
             ops = [],
             send = parseInt(json.amount);
+          if(! json.api)json.api = 'PRIVATE'
           if (
             list[json.type] &&
+            json.api &&
             json.api.length < 256 &&
             json.id &&
             json.id.length < 256 &&
