@@ -2742,16 +2742,24 @@ const CustomJsonProcessing = [
         var Ppow = getPathNum(["bpow", from]);
         var Pstats = getPathObj(["stats"]);
         var Pauth = getPathObj(["authorities", from]);
+        var Pservice = getPathObj(["service", "IPFS", from]);
 
-        Promise.all([Pbroca, Pstats, Ppow]).then(mem => {
+        Promise.all([Pbroca, Pstats, Ppow, Pauth, Pservice]).then(mem => {
           var brocaString = mem[0],
             stats = mem[1],
             bpow = mem[2],
+            auth = mem[3],
+            service = mem[4],
             ops = [],
             err = '';
-
+          if(typeof auth !== 'string') {
+            err = 'PubKey Not Registered';
+          }
+          if(typeof service !== 'string') {
+            err = 'Service Not Registered';
+          }
           brocaString = CodeShare.broca_calc(brocaString, bpow, stats, json.block_num, 0, Base64)
-          broca = parseInt(brocaString.split(',')[0])
+          const broca = parseInt(brocaString.split(',')[0])
           // Validate metadata if provided
           if (json.m && typeof json.m === 'string') {
             const cids = json.c.split(',');
