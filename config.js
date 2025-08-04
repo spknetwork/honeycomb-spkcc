@@ -2843,8 +2843,6 @@ const CustomJsonProcessing = [
                   b: from, // broker is self
                   fo: from, // file owner is self
                   f: from, // uploader is self
-                  type: "direct_upload",
-                  created: json.block_num
                 };
 
                 ops.push({
@@ -2868,7 +2866,7 @@ const CustomJsonProcessing = [
                 ops.push({
                   type: "put",
                   path: ["broca", from],
-                  data: `${broca - total},${brocaString.split(',')[1]}}`
+                  data: `${broca - total},${brocaString.split(',')[1]}`
                 });
 
                 ops.push({
