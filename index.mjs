@@ -1480,16 +1480,45 @@ function checkAPIs(url, alter) {
         if (res.result.head_block_number) resolve(url)
         else {
           const index = config.clients.indexOf(url)
-          if (alter) config.clients.splice(index, 1)
-          if (config.clients.length == 0) reject('No API nodes available')
-          checkAPIs(config.clients[index + 1], true).then(x => resolve(x)).catch(e => reject(e))
+          if (alter && index !== -1) config.clients.splice(index, 1)
+          
+          if (config.clients.length === 0) {
+            reject('No API nodes available')
+            return
+          }
+          
+          // Use the same index if we removed an element, or index + 1 if we didn't
+          const nextIndex = alter && index !== -1 ? index : index + 1
+          
+          // Make sure we don't go out of bounds
+          if (nextIndex >= config.clients.length) {
+            reject('No more API nodes to try')
+            return
+          }
+          
+          checkAPIs(config.clients[nextIndex], true).then(x => resolve(x)).catch(e => reject(e))
         }
       })
       .catch(e => {
         const index = config.clients.indexOf(url)
-        if (alter) config.clients.splice(index, 1)
+        if (alter && index !== -1) config.clients.splice(index, 1)
         console.log(`${url} did not respond`)
-        checkAPIs(config.clients[index + 1], true).then(x => resolve(x)).catch(e => reject(e))
+        
+        if (config.clients.length === 0) {
+          reject('No API nodes available')
+          return
+        }
+        
+        // Use the same index if we removed an element, or index + 1 if we didn't
+        const nextIndex = alter && index !== -1 ? index : index + 1
+        
+        // Make sure we don't go out of bounds
+        if (nextIndex >= config.clients.length) {
+          reject('No more API nodes to try')
+          return
+        }
+        
+        checkAPIs(config.clients[nextIndex], true).then(x => resolve(x)).catch(e => reject(e))
       })
   })
 }
