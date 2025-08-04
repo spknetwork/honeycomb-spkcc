@@ -56,7 +56,6 @@ var clientURL = ENV.APIURL || "https://hive-api.dlux.io/";
 const clients = ENV.clients
   ? ENV.clients.split(" ")
   : [
-      "https://api.deathwing.me/",
       "https://hive-api.dlux.io/",
       "https://rpc.ecency.com/",
       "https://hived.emre.sh/",

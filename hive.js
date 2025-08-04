@@ -41,7 +41,7 @@ export const Hive = {
   },
   getRecentReport: function (account, walletOperationsBitmask) {
     return new Promise(function (resolve, reject) {
-      hiveClient.api.setOptions({ url: "https://api.deathwing.me/" });
+      hiveClient.api.setOptions({ url: Config("startURL") });
       hiveClient.api.getAccountHistory(
         account,
         -1,

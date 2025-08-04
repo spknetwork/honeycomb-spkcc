@@ -65,7 +65,6 @@ const clients = ENV.clients
   : [
     "https://hive-api.dlux.io/",
     "https://api.hive.blog/",
-    "https://api.deathwing.me/",
     "https://hive-api.dlux.io/",
     "https://rpc.ecency.com/",
     "https://hived.emre.sh/",
