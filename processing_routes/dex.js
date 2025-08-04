@@ -2711,7 +2711,7 @@ function postVerify(str, from, loc){
     })
 }
 */
-export const release = (from, txid, bn, tx_id) => {
+export const release = (from, txid, bn, tx_id, dex = 'dex', token = Config("TOKEN")) => {
   return new Promise((resolve, reject) => {
     store.get(["contracts", from, txid], function (er, a) {
       if (er) {
@@ -2720,17 +2720,17 @@ export const release = (from, txid, bn, tx_id) => {
         var ops = [];
         switch (a.type) {
           case "hive:sell":
-            store.get(["dex", "hive"], function (e, res) {
+            store.get([dex, "hive"], function (e, res) {
               if (e) {
                 console.log(e);
               } else if (isEmpty(res)) {
                 console.log("Nothing here" + a.txid);
               } else {
-                r = res.sellOrders[`${a.rate}:${a.txid}`];
+                const r = res.sellOrders[`${a.rate}:${a.txid}`];
                 res.sellBook = DEX.remove(a.txid, res.sellBook);
                 ops.push({
                   type: "put",
-                  path: ["dex", "hive", "sellBook"],
+                  path: [dex, "hive", "sellBook"],
                   data: res.sellBook,
                 });
                 add(r.from, r.amount)
@@ -2740,7 +2740,7 @@ export const release = (from, txid, bn, tx_id) => {
                     ops.push({
                       type: "del",
                       path: [
-                        "dex",
+                        dex,
                         "hive",
                         "sellOrders",
                         `${a.rate}:${a.txid}`,
@@ -2761,17 +2761,17 @@ export const release = (from, txid, bn, tx_id) => {
             });
             break;
           case "hbd:sell":
-            store.get(["dex", "hbd"], function (e, res) {
+            store.get([dex, "hbd"], function (e, res) {
               if (e) {
                 console.log(e);
               } else if (isEmpty(res)) {
                 console.log("Nothing here" + a.txid);
               } else {
-                r = res.sellOrders[`${a.rate}:${a.txid}`];
+                const r = res.sellOrders[`${a.rate}:${a.txid}`];
                 res.sellBook = DEX.remove(a.txid, res.sellBook);
                 ops.push({
                   type: "put",
-                  path: ["dex", "hbd", "sellBook"],
+                  path: [dex, "hbd", "sellBook"],
                   data: res.sellBook,
                 });
                 add(r.from, r.amount)
@@ -2780,7 +2780,7 @@ export const release = (from, txid, bn, tx_id) => {
                     ops.push({ type: "del", path: ["chrono", a.expire_path] });
                     ops.push({
                       type: "del",
-                      path: ["dex", "hbd", "sellOrders", `${a.rate}:${a.txid}`],
+                      path: [dex, "hbd", "sellOrders", `${a.rate}:${a.txid}`],
                     });
                     if (tx_id && Config("hookurl")) {
                       postToDiscord(
@@ -2797,17 +2797,17 @@ export const release = (from, txid, bn, tx_id) => {
             });
             break;
           case "hive:buy":
-            store.get(["dex", "hive"], function (e, res) {
+            store.get([dex, "hive"], function (e, res) {
               if (e) {
                 console.log(e);
               } else if (isEmpty(res)) {
                 console.log("Nothing here" + a.txid);
               } else {
-                r = res.buyOrders[`${a.rate}:${a.txid}`];
+                const r = res.buyOrders[`${a.rate}:${a.txid}`];
                 res.buyBook = DEX.remove(a.txid, res.buyBook);
                 ops.push({
                   type: "put",
-                  path: ["dex", "hive", "buyBook"],
+                  path: [dex, "hive", "buyBook"],
                   data: res.buyBook,
                 });
                 a.cancel = true;
@@ -2817,7 +2817,7 @@ export const release = (from, txid, bn, tx_id) => {
                     from: Config("msaccount"),
                     to: a.from,
                     amount: parseFloat(a.hive / 1000).toFixed(3) + " HIVE",
-                    memo: `Canceled ${Config("TOKEN")} buy ${a.txid}`,
+                    memo: `Canceled ${token} buy ${a.txid}`,
                   },
                 ];
                 ops.push({
@@ -2841,17 +2841,17 @@ export const release = (from, txid, bn, tx_id) => {
             });
             break;
           case "hbd:buy":
-            store.get(["dex", "hbd"], function (e, res) {
+            store.get([dex, "hbd"], function (e, res) {
               if (e) {
                 console.log(e);
               } else if (isEmpty(res)) {
                 console.log("Nothing here" + a.txid);
               } else {
-                r = res.buyOrders[`${a.rate}:${a.txid}`];
+                const r = res.buyOrders[`${a.rate}:${a.txid}`];
                 res.buyBook = DEX.remove(a.txid, res.buyBook);
                 ops.push({
                   type: "put",
-                  path: ["dex", "hbd", "buyBook"],
+                  path: [dex, "hbd", "buyBook"],
                   data: res.buyBook,
                 });
                 a.cancel = true;
@@ -2861,7 +2861,7 @@ export const release = (from, txid, bn, tx_id) => {
                     from: Config("msaccount"),
                     to: a.from,
                     amount: parseFloat(a.hbd / 1000).toFixed(3) + " HBD",
-                    memo: `Canceled ${Config("TOKEN")} buy ${a.txid}`,
+                    memo: `Canceled ${token} buy ${a.txid}`,
                   },
                 ];
                 ops.push({
