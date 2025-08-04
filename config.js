@@ -1437,8 +1437,8 @@ const CodeShare = {
         const entry = fileEntries[i];
         if (entry.length !== 4) return false;
         const [name, type, thumb, flagsCombined] = entry
-        if (!namePattern.test(name)) return false
-        if (!typePattern.test(type)) return false
+        if (name && !namePattern.test(name)) return false
+        if (type && !typePattern.test(type)) return false
         const typeParts = type.split('.');
         function b58ToNumber(chars) {
           const glyphs58 = "0123456789ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz"
