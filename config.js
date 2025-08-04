@@ -2837,6 +2837,7 @@ const CustomJsonProcessing = [
                   nt: "1",
                   df: decentralized_files,
                   u: total,
+                  p: 3,
                   v: 1, //verified file size
                   r: 0, // No refund needed for direct uploads
                   b: from, // broker is self
