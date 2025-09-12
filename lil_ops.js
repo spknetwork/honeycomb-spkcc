@@ -54,7 +54,7 @@ export const release = (from, txid, bn, tx_id, dex = 'dex', ltoken = "balance") 
                 } else if (isEmpty(res)) {
                   console.log("Nothing here" + a.txid);
                 } else {
-                  r = res.sellOrders[`${a.rate}:${a.txid}`];
+                  const r = res.sellOrders[`${a.rate}:${a.txid}`];
                   res.sellBook = DEX.remove(a.txid, res.sellBook);
                   ops.push({
                     type: "put",
