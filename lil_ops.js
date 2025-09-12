@@ -39,7 +39,7 @@ export function nai(obj) {
     }`;
   }
 
-export const release = (from, txid, bn, tx_id, dex = 'dex', ltoken = "balance") => {
+export const release = (from, txid, bn, tx_id, dex = 'dex', ltoken = "balances") => {
     return new Promise((resolve, reject) => {
       store.get(["contracts", from, txid], function (er, a) {
         if (er) {
@@ -220,7 +220,7 @@ export const release = (from, txid, bn, tx_id, dex = 'dex', ltoken = "balance") 
     });
   };
 
-export const forceCancel = (rate, type, block_num, dex = 'dex', ltoken = "balance") => {
+export const forceCancel = (rate, type, block_num, dex = 'dex', ltoken = "balances") => {
     return new Promise((resolve, reject) => {
         const price = parseFloat(rate)
         let Ps = getPathObj([dex, type, 'sellOrders'])
